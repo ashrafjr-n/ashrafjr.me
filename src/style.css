@@ -315,6 +315,41 @@ body {
 }
 
 /* ===========================================================
+   "Selected Work" transition — brief label between Hero and the
+   first project depth item. Not a real section: just centered
+   text passing through depth on its way to the work.
+   =========================================================== */
+.depth-item--transition {
+  width: min(92vw, 700px);
+  text-align: center;
+  pointer-events: none !important; /* it's a beat, never interactive */
+}
+
+.transition__content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.9rem;
+}
+
+.transition__index {
+  font-family: var(--font-code);
+  font-size: 0.8rem;
+  letter-spacing: 0.35em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.transition__title {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(2.4rem, 7vw, 5rem);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text);
+}
+
+/* ===========================================================
    Selected Work — project blocks (content of each depth item)
    =========================================================== */
 .project {
@@ -380,6 +415,26 @@ body {
   padding: 0.35rem 0.7rem;
 }
 
+.project__link {
+  display: inline-block;
+  margin-top: 1.75rem;
+  font-family: var(--font-code);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--text);
+  text-decoration: none;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 0.2rem;
+  transition: color 0.2s ease, border-color 0.2s ease;
+}
+
+.project__link:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
 /* ---- Preview column: polaroid-style photo floating in space ----
    Thick warm-white frame, tall portrait photo, caption strip in the deeper
    bottom margin, per-card tilt (--tilt set from work.ts) and a soft layered
@@ -388,8 +443,8 @@ body {
   --tilt: 5deg;
   justify-self: center;
   width: min(58%, 280px);
-  background: #f4f1ea; /* warm photo-paper white */
-  padding: 6.5% 6.5% 0; /* thick frame; bottom comes from the caption strip */
+  background: #a3a3a8; /* muted cool silver, not paper-white */
+  padding: 2% 2% 0; /* slim, refined frame; bottom comes from the caption strip */
   border-radius: 2px;
   transform: rotate(var(--tilt));
   box-shadow:
@@ -413,16 +468,16 @@ body {
   background: linear-gradient(160deg, var(--surface-2), var(--surface));
 }
 
-/* Caption in the polaroid's tall bottom margin — ink on paper. */
+/* Caption in the polaroid's bottom margin — ink on the silver frame. */
 .project__caption {
   display: block;
-  padding: 0.9rem 0 1.2rem;
+  padding: 0.6rem 0 0.85rem;
   text-align: center;
   font-family: var(--font-code);
   font-size: 0.6rem;
   letter-spacing: 0.3em;
   text-transform: uppercase;
-  color: rgba(25, 12, 15, 0.6);
+  color: rgba(20, 10, 12, 0.75);
 }
 
 .project__placeholder span {

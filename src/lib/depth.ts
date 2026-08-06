@@ -16,6 +16,7 @@ export interface DepthItem {
   el: HTMLElement
   baseZ: number
   index: number
+  fadeScale: number
 }
 
 /** CSS perspective applied to the world (keep in sync with .world in CSS). */
@@ -32,9 +33,15 @@ const Z_NEAR = Z_GAP * 0.5 // gone by here (kept < PERSPECTIVE so it never blows
 
 const items: DepthItem[] = []
 
-/** Register a section element at depth index `index` (Hero = 0). */
-export function registerSection(el: HTMLElement, index: number): DepthItem {
-  const item: DepthItem = { el, baseZ: -index * Z_GAP, index }
+/**
+ * Register a section element at depth index `index` (Hero = 0).
+ *
+ * `fadeScale` narrows the fade-in/fade-out window around the screen plane
+ * (1 = default, matches a full section like Hero/projects; <1 = quicker,
+ * for brief transitional items that shouldn't linger).
+ */
+export function registerSection(el: HTMLElement, index: number, fadeScale = 1): DepthItem {
+  const item: DepthItem = { el, baseZ: -index * Z_GAP, index, fadeScale }
   items.push(item)
   return item
 }
@@ -48,14 +55,23 @@ function clamp01(v: number): number {
   return v < 0 ? 0 : v > 1 ? 1 : v
 }
 
-/** Opacity for a given relative Z: fade in from afar, fade out just past camera. */
-function alphaFor(relZ: number): number {
-  if (relZ <= Z_FADE_IN_START || relZ >= Z_NEAR) return 0
-  if (relZ < Z_FADE_IN_END) {
-    return clamp01((relZ - Z_FADE_IN_START) / (Z_FADE_IN_END - Z_FADE_IN_START))
+/**
+ * Opacity for a given relative Z: fade in from afar, fade out just past camera.
+ * `fadeScale` scales the whole window in toward the screen plane (relZ = 0),
+ * so a smaller value fades in/out over a shorter stretch of scroll.
+ */
+function alphaFor(relZ: number, fadeScale: number): number {
+  const fadeInStart = Z_FADE_IN_START * fadeScale
+  const fadeInEnd = Z_FADE_IN_END * fadeScale
+  const fadeOutStart = Z_FADE_OUT_START * fadeScale
+  const near = Z_NEAR * fadeScale
+
+  if (relZ <= fadeInStart || relZ >= near) return 0
+  if (relZ < fadeInEnd) {
+    return clamp01((relZ - fadeInStart) / (fadeInEnd - fadeInStart))
   }
-  if (relZ > Z_FADE_OUT_START) {
-    return clamp01(1 - (relZ - Z_FADE_OUT_START) / (Z_NEAR - Z_FADE_OUT_START))
+  if (relZ > fadeOutStart) {
+    return clamp01(1 - (relZ - fadeOutStart) / (near - fadeOutStart))
   }
   return 1
 }
@@ -70,7 +86,7 @@ export function updateDepth(scroll: number): void {
 
   for (const item of items) {
     const relZ = item.baseZ + cameraZ
-    const alpha = alphaFor(relZ)
+    const alpha = alphaFor(relZ, item.fadeScale)
     const style = item.el.style
 
     if (alpha <= 0.001) {

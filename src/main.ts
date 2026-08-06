@@ -2,6 +2,7 @@ import './style.css'
 import 'lenis/dist/lenis.css'
 import Lenis from 'lenis'
 import { initHero } from './sections/hero'
+import { initTransition } from './sections/transition'
 import { initWork } from './sections/work'
 import { initScene } from './three/scene'
 import { state, initPointer } from './lib/state'
@@ -26,8 +27,12 @@ heroItem.append(heroContent)
 world.append(heroItem)
 registerSection(heroItem, 0)
 
-// Work projects become depth items 1..N.
-initWork(world, 1)
+// A brief "Selected Work" label becomes depth item 1, between Hero and the
+// first project.
+initTransition(world, 1)
+
+// Work projects become depth items 2..N+1.
+initWork(world, 2)
 
 // --- Invisible scroll proxy: the only thing that generates page height.
 //     One extra viewport of trailing distance lets the last section pass. ---

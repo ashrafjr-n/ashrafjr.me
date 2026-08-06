@@ -30,12 +30,18 @@ function buildText(project: Project): HTMLDivElement {
     tags.append(el('li', 'project__tag', tag))
   }
 
+  const link = el('a', 'project__link', `${project.link.label} →`)
+  link.href = project.link.url
+  link.target = '_blank'
+  link.rel = 'noopener noreferrer'
+
   text.append(
     el('span', 'project__num', project.num),
     el('h2', 'project__title', project.title),
     el('p', 'project__subtitle', project.subtitle),
     el('p', 'project__desc', project.description),
     tags,
+    link,
   )
   return text
 }
