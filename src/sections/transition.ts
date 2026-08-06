@@ -20,7 +20,6 @@ export function initTransition(world: HTMLElement, index: number): void {
   const content = document.createElement('div')
   content.className = 'transition__content'
   content.innerHTML = `
-    <span class="transition__index">— 02</span>
     <h2 class="transition__title">Selected Work</h2>
   `
 

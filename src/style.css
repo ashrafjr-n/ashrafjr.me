@@ -329,15 +329,6 @@ body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.9rem;
-}
-
-.transition__index {
-  font-family: var(--font-code);
-  font-size: 0.8rem;
-  letter-spacing: 0.35em;
-  text-transform: uppercase;
-  color: var(--accent);
 }
 
 .transition__title {
@@ -436,14 +427,14 @@ body {
 }
 
 /* ---- Preview column: polaroid-style photo floating in space ----
-   Thick warm-white frame, tall portrait photo, caption strip in the deeper
+   Slim dark-silver frame, tall portrait photo, caption strip in the deeper
    bottom margin, per-card tilt (--tilt set from work.ts) and a soft layered
    shadow so it reads as a physical print, not a UI panel. */
 .project__preview {
   --tilt: 5deg;
   justify-self: center;
   width: min(58%, 280px);
-  background: #a3a3a8; /* muted cool silver, not paper-white */
+  background: #54545b; /* muted dark cool grey, subdued against the black bg */
   padding: 2% 2% 0; /* slim, refined frame; bottom comes from the caption strip */
   border-radius: 2px;
   transform: rotate(var(--tilt));
@@ -468,7 +459,7 @@ body {
   background: linear-gradient(160deg, var(--surface-2), var(--surface));
 }
 
-/* Caption in the polaroid's bottom margin — ink on the silver frame. */
+/* Caption in the polaroid's bottom margin — light text on the dark frame. */
 .project__caption {
   display: block;
   padding: 0.6rem 0 0.85rem;
@@ -477,7 +468,7 @@ body {
   font-size: 0.6rem;
   letter-spacing: 0.3em;
   text-transform: uppercase;
-  color: rgba(20, 10, 12, 0.75);
+  color: rgba(230, 230, 235, 0.6);
 }
 
 .project__placeholder span {
