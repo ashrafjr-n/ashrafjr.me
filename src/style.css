@@ -11,8 +11,8 @@
   --font-code: "JetBrains Mono", monospace;
 
   --bg: #050505;
-  --surface: #140509;
-  --surface-2: #1f070d;
+  --surface: #101010;
+  --surface-2: #1a1a1a;
   --text: #e6e6e6;
   --text-dim: rgba(255, 255, 255, 0.5);
   --accent: #ff1f3c;
@@ -53,7 +53,7 @@ select {
    Base
    =========================================================== */
 body {
-  /* Wine glow lives on the body now (shows through the transparent canvas). */
+  /* Neutral ambient glow lives on the body (shows through the transparent canvas). */
   background:
     radial-gradient(120% 120% at 50% 40%, var(--surface) 0%, var(--bg) 60%) fixed,
     var(--bg);
@@ -434,7 +434,7 @@ body {
   --tilt: 5deg;
   justify-self: center;
   width: min(58%, 280px);
-  background: #54545b; /* muted dark cool grey, subdued against the black bg */
+  background: #3c3c44; /* dark graphite/silver, clearly darker against the black bg */
   padding: 2% 2% 0; /* slim, refined frame; bottom comes from the caption strip */
   border-radius: 2px;
   transform: rotate(var(--tilt));
@@ -468,7 +468,7 @@ body {
   font-size: 0.6rem;
   letter-spacing: 0.3em;
   text-transform: uppercase;
-  color: rgba(230, 230, 235, 0.6);
+  color: rgba(230, 230, 235, 0.78);
 }
 
 .project__placeholder span {
