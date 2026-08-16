@@ -105,6 +105,20 @@ body {
   transition: color 0.25s ease, filter 0.25s ease;
 }
 
+/* Circular frame shared by all three icons (GitHub, LinkedIn, email) so they
+   render as same-sized icon-in-circle badges. */
+.icon-circle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid currentColor;
+  flex-shrink: 0;
+}
+
 .github-badge svg {
   display: block;
   transition: transform 0.25s ease, color 0.25s ease;
