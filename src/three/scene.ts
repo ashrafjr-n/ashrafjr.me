@@ -30,7 +30,9 @@ import type { InputState } from '../lib/state'
 import { createWorld, MODEL_SPIN_RATE } from './world'
 
 export interface SceneController {
-  update(time: number, state: InputState): void
+  /** Advances and renders a frame. Returns the smoothed 0..1 scroll progress
+   *  so DOM-side pieces of the transition stay on the exact same driver. */
+  update(time: number, state: InputState): number
   resize(): void
 }
 
@@ -402,7 +404,7 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
   const layerFly = new Vector3()
   const invRotation = new Quaternion()
 
-  function update(time: number, state: InputState): void {
+  function update(time: number, state: InputState): number {
     const delta = Math.min((time - prevTime) / 1000, 0.1) // clamp big tab-switch gaps
     prevTime = time
 
@@ -444,6 +446,8 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
     renderer.render(scene, world.camera) // same vantage -> same orbital plane
     renderer.clearDepth() // world layer sits in front of the starfield
     renderer.render(world.scene, world.camera)
+
+    return progress
   }
 
   function resize(): void {

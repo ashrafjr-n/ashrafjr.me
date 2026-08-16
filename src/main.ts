@@ -51,9 +51,29 @@ window.addEventListener('resize', () => scene.resize())
 initPointer()
 initScroll()
 
+/**
+ * Scroll progress at which the intro line has fully gone. It clears early in
+ * the transition so it is never left hanging over Scene 2.
+ */
+const INTRO_FADE_END = 0.28
+/** How far the line drifts upward as it goes, in px. */
+const INTRO_DRIFT = 70
+
+let introShown = -1
+
+/** Fade and lift the intro line, driven by the same progress as the scene. */
+function updateIntro(progress: number): void {
+  const t = Math.min(progress / INTRO_FADE_END, 1)
+  if (Math.abs(t - introShown) < 0.002) return // skip redundant style writes
+  introShown = t
+  intro.style.opacity = String(1 - t)
+  intro.style.transform = `translate(-50%, ${-t * INTRO_DRIFT}px)`
+}
+
 // --- Single RAF loop: drives the starfield ---
 function raf(time: number) {
-  scene.update(time, state)
+  const progress = scene.update(time, state)
+  updateIntro(progress)
   requestAnimationFrame(raf)
 }
 
