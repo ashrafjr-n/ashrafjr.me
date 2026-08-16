@@ -58,8 +58,8 @@ function boxOf(el: HTMLElement): Box {
 }
 
 /**
- * Build the window's DOM. A fixed-position mask over everything, with no frame
- * of its own — at full size its edges are the screen's.
+ * Build the window's DOM. A fixed-position mask over everything, framed by a
+ * hairline that sits --reveal-inset off the screen's edges when it is open.
  */
 function buildElements(): {
   root: HTMLDivElement
@@ -119,15 +119,20 @@ export function createRevealWindow(parent: HTMLElement): RevealWindow {
   }
 
   /**
-   * Percentages, not `vw`/`vh` or measured pixels: they resolve against the
-   * viewport minus a classic scrollbar, and the page is always scrollable, so
-   * the window can never be grown wider than the visible area.
+   * The opened box: the screen, held `--reveal-inset` off all four edges, so
+   * the scene sits in an even frame instead of running to the screen's edges.
+   * One token drives all four sides, which is what keeps the margin equal.
+   *
+   * Percentages, not `vw`/`vh`: they resolve against the viewport minus a
+   * classic scrollbar, and the page is always scrollable, so the window can
+   * never be grown wider than the visible area.
    */
-  function applyFullScreen(): void {
-    root.style.left = '0px'
-    root.style.bottom = '0px'
-    root.style.width = '100%'
-    root.style.height = '100%'
+  function applyOpenBox(): void {
+    const inset = 'var(--reveal-inset)'
+    root.style.left = inset
+    root.style.bottom = inset
+    root.style.width = `calc(100% - 2 * ${inset})`
+    root.style.height = `calc(100% - 2 * ${inset})`
   }
 
   function open(trigger: HTMLElement): void {
@@ -146,9 +151,9 @@ export function createRevealWindow(parent: HTMLElement): RevealWindow {
     root.classList.add('is-open')
     root.setAttribute('aria-hidden', 'false')
     trigger.setAttribute('aria-expanded', 'true')
-    applyFullScreen()
+    applyOpenBox()
 
-    // Hand the view over only when the window is actually full-screen.
+    // Hand the view over only when the window has finished growing.
     clearTimeout(lookTimer)
     lookTimer = window.setTimeout(() => {
       isLookLive = true
@@ -203,7 +208,7 @@ export function createRevealWindow(parent: HTMLElement): RevealWindow {
   })
 
   function update(state: InputState): void {
-    // Only while the window is open and full-screen; the scene draws nothing at
+    // Only while the window is open and grown; the scene draws nothing at
     // all otherwise, and skips the draw even then if the view has not moved.
     if (isLookLive) scene.update(state)
   }

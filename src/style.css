@@ -32,6 +32,12 @@
   /* Open/close easing for the reveal window: a long expo-out tail. */
   --reveal-ease: cubic-bezier(0.16, 1, 0.3, 1);
   --reveal-duration: 620ms;
+  /* How far the opened window is held off every screen edge. One value drives
+     all four sides (see ui/reveal-window.ts), so the frame stays even. */
+  --reveal-inset: clamp(14px, 2.2vmin, 30px);
+  /* The line on that frame — without it the inset would just be black on
+     black. Same hairline family as the close corner. */
+  --reveal-frame: rgba(255, 255, 255, 0.22);
 }
 
 /* ===========================================================
@@ -187,9 +193,13 @@ body {
 
    It has no resting box on screen: it is invisible while closed, and grows out
    of whichever word was clicked. left/bottom/width/height are therefore
-   written from ui/reveal-window.ts (the word's own measured box, then
-   0/0/100%/100%) — the values here are only a starting point for before the
-   first open.
+   written from ui/reveal-window.ts (the word's own measured box, then the
+   inset full-screen box) — the values here are only a starting point for
+   before the first open.
+
+   Open, it stops --reveal-inset short of all four screen edges and draws a
+   hairline there, so the scene reads as a framed view rather than running off
+   the edges. The frame is deliberate; it replaced an edge-to-edge takeover.
    =========================================================== */
 .reveal-window {
   position: fixed;
@@ -200,6 +210,9 @@ body {
   /* Over everything except the badges (60). */
   z-index: 40;
   overflow: hidden;
+  /* border-box is global, so this sits inside the box the JS writes and the
+     canvas is cropped by it rather than pushed about. */
+  border: 1px solid var(--reveal-frame);
   /* Invisible until it is opened. On the way out the fade waits until the
      shrink back into the word has almost finished, so the closing animation
      is actually seen; on the way in it is instant, since the window has to be
