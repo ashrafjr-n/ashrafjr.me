@@ -19,6 +19,16 @@
   --bg: #000000;
   --text-dim: rgba(255, 255, 255, 0.5);
   --accent: #e8e8ec;
+
+  /* Scene 2 card row geometry. Shared, because the reveal window (a separate
+     fixed element) has to land exactly on the right card's inner box. */
+  --card-row-w: min(760px, 82vw);
+  --card-row-h: clamp(150px, 24vh, 260px);
+  --card-row-bottom: 10vh;
+
+  /* Open/close easing for the reveal window: a long expo-out tail. */
+  --reveal-ease: cubic-bezier(0.16, 1, 0.3, 1);
+  --reveal-duration: 620ms;
 }
 
 /* ===========================================================
@@ -87,15 +97,15 @@ body {
    =========================================================== */
 .scene2-cards {
   position: fixed;
-  bottom: 10vh;
+  bottom: var(--card-row-bottom);
   left: 50%;
   z-index: 20;
   transform: translateX(-50%);
   display: flex;
-  width: min(760px, 82vw);
+  width: var(--card-row-w);
   /* Top of the row lands around 66vh with the 10vh bottom offset, which keeps
      it clear of the model in the levelled Scene 2 view. */
-  height: clamp(150px, 24vh, 260px);
+  height: var(--card-row-h);
   border: 1px solid #ffffff;
   opacity: 0;
   pointer-events: none;
