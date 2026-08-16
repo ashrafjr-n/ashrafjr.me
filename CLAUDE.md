@@ -216,6 +216,10 @@ starfield in `scene.ts`/`world.ts` but the technique — don't try to merge them
   looking around inside the space, where translating layers reads as sliding
   pictures. Note that rotation alone gives no depth parallax by construction;
   the depth comes from the objects really being at different distances.
+- **The two axes are deliberately lopsided.** `MAX_YAW` is 0.3 rad (~17°
+  across) but `MAX_PITCH` is only 0.04 (~2° up and down), so left/right is the
+  pronounced move and vertical is barely a hint of weight. Keep the pitch a
+  small fraction of the yaw; raising it back toward the yaw was reverted.
 - The turn is **sprung, not lerped** (`SPRING_STIFFNESS` / `SPRING_DAMPING`,
   just under critical damping): it trails a fast pointer, coasts on after it
   stops and settles over about a second. That weight is most of what makes it
