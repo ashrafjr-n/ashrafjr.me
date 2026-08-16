@@ -140,8 +140,7 @@ const REVEAL_IMAGE_SRC = '/assets/projects/projects-background.png'
  * width in vw — both deliberately uneven, so the field reads as a composition
  * rather than a grid, and clear of the badges (top-left) and close button
  * (top-right). `depth` is how far it counter-moves at full mouse deflection,
- * in px: every planet has its own, and the bigger/nearer ones move most. The
- * backdrop's REVEAL_BACKDROP_DEPTH is below all of them, so it reads farthest.
+ * in px, and comes from REVEAL_TIER.
  */
 interface PlanetSpec {
   src: string
@@ -150,21 +149,33 @@ interface PlanetSpec {
   w: number
   depth: number
 }
+
+/**
+ * Three depth planes, in px of travel at full mouse deflection.
+ *
+ * The planets are grouped rather than each given its own rate: six distinct
+ * rates read as six stickers sliding over one another, where a few shared
+ * planes read as one space seen through a window. Inside a plane the planets
+ * differ by a couple of px only — enough that the plane is not a flat cutout.
+ * Keep the gap between planes well above the spread inside one.
+ */
+const REVEAL_TIER = { far: 34, mid: 52, near: 76 }
+
 const REVEAL_PLANETS: PlanetSpec[] = [
-  { src: 'three.png', x: 86, y: 52, w: 6, depth: 22 },
-  { src: 'two.png', x: 60, y: 72, w: 8, depth: 28 },
-  { src: 'one.png', x: 44, y: 30, w: 11, depth: 35 },
-  { src: 'four.png', x: 30, y: 84, w: 14, depth: 43 },
-  { src: 'black.png', x: 72, y: 26, w: 20, depth: 52 },
-  { src: 'white.png', x: 18, y: 62, w: 26, depth: 64 },
+  { src: 'three.png', x: 86, y: 52, w: 6, depth: REVEAL_TIER.far - 2 },
+  { src: 'two.png', x: 60, y: 72, w: 8, depth: REVEAL_TIER.far + 2 },
+  { src: 'one.png', x: 44, y: 30, w: 11, depth: REVEAL_TIER.mid - 3 },
+  { src: 'four.png', x: 30, y: 84, w: 14, depth: REVEAL_TIER.mid + 3 },
+  { src: 'black.png', x: 72, y: 26, w: 20, depth: REVEAL_TIER.near - 3 },
+  { src: 'white.png', x: 18, y: 62, w: 26, depth: REVEAL_TIER.near + 3 },
 ]
 
 /**
- * The backdrop's own counter-movement, in px. Smallest of all the layers — it
- * is the farthest thing in the frame — and it has to stay inside the few
- * percent of overhang --img-w leaves past the viewport, or the edge shows.
+ * The backdrop's own counter-movement, in px. Well below every planet plane —
+ * it is the farthest thing in the frame — and far inside the overhang --img-w
+ * leaves past the viewport, so no pointer position can pull an edge into view.
  */
-const REVEAL_BACKDROP_DEPTH = 12
+const REVEAL_BACKDROP_DEPTH = 18
 /** Vertical counter-movement as a fraction of the horizontal, kept subtler. */
 const REVEAL_PARALLAX_Y = 0.55
 /** Per-frame approach rate of every parallax layer toward its target. */
