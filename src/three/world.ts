@@ -25,7 +25,9 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 
 // --- Framing ---
 const CAMERA_FOV = 35
-const CAMERA_POS = { x: 0, y: 8, z: 6.5 } // ~47° above the horizon: bird's-eye
+// ~63° above the horizon: steeper, more overhead than the ~50° it used to sit
+// at. Distance to the target is held at ~10 units so the framing barely shifts.
+const CAMERA_POS = { x: 0, y: 9.3, z: 4.6 }
 const CAMERA_TARGET = { x: 0, y: 0.25, z: 0 } // model's own mid-height: centers it on screen
 
 const MODEL_URL = '/models/space_boi.glb'
