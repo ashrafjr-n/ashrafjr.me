@@ -19,7 +19,6 @@
 import {
   AdditiveBlending,
   BufferGeometry,
-  CanvasTexture,
   Color,
   Float32BufferAttribute,
   PerspectiveCamera,
@@ -32,7 +31,9 @@ import {
   TextureLoader,
   WebGLRenderer,
 } from 'three'
+import { rand } from '../lib/math'
 import type { InputState } from '../lib/state'
+import { createCircleTexture } from './sprite'
 
 const CAMERA_FOV = 62
 
@@ -109,25 +110,6 @@ export interface RevealScene {
   /** Open/close. Closing recentres the view and leaves one still frame drawn. */
   setActive(active: boolean): void
   resize(): void
-}
-
-/** Soft round sprite so points draw as dots, not squares. */
-function createCircleTexture(): CanvasTexture {
-  const size = 64
-  const canvas = document.createElement('canvas')
-  canvas.width = canvas.height = size
-  const ctx = canvas.getContext('2d')!
-  const g = ctx.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2)
-  g.addColorStop(0, 'rgba(255,255,255,1)')
-  g.addColorStop(0.35, 'rgba(255,255,255,0.6)')
-  g.addColorStop(1, 'rgba(255,255,255,0)')
-  ctx.fillStyle = g
-  ctx.fillRect(0, 0, size, size)
-  return new CanvasTexture(canvas) // its constructor already flags needsUpdate
-}
-
-function rand(min: number, max: number): number {
-  return min + Math.random() * (max - min)
 }
 
 /** A star volume surrounding the camera, drawn as one Points. */

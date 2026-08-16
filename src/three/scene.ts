@@ -16,7 +16,6 @@
 import {
   AdditiveBlending,
   BufferGeometry,
-  CanvasTexture,
   Color,
   Float32BufferAttribute,
   Points,
@@ -26,7 +25,9 @@ import {
   Vector3,
   WebGLRenderer,
 } from 'three'
+import { rand } from '../lib/math'
 import type { InputState } from '../lib/state'
+import { createCircleTexture } from './sprite'
 import { createWorld, MODEL_SPIN_RATE } from './world'
 
 export interface SceneController {
@@ -175,25 +176,6 @@ const FLY_EASE = 1.6
 // --- Interaction tuning (mouse parallax; gentle / clamped) ---
 const MAX_TILT = 0.09 // max parallax tilt from the mouse (~5°), radians
 const TILT_LERP = 0.05 // how fast tilt eases toward the target
-
-/** Soft round sprite so points are dots, not squares. */
-function createCircleTexture(): CanvasTexture {
-  const size = 64
-  const canvas = document.createElement('canvas')
-  canvas.width = canvas.height = size
-  const ctx = canvas.getContext('2d')!
-  const g = ctx.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2)
-  g.addColorStop(0, 'rgba(255,255,255,1)')
-  g.addColorStop(0.35, 'rgba(255,255,255,0.6)')
-  g.addColorStop(1, 'rgba(255,255,255,0)')
-  ctx.fillStyle = g
-  ctx.fillRect(0, 0, size, size)
-  return new CanvasTexture(canvas) // its constructor already flags needsUpdate
-}
-
-function rand(min: number, max: number): number {
-  return min + Math.random() * (max - min)
-}
 
 /** A set of stars orbiting the model's vertical axis, drawn as one Points. */
 interface StarLayer {
