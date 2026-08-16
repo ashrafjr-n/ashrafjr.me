@@ -32,9 +32,25 @@ export interface SceneController {
 }
 
 const PARTICLE_COUNT = 1500
-const SPREAD_XY = 900 // half-width of the x/y volume
-const DEPTH = 2400 // z length of the field (deep for parallax)
-const DRIFT_SPEED = 30 // world units per second the field moves toward camera
+
+// --- Orbital disc ---
+// Distances are in the world layer's units, where the model spans ~3.1, so the
+// stars sit in the same space as the model's own embedded stars.
+const ORBIT_MIN_RADIUS = 5
+const ORBIT_MAX_RADIUS = 60
+/** Vertical spread as a fraction of orbit radius — flares the disc outward. */
+const DISC_FLARE = 0.22
+/** Vertical spread floor, so inner stars are not pinned flat to the plane. */
+const DISC_CORE_HEIGHT = 1.5
+
+// Angular speeds in rad/s, all in the model's own direction of spin. Tiered so
+// most stars are slow, a few are quick, and each one is randomised within its
+// tier — a single uniform rate reads mechanical.
+const SPEED_TIERS = [
+  { chance: 0.78, min: 0.01, max: 0.05 }, // most: barely creeping
+  { chance: 0.18, min: 0.05, max: 0.14 }, // some: mid-paced
+  { chance: 0.04, min: 0.14, max: 0.38 }, // few: noticeably fast
+]
 
 // --- Interaction tuning (mouse parallax; gentle / clamped) ---
 const MAX_TILT = 0.09 // max parallax tilt from the mouse (~5°), radians
@@ -61,6 +77,17 @@ function rand(min: number, max: number): number {
   return min + Math.random() * (max - min)
 }
 
+/** Pick an orbital speed from the weighted tiers, randomised within the tier. */
+function randomOrbitSpeed(): number {
+  let roll = Math.random()
+  for (const tier of SPEED_TIERS) {
+    if (roll < tier.chance) return rand(tier.min, tier.max)
+    roll -= tier.chance
+  }
+  const last = SPEED_TIERS[SPEED_TIERS.length - 1]
+  return rand(last.min, last.max)
+}
+
 export function initScene(canvas: HTMLCanvasElement): SceneController {
   const renderer = new WebGLRenderer({ canvas, antialias: true, alpha: true })
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
@@ -78,16 +105,32 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
   )
   camera.position.set(0, 0, 0)
 
-  // --- Particle geometry: positions distributed through a deep volume ---
+  // --- Particle geometry: a flared disc orbiting the model's centre ---
+  // Each star keeps its own radius / height / angle / angular speed; only the
+  // angle changes per frame, so a star can never drift off its own orbit.
   const positions = new Float32Array(PARTICLE_COUNT * 3)
   const colors = new Float32Array(PARTICLE_COUNT * 3)
+  const radii = new Float32Array(PARTICLE_COUNT)
+  const angles = new Float32Array(PARTICLE_COUNT)
+  const speeds = new Float32Array(PARTICLE_COUNT)
   const c = new Color()
 
   for (let i = 0; i < PARTICLE_COUNT; i++) {
     const i3 = i * 3
-    positions[i3] = rand(-SPREAD_XY, SPREAD_XY)
-    positions[i3 + 1] = rand(-SPREAD_XY, SPREAD_XY)
-    positions[i3 + 2] = rand(-DEPTH, 0) // ahead of the camera (down -z)
+    // sqrt keeps the disc from bunching up in the middle, since area grows
+    // with r^2 — without it the centre reads as a dense blob.
+    const t = Math.sqrt(Math.random())
+    const radius = ORBIT_MIN_RADIUS + t * (ORBIT_MAX_RADIUS - ORBIT_MIN_RADIUS)
+    const angle = Math.random() * Math.PI * 2
+    const spread = DISC_CORE_HEIGHT + radius * DISC_FLARE
+
+    radii[i] = radius
+    angles[i] = angle
+    speeds[i] = randomOrbitSpeed()
+
+    positions[i3] = Math.cos(angle) * radius
+    positions[i3 + 1] = rand(-spread, spread) // fixed height: orbits stay level
+    positions[i3 + 2] = Math.sin(angle) * radius
 
     // White/silver only — grayscale brightness from pure white down to
     // a slightly dimmer silver-white, no color tint.
