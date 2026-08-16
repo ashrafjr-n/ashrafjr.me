@@ -4,7 +4,8 @@ At the start of every session, and after every /clear, read vibe.md first before
 
 ## Stack
 - **Vite** — build tool / dev server
-- **TypeScript** — vanilla, no framework
+- **TypeScript** — vanilla, no framework. `strict` is on, along with
+  `noUnusedLocals`/`noUnusedParameters`; `npx tsc --noEmit` is the quick check
 - **Three.js** — 3D scene work (`src/three/`)
 - **Plain CSS** — no Tailwind, no CSS framework (`src/style.css`)
 
@@ -35,10 +36,18 @@ bird's-eye camera, over the drifting starfield, on pure black. Most of the
 original scroll/section system was intentionally stripped out and has not come
 back. What exists today:
 
-- `src/main.ts` — mounts the full-screen `#scene` canvas, initializes the
-  Three.js scene (`src/three/scene.ts`), starts mouse-pointer tracking
-  (`src/lib/state.ts`), builds and appends the social icon row and the Scene 2
-  card row, and runs the single RAF loop.
+- `src/main.ts` — wiring only: mounts the full-screen `#scene` canvas, the
+  intro line and the Scene 2 card row, initializes the Three.js scene
+  (`src/three/scene.ts`), starts input tracking (`src/lib/state.ts`), mounts
+  the social row and the reveal window, and runs the single RAF loop with the
+  DOM side of the scroll transition. Feature markup and behaviour live in
+  `src/ui/`, not here.
+- `src/ui/social.ts` — the social icon row: the three inline SVGs, the
+  `SOCIAL_LINKS` data and the one factory that builds them.
+- `src/ui/reveal-window.ts` — the reveal window as one unit: its DOM, its
+  open/close and hover behaviour, its closed-state tilt, and the 3D layer
+  behind it (see **Reveal window** below). `main.ts` only fades it and calls
+  its `update()`.
 - `src/three/scene.ts` — owns the renderer and the orbiting particle starfield
   (white/silver dots only; see **Starfield** below). The particle field also
   tilts in response to mouse position. It owns the two-pass composite (see
@@ -62,8 +71,13 @@ back. What exists today:
   to `MODEL_SPAN` wants `CAMERA_TARGET` nudged to keep the framing centred.
 - `src/lib/state.ts` — shared `InputState` (`mouseX`, `mouseY`, `scroll`)
   written by `initPointer()` and `initScroll()`, read every frame by the scene.
+- `src/lib/math.ts` (`rand`, `clamp`) and `src/three/sprite.ts`
+  (`createCircleTexture`) — the handful of helpers both 3D scenes need. They
+  were duplicated verbatim in `scene.ts` and `reveal.ts`; keep them shared.
+  Each scene still calls `createCircleTexture()` for a texture of its own,
+  since the two have separate renderers.
 - Social icon row (`.social-badges`, top-left) — three `.social-badge`-class
-  links built in `main.ts`: GitHub (icon + "ashrafjr-n" label, links to
+  links built in `src/ui/social.ts`: GitHub (icon + "ashrafjr-n" label, links to
   `github.com/ashrafjr-n`), and two icon-only links (no label span) for
   LinkedIn and email (`mailto:aannaelj@gmail.com`). They are **data, not three
   functions**: the `SOCIAL_LINKS` array feeds one `buildSocialLink()` factory,
@@ -132,8 +146,9 @@ back. What exists today:
     window covers is excluded (`:not(:last-child)`): the row paints above the
     closed window, so an interactive card there would swallow the window's
     clicks and tilt. Its hover is mirrored from the window's own
-    `mouseenter`/`mouseleave` instead, through `setRevealCardHover()`, which
-    sets `.is-hovered` on both elements and is cleared on open.
+    `mouseenter`/`mouseleave` instead, through `setCardHover()` in
+    `src/ui/reveal-window.ts`, which sets `.is-hovered` on both elements and is
+    cleared on open. The window is handed that card at construction.
   - The row is a **DOM overlay** — nothing about it was added to the Scene 1
     Three.js layers, so Scene 1 and the transition are untouched. `opacity`
     starts at 0 in CSS and `main.ts` fades it in over the last
@@ -150,15 +165,16 @@ At rest (scroll 0) the world camera does not move; the mouse parallax affects
 the wide starfield only. Everything else moves only under scroll.
 
 ## Reveal window (right Scene 2 card)
-The project preview, shown through the right card. It is a **real Three.js
-scene** (`src/three/reveal.ts`), not stacked images: a particle star volume
-around a fixed camera, with the planet PNGs as billboards at their own
-distances. An earlier version composited `projects-background.png` and six
-planet `<img>`s with CSS transforms; that was replaced because layer
+The project preview, shown through the right card. The element and everything
+it does live in `src/ui/reveal-window.ts`; the 3D layer behind it is
+`src/three/reveal.ts`. It is a **real Three.js scene**, not stacked images: a
+particle star volume around a fixed camera, with the planet PNGs as billboards
+at their own distances. An earlier version composited `projects-background.png`
+and six planet `<img>`s with CSS transforms; that was replaced because layer
 translation cannot produce a true look-around, and it should not come back.
 `public/assets/projects/black|white|one|two|three|four.png` are still used, as
-sprite textures. Both `projects-background.png` files (in `projects/` and one
-level up) are **no longer referenced by anything**.
+sprite textures. The `projects-background.png` files went unreferenced with
+that change and have been deleted.
 
 **The card is a mask, not a viewport of its own.** The canvas inside is always
 viewport-sized, so opening grows the mask to fill the screen and what was
@@ -184,23 +200,30 @@ above.)
   size — the edges are the screen's.
 - The social badges sit at `z-index: 60`, above the window's 40, so the links
   stay visible and clickable over the takeover. Keep them above it.
-- Closed only, the canvas tilts with the mouse: `rotateY` up to
-  `REVEAL_TILT_MAX` degrees, damped by `REVEAL_TILT_LERP` in the single RAF
-  loop. It is a CSS rotation of the whole canvas about its own centre, nothing
-  to do with the 3D camera.
+- Closed only, the canvas tilts with the mouse: `rotateY` up to `TILT_MAX`
+  degrees, damped by `TILT_LERP`, driven from the single RAF loop. It is a CSS
+  rotation of the whole canvas about its own centre, nothing to do with the 3D
+  camera.
 - Opened by click/Enter/Space, closed by the `.reveal-close` button, a click
   outside, or Escape. Two permanent document listeners handle the last two; the
   opening click's target is inside the window, so it cannot self-close.
-- It is faded and gated by hand in `updateScene2Cards()` (same `progress` as the
-  row, since it is not a child of it) and only accepts input above
-  `REVEAL_ACTIVE_AT`; scrolling back toward Scene 1 closes it.
+- It is faded and gated by hand from `updateScene2Cards()` in `main.ts` (same
+  `progress` as the row, since it is not a child of it) via `setOpacity()` and
+  `setInteractive()`, and only accepts input above `REVEAL_ACTIVE_AT`;
+  scrolling back toward Scene 1 closes it.
+- The window **mounts itself** into `#app` and only then builds its 3D layer.
+  That order is load-bearing: the scene draws exactly one still frame at
+  startup and then renders on demand, so its canvas has to be in the page for
+  that frame to reach the screen.
 
 ### The 3D layer (`src/three/reveal.ts`)
-Its own renderer, scene and camera. It shares **nothing** with the Scene 1
-starfield in `scene.ts`/`world.ts` but the technique — don't try to merge them.
+Its own renderer, scene and camera, owned by `src/ui/reveal-window.ts` — no
+other module touches it. It shares **nothing** with the Scene 1 starfield in
+`scene.ts`/`world.ts` but the technique — don't try to merge them.
 
-- **Still one RAF loop in the app.** `main.ts` calls `revealScene.update()` only
-  while the window is open and full-screen; the scene draws nothing otherwise,
+- **Still one RAF loop in the app.** The window's own `update()`, called from
+  that loop, calls into this scene only while the window is open and
+  full-screen; the scene draws nothing otherwise,
   and skips the draw even then when the view has not moved enough to matter.
   Everything is built once at startup and reused, so reopening allocates
   nothing and there is no second loop or second context per open.
@@ -423,9 +446,10 @@ of sync.
 
 Do not create a second animation loop — any new per-frame logic (camera motion,
 model animation, etc.) should hook into this same loop, ideally inside
-`scene.ts`'s `update()` before the render calls. The reveal window's 3D scene
-follows that rule too: it has its own renderer but no loop of its own, and this
-one calls into it only while the window is open.
+`scene.ts`'s `update()` before the render calls. UI features do the same the
+other way round: `src/ui/reveal-window.ts` exposes an `update()` that this loop
+calls once a frame, and its 3D scene has its own renderer but no loop of its
+own — the window calls into it only while it is open.
 
 ## Removed (do not assume these exist)
 The following existed in an earlier version of this project and were
