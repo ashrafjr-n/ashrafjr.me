@@ -14,8 +14,12 @@
   --font-display: "Space Grotesk", sans-serif;
   --font-code: "JetBrains Mono", monospace;
 
-  --bg: #050505;
-  --surface: #101010;
+  /* Scene 1 silver. Mirrored in src/three/world.ts as SILVER — the platform
+     mesh uses the exact same value so it reads as one continuous surface.
+     Change both together. */
+  --silver: #a9aeb3;
+
+  --bg: var(--silver);
   --text-dim: rgba(255, 255, 255, 0.5);
   --accent: #e8e8ec;
 }
@@ -24,10 +28,9 @@
    Base
    =========================================================== */
 body {
-  /* Neutral ambient glow lives on the body (shows through the transparent canvas). */
-  background:
-    radial-gradient(120% 120% at 50% 40%, var(--surface) 0%, var(--bg) 60%) fixed,
-    var(--bg);
+  /* Flat, ungraded silver — shows through the transparent canvas and must stay
+     pixel-identical to the platform mesh, so no gradient here. */
+  background: var(--bg);
   color: var(--text-dim);
   font-family: var(--font-code);
   -webkit-font-smoothing: antialiased;
