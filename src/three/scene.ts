@@ -25,7 +25,7 @@ import {
   WebGLRenderer,
 } from 'three'
 import type { InputState } from '../lib/state'
-import { createWorld } from './world'
+import { createWorld, MODEL_SPIN_RATE } from './world'
 
 export interface SceneController {
   update(time: number, state: InputState): void
@@ -51,13 +51,17 @@ const CLOUD_RADIUS = 48
 const CLOUD_INNER = 3 // keeps stars off the camera's lens
 const CLOUD_FLATTEN = 0.7 // y squash: < 1 favours the model's orbital plane
 
-// Angular speeds in rad/s, all in the model's own direction of spin. Tiered so
-// most stars are slow, a few are quick, and each one is randomised within its
-// tier — a single uniform rate reads mechanical.
+// Angular speeds, all in the model's own direction of spin, expressed as
+// multiples of MODEL_SPIN_RATE — the rate the model's own embedded stars travel
+// at. Anchoring here is what makes the two sets read as one system: the slow
+// tier sits around the model's own rate rather than well below it, so no site
+// star crawls while the model's stars sweep past it.
+//
+// Tiered, and randomised within each tier, so the field never looks mechanical.
 const SPEED_TIERS = [
-  { chance: 0.78, min: 0.01, max: 0.05 }, // most: barely creeping
-  { chance: 0.18, min: 0.05, max: 0.14 }, // some: mid-paced
-  { chance: 0.04, min: 0.14, max: 0.38 }, // few: noticeably fast
+  { chance: 0.78, min: 0.8, max: 1.4 }, // most: near the model's own rate
+  { chance: 0.18, min: 1.4, max: 2.6 }, // some: clearly quicker
+  { chance: 0.04, min: 2.6, max: 5.0 }, // few: streak past
 ]
 
 // --- Interaction tuning (mouse parallax; gentle / clamped) ---
@@ -85,15 +89,18 @@ function rand(min: number, max: number): number {
   return min + Math.random() * (max - min)
 }
 
-/** Pick an orbital speed from the weighted tiers, randomised within the tier. */
+/**
+ * Pick an orbital speed from the weighted tiers, randomised within the tier.
+ * Tier bounds are multiples of the model's own spin rate.
+ */
 function randomOrbitSpeed(): number {
   let roll = Math.random()
   for (const tier of SPEED_TIERS) {
-    if (roll < tier.chance) return rand(tier.min, tier.max)
+    if (roll < tier.chance) return rand(tier.min, tier.max) * MODEL_SPIN_RATE
     roll -= tier.chance
   }
   const last = SPEED_TIERS[SPEED_TIERS.length - 1]
-  return rand(last.min, last.max)
+  return rand(last.min, last.max) * MODEL_SPIN_RATE
 }
 
 export function initScene(canvas: HTMLCanvasElement): SceneController {
