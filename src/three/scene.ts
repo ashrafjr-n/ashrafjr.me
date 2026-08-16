@@ -114,19 +114,32 @@ const BAND_POINT_SIZE = 0.025
  */
 const SCROLL_LERP = 0.08
 
-/** Extra orbit radius each band star gains by full scroll — it flies apart. */
-const BAND_SCATTER_MIN = 25
-const BAND_SCATTER_MAX = 70
+/**
+ * Extra orbit radius each band star gains by full scroll — it flies apart.
+ *
+ * These ranges and the easing exponents below were solved against the frustum
+ * rather than guessed: displacement that is too large empties the frame within
+ * the first fifth of the scroll and leaves nothing to watch for the rest of it.
+ * Both layers stay populated the whole way down with these values. Re-check
+ * with the same method before changing them.
+ */
+const BAND_SCATTER_MIN = 8
+const BAND_SCATTER_MAX = 26
+/** Ease-in on the scatter, so the ring holds its shape before breaking up. */
+const BAND_SCATTER_EASE = 2.2
 
 /**
  * How far each ambient star travels toward the camera by full scroll. The
- * spread means they stream past rather than arriving as a wall. The furthest a
- * star can start behind the camera along this axis is 62 (cloud radius) + 10.2
- * (the camera's own offset) = 72.2, so the minimum clears that with room to
- * spare and every star is genuinely past the camera by the end.
+ * furthest a star can start behind the camera along this axis is 62 (cloud
+ * radius) + 10.2 (the camera's own offset) = 72.2. Sizing the travel just under
+ * that is deliberate: successively deeper stars sweep through the visible cone
+ * as the scroll runs, so the field keeps streaming instead of emptying at once,
+ * and is fully past the camera by Scene 2.
  */
-const FLY_DISTANCE_MIN = 95
-const FLY_DISTANCE_MAX = 190
+const FLY_DISTANCE_MIN = 60
+const FLY_DISTANCE_MAX = 75
+/** Ease-in on the fly-past, so stars build up speed rather than lurching off. */
+const FLY_EASE = 1.6
 
 // --- Interaction tuning (mouse parallax; gentle / clamped) ---
 const MAX_TILT = 0.09 // max parallax tilt from the mouse (~5°), radians
@@ -165,6 +178,8 @@ interface StarLayer {
   scatter: Float32Array | null
   /** Per-star travel toward the camera at full scroll — the ambient fly-past. */
   fly: Float32Array | null
+  /** Exponent applied to scroll progress before displacing this layer. */
+  ease: number
   posAttr: Float32BufferAttribute
 }
 
@@ -193,17 +208,20 @@ function advance(
   flyZ: number,
 ): void {
   const arr = layer.posAttr.array as Float32Array
+  // Same scroll value for every layer; each just responds on its own curve.
+  const t = layer.ease === 1 ? progress : Math.pow(progress, layer.ease)
+
   for (let i = 0; i < layer.count; i++) {
     const angle = layer.angles[i] + layer.speeds[i] * delta
     layer.angles[i] = angle
 
-    const radius = layer.scatter ? layer.radii[i] + layer.scatter[i] * progress : layer.radii[i]
+    const radius = layer.scatter ? layer.radii[i] + layer.scatter[i] * t : layer.radii[i]
     let x = Math.cos(angle) * radius
     let y = layer.heights[i]
     let z = Math.sin(angle) * radius
 
     if (layer.fly) {
-      const travelled = layer.fly[i] * progress
+      const travelled = layer.fly[i] * t
       x += flyX * travelled
       y += flyY * travelled
       z += flyZ * travelled
@@ -251,7 +269,7 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
     count: number,
     pointSize: number,
     place: () => { radius: number; y: number },
-    transition: { scatter?: () => number; fly?: () => number } = {},
+    transition: { scatter?: () => number; fly?: () => number; ease?: number } = {},
   ): StarLayer {
     const positions = new Float32Array(count * 3)
     const colors = new Float32Array(count * 3)
@@ -321,6 +339,7 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
       speeds,
       scatter,
       fly,
+      ease: transition.ease ?? 1,
       posAttr: geometry.getAttribute('position') as Float32BufferAttribute,
     }
   }
@@ -341,6 +360,7 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
     // On scroll these fly toward and past the camera, and are never wrapped
     // back around — the field thins out as Scene 1 is left behind.
     fly: () => rand(FLY_DISTANCE_MIN, FLY_DISTANCE_MAX),
+    ease: FLY_EASE,
   })
 
   // The close-in band — the orbits that stay on screen for a whole revolution.
@@ -350,6 +370,7 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
   }), {
     // On scroll these widen out of their tight orbit and scatter away.
     scatter: () => rand(BAND_SCATTER_MIN, BAND_SCATTER_MAX),
+    ease: BAND_SCATTER_EASE,
   })
 
   // --- Scene 1 world layer (the model), drawn over the starfield ---
