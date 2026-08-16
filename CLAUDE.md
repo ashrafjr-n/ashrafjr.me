@@ -36,8 +36,8 @@ back. What exists today:
 - `src/three/scene.ts` — owns the renderer and the orbiting particle starfield
   (white/silver dots only; see **Starfield** below). The particle field also
   tilts in response to mouse position. It owns the two-pass composite (see
-  **Render passes**). There is no scroll input wired up anywhere in the app
-  right now — `state.mouseX`/`state.mouseY` are the only live input values.
+  **Render passes**). It also owns the smoothed `progress` that drives the
+  Scene 1 → Scene 2 transition (see **Scroll transition**).
 - `src/three/world.ts` — the Scene 1 world layer: its own `Scene` +
   bird's-eye `PerspectiveCamera` (fov 35, at `(0, 9.3, 4.6)` looking at
   `(0, 0.25, 0)`, ~63° above the horizon), white key/fill/ambient lights, the
@@ -52,12 +52,12 @@ back. What exists today:
   overflows the viewport. It is then centered on x/z and dropped so it rests on
   `y = 0`. The camera target's `y` is the model's mid-height, so a large change
   to `MODEL_SPAN` wants `CAMERA_TARGET` nudged to keep the framing centred.
-- `src/lib/state.ts` — shared `InputState` (`mouseX`, `mouseY` only) written
-  by a `mousemove` listener, read every frame by the scene.
+- `src/lib/state.ts` — shared `InputState` (`mouseX`, `mouseY`, `scroll`)
+  written by `initPointer()` and `initScroll()`, read every frame by the scene.
 - GitHub badge — fixed top-left, links to `github.com/ashrafjr-n`.
 
-The world camera does not move. Nothing in Scene 1 responds to input yet — the
-mouse parallax affects the starfield only.
+At rest (scroll 0) the world camera does not move; the mouse parallax affects
+the wide starfield only. Everything else moves only under scroll.
 
 ## Model spin
 The model spins slowly clockwise about its own vertical axis, forever.
@@ -75,6 +75,9 @@ The model spins slowly clockwise about its own vertical axis, forever.
 - `MODEL_SPIN_RATE` is **exported** and the starfield's speed tiers are
   multiples of it, so changing it re-paces the site's stars too. That coupling
   is deliberate — see **Starfield**.
+- During the scroll transition the rate is multiplied by
+  `1 + SPIN_BOOST * sin(pi * progress)` — idle at both ends, fastest half-way,
+  so Scene 2 returns to idle with no extra state or timer.
 - It advances by `delta` seconds, not per frame, so the speed is frame-rate
   independent. `delta` is clamped to 0.1s in `scene.ts`, so a throttled
   background tab animates slower than wall-clock — expected, same as the
@@ -153,6 +156,40 @@ the cloud. Its window is genuinely tight and was solved against the frustum:
 Known limitation: the band clips on **portrait** windows (aspect below ~0.85).
 It cannot be fixed by shrinking the band, because anything under 2.47 disappears
 behind the model's slab — it would need a different camera.
+
+## Scroll transition (Scene 1 → Scene 2)
+Scrolling drives four things **simultaneously off one value**. `state.scroll` is
+raw page scroll 0..1; `scene.ts` smooths it into `progress` (`SCROLL_LERP`) once
+per frame and every part reads that same number. Keep it that way — anything
+driven off raw scroll, or off its own timer, will drift out of sync.
+
+The scroll range comes from `body { min-height: 300vh }` in style.css. Everything
+on screen is `position: fixed`, so the page has no content of its own to scroll;
+that rule is the only reason a scroll range exists. Scene 2 does not exist yet —
+progress 1 is simply the end state.
+
+| what | where | at progress 1 |
+| --- | --- | --- |
+| band scatters outward | `BAND_SCATTER_*` in `scene.ts` | orbit radius 2.7 → ~11–29 |
+| ambient stars fly past camera | `FLY_DISTANCE_*` in `scene.ts` | all past the camera, gone |
+| camera dollies in and drops | `SCENE2_CAMERA_*` in `world.ts` | dist 10.2 → 5.0, +63° → −3° |
+| model spin boosts | `SPIN_BOOST` in `world.ts` | back to idle (peaks mid-scroll) |
+
+- Displacements are computed **from** `progress`, never accumulated frame to
+  frame, so scrubbing back up rewinds exactly. It is also why the fly-past needs
+  no wrap: a star that passes the camera keeps going and nothing returns it.
+- Each layer has its own `ease` exponent (`FLY_EASE`, `BAND_SCATTER_EASE`) —
+  same driver, different response curve. **These are load-bearing.** The first
+  attempt used linear travel of 95–190 units and emptied the frame by scroll
+  0.25, leaving nothing to watch for the remaining 75%. The travel is sized just
+  under the 72.2 units that separates the far edge of the cloud from the camera,
+  so deeper stars keep sweeping into view as the scroll runs. Re-check on-screen
+  star counts across progress before retuning any of these.
+- Star layers set `frustumCulled = false`. Three computes a geometry's bounding
+  sphere once, and the transition moves stars far outside their initial bounds —
+  with culling on, whole layers pop out of view mid-scroll.
+- The fly direction is converted into each layer's local space before use,
+  because the mouse tilt rotates the wide cloud's buffer.
 
 ## Render passes
 `renderer.autoClear` is **false**. Every frame, `scene.ts` does:
