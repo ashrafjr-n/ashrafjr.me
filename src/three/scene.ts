@@ -209,7 +209,14 @@ interface StarLayer {
   fly: Float32Array | null
   /** Exponent applied to scroll progress before displacing this layer. */
   ease: number
-  /** The attribute's own backing array, written directly each frame. */
+  /**
+   * The attribute's **own** backing array, written directly each frame.
+   *
+   * This must be read back off the attribute, never kept from the array passed
+   * to the constructor: `Float32BufferAttribute` does `new Float32Array(array)`,
+   * so it copies. Holding the pre-fill array instead writes to an orphan copy
+   * and freezes every layer — the band visibly, the cloud silently.
+   */
   positions: Float32Array
   /** Flagged after each write so Three re-uploads the buffer. */
   posAttr: Float32BufferAttribute
@@ -386,7 +393,8 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
       scatter,
       fly,
       ease: transition.ease ?? 1,
-      positions,
+      // The attribute's copy of `positions`, not `positions` itself.
+      positions: posAttr.array as Float32Array,
       posAttr,
     }
   }
