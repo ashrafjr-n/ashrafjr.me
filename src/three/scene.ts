@@ -21,6 +21,7 @@ import {
   Float32BufferAttribute,
   Points,
   PointsMaterial,
+  Quaternion,
   Scene,
   Vector3,
   WebGLRenderer,
@@ -119,12 +120,13 @@ const BAND_SCATTER_MAX = 70
 
 /**
  * How far each ambient star travels toward the camera by full scroll. The
- * spread means they stream past rather than arriving as a wall. The minimum
- * comfortably exceeds the far side of the cloud (radius 62 plus the camera's
- * ~10 unit offset), so every star does clear the camera by the end.
+ * spread means they stream past rather than arriving as a wall. The furthest a
+ * star can start behind the camera along this axis is 62 (cloud radius) + 10.2
+ * (the camera's own offset) = 72.2, so the minimum clears that with room to
+ * spare and every star is genuinely past the camera by the end.
  */
-const FLY_DISTANCE_MIN = 80
-const FLY_DISTANCE_MAX = 170
+const FLY_DISTANCE_MIN = 95
+const FLY_DISTANCE_MAX = 190
 
 // --- Interaction tuning (mouse parallax; gentle / clamped) ---
 const MAX_TILT = 0.09 // max parallax tilt from the mouse (~5°), radians
@@ -302,6 +304,12 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
     })
 
     const points = new Points(geometry, material)
+    // The scroll transition moves stars far outside the bounds they were built
+    // with (scattered to ~73, flown ~190 toward the camera). Three only
+    // computes a geometry's bounding sphere once, so leaving culling on would
+    // let it test against stale bounds and pop the whole layer out of view
+    // mid-scroll. These layers always fill the frame, so culling buys nothing.
+    points.frustumCulled = false
     scene.add(points)
 
     return {
@@ -352,6 +360,8 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
   /** Smoothed scroll position. The single driver for the whole transition. */
   let progress = 0
   const flyDir = new Vector3()
+  const layerFly = new Vector3()
+  const invRotation = new Quaternion()
 
   function update(time: number, state: InputState): void {
     const delta = Math.min((time - prevTime) / 1000, 0.1) // clamp big tab-switch gaps
@@ -379,8 +389,15 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
     // displacement in the same pass. Increasing the angle with x = cos,
     // z = sin turns them clockwise from the camera — the same direction the
     // model spins.
-    advance(cloud, delta, progress, flyDir.x, flyDir.y, flyDir.z)
-    advance(band, delta, progress, flyDir.x, flyDir.y, flyDir.z)
+    //
+    // The offsets are written into each layer's own buffer, which the mouse
+    // tilt then rotates, so the world-space direction is converted into that
+    // layer's local space first — otherwise the stars fly a few degrees wide
+    // of the camera instead of straight past it.
+    for (const layer of [cloud, band]) {
+      layerFly.copy(flyDir).applyQuaternion(invRotation.copy(layer.points.quaternion).invert())
+      advance(layer, delta, progress, layerFly.x, layerFly.y, layerFly.z)
+    }
 
     world.update(delta, progress)
 
