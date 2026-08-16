@@ -35,7 +35,7 @@ export interface SceneController {
 // The camera sits inside the disc and only a narrow cone of it is ever on
 // screen, so the count is high to keep the on-screen star density looking the
 // way it did before. Points are cheap; only the angle is recomputed per frame.
-const PARTICLE_COUNT = 9000
+const PARTICLE_COUNT = 5800
 
 // --- Orbital cloud ---
 // Distances are in the world layer's units, where the model spans ~3.1, so the
@@ -47,7 +47,7 @@ const PARTICLE_COUNT = 9000
 // squashed ball keeps stars all around the frustum while FLATTEN still biases
 // them toward the model's own plane. Every star orbits the same Y axis either
 // way, so the motion reads as one system regardless of the thickness.
-const CLOUD_RADIUS = 70
+const CLOUD_RADIUS = 48
 const CLOUD_INNER = 3 // keeps stars off the camera's lens
 const CLOUD_FLATTEN = 0.7 // y squash: < 1 favours the model's orbital plane
 
@@ -157,7 +157,7 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
     // volume, so the point size scales down to match. Three sizes points as
     // `size * 0.5 * drawingBufferHeight / distance` (fov plays no part), so
     // this is set from the old size/distance ratio to keep dots the same size.
-    size: 0.1,
+    size: 0.11,
     sizeAttenuation: true,
     map: createCircleTexture(),
     vertexColors: true,
