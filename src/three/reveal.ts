@@ -77,6 +77,11 @@ interface PlanetSpec {
 const PLANETS: PlanetSpec[] = [
   { src: 'white.png', dist: 40, size: 8, yaw: -0.36, pitch: -0.1, opacity: 1 },
   { src: 'black.png', dist: 60, size: 9, yaw: 0.34, pitch: 0.16, opacity: 0.95 },
+  // The same white planet again, further off and half the size, out to the
+  // right — one body seen twice at two depths, which is cheap parallax. It
+  // shares the first one's texture (see the loader below); a file is loaded
+  // once however many planets use it.
+  { src: 'white.png', dist: 72, size: 5.2, yaw: 0.46, pitch: -0.16, opacity: 0.9 },
   { src: 'four.png', dist: 85, size: 9, yaw: -0.62, pitch: 0.24, opacity: 0.8 },
   { src: 'one.png', dist: 110, size: 8, yaw: 0.12, pitch: -0.26, opacity: 0.7 },
   { src: 'two.png', dist: 140, size: 8.5, yaw: 0.66, pitch: -0.2, opacity: 0.6 },
@@ -179,30 +184,45 @@ export function createRevealScene(canvas: HTMLCanvasElement): RevealScene {
 
   scene.add(createStars())
 
-  const loader = new TextureLoader()
+  // Planets are grouped by file, so a texture used by more than one of them is
+  // fetched and uploaded once and shared — the two white planets are the same
+  // body at two depths.
+  const byFile = new Map<string, PlanetSpec[]>()
   for (const spec of PLANETS) {
-    const material = new SpriteMaterial({
-      transparent: true,
-      depthWrite: false,
-      opacity: spec.opacity,
-    })
-    const sprite = new Sprite(material)
-    const cosPitch = Math.cos(spec.pitch)
-    sprite.position.set(
-      Math.sin(spec.yaw) * cosPitch * spec.dist,
-      Math.sin(spec.pitch) * spec.dist,
-      -Math.cos(spec.yaw) * cosPitch * spec.dist,
-    )
-    sprite.scale.set(spec.size, spec.size, 1)
-    scene.add(sprite)
+    const group = byFile.get(spec.src)
+    if (group) group.push(spec)
+    else byFile.set(spec.src, [spec])
+  }
 
-    loader.load(`/assets/projects/${spec.src}`, (texture) => {
+  const loader = new TextureLoader()
+  for (const [src, specs] of byFile) {
+    const billboards = specs.map((spec) => {
+      const material = new SpriteMaterial({
+        transparent: true,
+        depthWrite: false,
+        opacity: spec.opacity,
+      })
+      const sprite = new Sprite(material)
+      const cosPitch = Math.cos(spec.pitch)
+      sprite.position.set(
+        Math.sin(spec.yaw) * cosPitch * spec.dist,
+        Math.sin(spec.pitch) * spec.dist,
+        -Math.cos(spec.yaw) * cosPitch * spec.dist,
+      )
+      sprite.scale.set(spec.size, spec.size, 1)
+      scene.add(sprite)
+      return { spec, sprite, material }
+    })
+
+    loader.load(`/assets/projects/${src}`, (texture) => {
       texture.colorSpace = SRGBColorSpace
-      material.map = texture
-      material.needsUpdate = true
       // Height is the given size; width follows the artwork's own aspect.
       const { width, height } = texture.image as { width: number; height: number }
-      sprite.scale.set(spec.size * (width / height), spec.size, 1)
+      for (const { spec, sprite, material } of billboards) {
+        material.map = texture
+        material.needsUpdate = true
+        sprite.scale.set(spec.size * (width / height), spec.size, 1)
+      }
       render() // the frame on screen predates this texture
     })
   }
