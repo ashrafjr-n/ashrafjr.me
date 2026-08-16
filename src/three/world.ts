@@ -30,19 +30,25 @@ const CAMERA_FOV = 35
 const CAMERA_POS = { x: 0, y: 8, z: 6.5 } // ~47° above the horizon: bird's-eye
 const CAMERA_TARGET = { x: 0, y: 1, z: 0 }
 
-const PLATFORM_SIZE = 5.5 // world units, square
+const PLATFORM_SIZE = 4.4 // world units, square — a silver margin around the model
+const PLATFORM_Y = -0.015 // just under y=0 so it never z-fights the model's base
 
 const MODEL_URL = '/models/space_boi.glb'
-const MODEL_HEIGHT = 2.6 // target world height; leaves clear space left/right
+/**
+ * Target world size of the model's widest horizontal dimension. The GLB is a
+ * wide, shallow diorama, so it is fitted by footprint rather than height —
+ * fitting by height would blow the footprint far past the viewport.
+ */
+const MODEL_SPAN = 3.1
 
 /**
- * Normalize an arbitrary GLB: uniform-scale it to MODEL_HEIGHT, center it on
- * x/z and drop it so its lowest point sits on the platform at y = 0.
+ * Normalize the GLB: uniform-scale it to MODEL_SPAN, center it on x/z and drop
+ * it so its lowest point sits on the platform.
  */
 function fitToPlatform(model: Object3D): void {
   const box = new Box3().setFromObject(model)
   const size = box.getSize(new Vector3())
-  model.scale.setScalar(MODEL_HEIGHT / (size.y || 1))
+  model.scale.setScalar(MODEL_SPAN / (Math.max(size.x, size.z) || 1))
 
   const fitted = new Box3().setFromObject(model)
   const center = fitted.getCenter(new Vector3())
@@ -62,6 +68,7 @@ function createPlatform(): Mesh {
     new MeshBasicMaterial({ color: SILVER, side: DoubleSide, toneMapped: false }),
   )
   mesh.rotation.x = -Math.PI / 2 // lay it flat
+  mesh.position.y = PLATFORM_Y
   return mesh
 }
 
