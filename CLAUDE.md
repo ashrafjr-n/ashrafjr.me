@@ -110,7 +110,9 @@ back. What exists today:
   3D** — nothing was added to the Three.js layers, so Scene 1 and the
   transition are untouched. `opacity` starts at 0 in CSS and `main.ts` fades it
   in over the last `1 - CARDS_FADE_START` of the scroll off the same
-  `progress` the scene returns, so the row is invisible until Scene 2.
+  `progress` the scene returns, so the row is invisible until Scene 2. The
+  right card carries the reveal window (below); the left one is still empty.
+- Reveal window (`.reveal-window`) — see **Reveal window** below.
 - Cursor — the default system cursor everywhere. A custom Saturn cursor and
   then a custom arrow both existed and were reverted; `public/cursor-saturn.svg`
   is gone and no `cursor: url(...)` rule remains. The only cursor rule left is
@@ -118,6 +120,44 @@ back. What exists today:
 
 At rest (scroll 0) the world camera does not move; the mouse parallax affects
 the wide starfield only. Everything else moves only under scroll.
+
+## Reveal window (right Scene 2 card)
+`public/assets/projects-background.png` (2470x1220, the same black/white
+starfield-with-planets language as the model) shown through the right card.
+**The card is a mask, not an image container.** The image is 300% of the closed
+window and its size and offset inside the window never change — opening only
+grows the mask, so the crop already on screen stays at the identical spot
+inside it and the new area uncovers more of the same image. Never scale,
+translate or animate the image to open it; that would read as a zoom.
+
+- It is a **separate `position: fixed` element**, not the card itself: the card
+  is a flex item in the row and could not fly out to the corner. Its closed
+  geometry is therefore *derived* from the row's tokens (`--card-row-w/h/bottom`
+  on `:root`, shared with `.scene2-cards`) rather than measured, so it lands
+  exactly on the right card's inner box — `left: calc(50% + 0.5px)` works
+  whatever the row's width because the divider is always centred. Change the
+  row's size only through those tokens or the two will drift apart.
+- Every size derives from `--img-w`, so the crop maths holds at any viewport:
+  the closed crop starts at 0.12/0.16 of the image and the open size is
+  0.68/0.78 of it, both comfortably inside 1. The open card is ~50vw wide on a
+  laptop, pinned 4vw/5vh off the top-right corner. `--img-h` hard-codes the
+  PNG's 2470/1220 aspect — **replacing the image means updating that ratio**.
+- Open/close animates `left/bottom/width/height` (620ms expo-out). It cannot use
+  a transform: scaling the mask would scale the image with it.
+- The open state's frame is an **`outline`, not a `border`** — an outline is
+  painted outside the box, so gaining the frame costs no layout and the image
+  underneath cannot shift by a pixel.
+- Closed only, the image tilts with the mouse: `rotateY` up to
+  `REVEAL_TILT_MAX` degrees, damped by `REVEAL_TILT_LERP` in the single RAF
+  loop, about a **fixed** `transform-origin` at the centre of the closed crop
+  (`perspective()` lives in the transform, so that point is the vanishing point
+  too). It is a rotation, never a pan — the crop must not slide.
+- Opened by click/Enter/Space, closed by the `.reveal-close` button, a click
+  outside, or Escape. Two permanent document listeners handle the last two; the
+  opening click's target is inside the window, so it cannot self-close.
+- It is faded and gated by hand in `updateScene2Cards()` (same `progress` as the
+  row, since it is not a child of it) and only accepts input above
+  `REVEAL_ACTIVE_AT`; scrolling back toward Scene 1 closes it.
 
 ## Model spin
 The model spins slowly clockwise about its own vertical axis, forever.
