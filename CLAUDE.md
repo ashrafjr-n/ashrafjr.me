@@ -25,10 +25,10 @@ At the start of every session, and after every /clear, read vibe.md first before
   lighten the background, or put a ground/backdrop mesh behind the model.
 - Fonts loaded: **Space Grotesk** (`--font-display`, still not applied to any
   element) and **JetBrains Mono** (`--font-code`, applied to body text, the
-  social badges and the intro line). **Weight 400 only** for both — the
-  Google Fonts request in `index.html` was trimmed to what is actually
-  rendered, so anything set bolder than 400 will synthesize until the weight is
-  added back to that URL.
+  social badges, the intro line and the Scene 2 row). JetBrains Mono is
+  requested at **400 and 700**, Space Grotesk at **400 only** — the Google
+  Fonts request in `index.html` carries exactly what is rendered, so anything
+  set to a weight that is not in that URL will synthesize until it is added.
 
 ## Current state
 Scene 1 is the static opening composition: the `space_boi` diorama seen from a
@@ -37,17 +37,17 @@ original scroll/section system was intentionally stripped out and has not come
 back. What exists today:
 
 - `src/main.ts` — wiring only: mounts the full-screen `#scene` canvas, the
-  intro line and the Scene 2 card row, initializes the Three.js scene
+  intro line and the Scene 2 row, initializes the Three.js scene
   (`src/three/scene.ts`), starts input tracking (`src/lib/state.ts`), mounts
-  the social row and the reveal window, and runs the single RAF loop with the
-  DOM side of the scroll transition. Feature markup and behaviour live in
-  `src/ui/`, not here.
+  the social row and the reveal window, hands the window its triggers, and runs
+  the single RAF loop with the DOM side of the scroll transition. Feature
+  markup and behaviour live in `src/ui/`, not here.
 - `src/ui/social.ts` — the social icon row: the three inline SVGs, the
   `SOCIAL_LINKS` data and the one factory that builds them.
 - `src/ui/reveal-window.ts` — the reveal window as one unit: its DOM, its
-  open/close and hover behaviour, its closed-state tilt, and the 3D layer
-  behind it (see **Reveal window** below). `main.ts` only fades it and calls
-  its `update()`.
+  open/close behaviour, its JS-written geometry and the 3D layer behind it
+  (see **Reveal window** below). `main.ts` only mounts it, binds the trigger
+  words and calls its `update()`.
 - `src/three/scene.ts` — owns the renderer and the orbiting particle starfield
   (white/silver dots only; see **Starfield** below). The particle field also
   tilts in response to mouse position. It owns the two-pass composite (see
@@ -115,58 +115,50 @@ back. What exists today:
   `INTRO_FADE_END` of the scroll. It uses `--font-code`, the same face as the
   badge; `--font-display` (Space Grotesk) is loaded but still unused anywhere.
   No `text-transform` — the copy is rendered exactly as written.
-- Scene 2 card row (`.scene2-cards`, bottom-centre) — two flush `.scene2-card`
-  divs built in `main.ts` from `SCENE2_CARD_COUNT`, sitting below the model in
-  the levelled Scene 2 view. **Both are empty** — shape only, no content yet.
-  They read as one wide rectangle split by a single line: **each card carries
-  its own full 1px border** and the second is pulled onto the first with
-  `margin-left: -1px`, so the two adjacent borders collapse into one divider
-  and the outer boundary is unchanged. The row itself has no border — a card
-  needs a complete rectangle of its own to be able to grow on hover. Sharp
-  corners on purpose — no `border-radius`. **The line is one token,
-  `--card-line`** (white at 0.16), plus a near-invisible `--card-line-glow`
-  bloom; a solid `#fff` line was tried and read too harsh against the black.
-  Keep both cards on that same token so the boundary and the divider never
-  diverge.
-- Card hover — the hovered card scales by `--card-hover-scale` (1.09) and lifts
-  to `z-index: 2` over its neighbour, its border deepening to
-  `--card-line-hover`. It is a transform, so the other card never moves or
-  resizes; flex items honour `z-index` without being positioned, which is what
-  lets the growing one overlap rather than be clipped. The closed window sits at
-  `z-index: 15`, under the row, so a card growing across the divider draws its
-  border over the 3D view.
-  - **The right card and the reveal window scale together**, by the same factor
-    about the same centre — the window is that card's box inset 1px all round,
-    so one scale keeps them concentric and the view goes on filling the card. `--card-hover-duration` is shared by both for the same reason. This
-    is the *only* time the window itself is transformed; opening still must not
-    scale it.
-  - Pointer routing is the fiddly part. The row is `pointer-events: none` and
-    the cards opt back in via `.scene2-cards.is-live .scene2-card`, gated from
-    `main.ts` because an opacity-0 element is still a hit target. The card the
-    window covers is excluded (`:not(:last-child)`): the row paints above the
-    closed window, so an interactive card there would swallow the window's
-    clicks and tilt. Its hover is mirrored from the window's own
-    `mouseenter`/`mouseleave` instead, through `setCardHover()` in
-    `src/ui/reveal-window.ts`, which sets `.is-hovered` on both elements and is
-    cleared on open. The window is handed that card at construction.
+- Scene 2 row (`.scene2-row`, bottom-centre) — three elements on one line,
+  centred on each other, below the model in the levelled Scene 2 view: the word
+  **CONTACT**, the portrait, the word **PROJECTS**. Built in `main.ts`, sized
+  from four `:root` tokens (`--row-bottom`, `--row-gap`, `--row-mark-h`,
+  `--row-word-size`).
+  - **There are no containers here and there must not be any.** This replaced
+    two flush bordered cards (`.scene2-cards` / `.scene2-card`, with a
+    `--card-line` hairline boundary and divider, a hover scale, and the reveal
+    window fitted to the right card's inner box). All of that was deleted on
+    purpose — no card, border, divider, background, box-shadow or
+    `border-radius` may come back for these three.
+  - The two words are `.scene2-word` **`<button>`s reset to plain type**
+    (`background: none; border: 0`), so Enter/Space and focus come for free.
+    `--font-code` at **weight 700** — that weight is requested in `index.html`;
+    keep it there. Hover/focus lifts the type itself (brighter, `translateY`)
+    rather than drawing anything around it.
+  - The portrait (`.scene2-mark`) is `public/assets/svg/me.svg`, an animated
+    ASCII-art self-portrait, mounted as a plain `<img>` and sized by height so
+    its own aspect (1036x1363) sets the width. It carries a
+    `prefers-color-scheme: light` variant that would flip its greys to
+    near-black on the black page, so the CSS pins `color-scheme: dark` on it —
+    don't remove that. Its greys are palette-safe; its one off-palette cursor
+    colour was recoloured to grey on the way in.
+  - The row is `pointer-events: none` and the words opt back in via
+    `.scene2-row.is-live .scene2-word`, gated from `main.ts` because an
+    opacity-0 element is still a hit target.
   - The row is a **DOM overlay** — nothing about it was added to the Scene 1
     Three.js layers, so Scene 1 and the transition are untouched. `opacity`
     starts at 0 in CSS and `main.ts` fades it in over the last
-    `1 - CARDS_FADE_START` of the scroll off the same `progress` the scene
-    returns, so the row is invisible until Scene 2. The right card carries the
-    reveal window (below, which *is* 3D); the left one is still empty.
-- Reveal window (`.reveal-window`) — see **Reveal window** below.
+    `1 - ROW_FADE_START` of the scroll off the same `progress` the scene
+    returns, so the row is invisible until Scene 2.
+- Reveal window (`.reveal-window`) — opened by the row's words; see **Reveal
+  window** below.
 - Cursor — the default system cursor everywhere. A custom Saturn cursor and
   then a custom arrow both existed and were reverted; `public/cursor-saturn.svg`
-  is gone and no `cursor: url(...)` rule remains. The only cursor rule left is
-  `cursor: pointer` on `.social-badge`.
+  is gone and no `cursor: url(...)` rule remains. The only cursor rules left
+  are `cursor: pointer` on `.social-badge` and `.scene2-word`.
 
 At rest (scroll 0) the world camera does not move; the mouse parallax affects
 the wide starfield only. Everything else moves only under scroll.
 
-## Reveal window (right Scene 2 card)
-The project preview, shown through the right card. The element and everything
-it does live in `src/ui/reveal-window.ts`; the 3D layer behind it is
+## Reveal window (opened from the Scene 2 row)
+The project preview. The element and everything it does live in
+`src/ui/reveal-window.ts`; the 3D layer behind it is
 `src/three/reveal.ts`. It is a **real Three.js scene**, not stacked images: a
 particle star volume around a fixed camera, with the planet PNGs as billboards
 at their own distances. An earlier version composited `projects-background.png`
@@ -176,41 +168,42 @@ translation cannot produce a true look-around, and it should not come back.
 sprite textures. The `projects-background.png` files went unreferenced with
 that change and have been deleted.
 
-**The card is a mask, not a viewport of its own.** The canvas inside is always
-viewport-sized, so opening grows the mask to fill the screen and what was
-already on screen stays put at the same size, uncovering more of the same
-rendered frame — the closed card is literally a small slice of the view the
-open one fills the screen with. Never resize or scale the canvas to open it;
-that would read as a zoom. (The one scale that does exist is the closed card's
-hover lift, which grows window and card together — see the card hover notes
-above.)
+**The window is a mask, not a viewport of its own.** The canvas inside is
+always viewport-sized, so opening grows the mask to fill the screen and
+uncovers more of the same rendered frame rather than re-rendering. Never resize
+or scale the canvas to open it; that would read as a zoom.
 
-- It is a **separate `position: fixed` element**, not the card itself: the card
-  is a flex item in the row and could not fly out to the corner. Its closed
-  geometry is therefore *derived* from the row's tokens (`--card-row-w/h/bottom`
-  on `:root`, shared with `.scene2-cards`) rather than measured, so it lands
-  exactly on the right card's inner box — `left: calc(50% + 0.5px)` works
-  whatever the row's width because the divider is always centred, and the 1px
-  border collapse leaves that inner box exactly where a row border did. Change
-  the row's size only through those tokens or the two will drift apart.
-- Open/close animates `left/bottom/width/height` (620ms expo-out) to a
-  **full-screen** `0/0/100%/100%`. It cannot use a transform: scaling the mask
-  would scale the canvas with it. Percentages, not `vw`/`vh`, so a classic
-  scrollbar cannot push it past the visible area. There is no frame at that
-  size — the edges are the screen's.
+- It is a **`position: fixed` element with no resting box**: while closed it is
+  `opacity: 0` and inert, and it has no place on screen of its own. There is
+  nothing to see in the Scene 2 row where it used to sit as the right card.
+- **Its geometry is written from JS, not CSS.** `bindTrigger(el)` makes a word
+  open it: on open the window is put on that word's measured box with
+  transitions suppressed and flushed (`void root.offsetWidth`), then grown to
+  `0/0/100%/100%`; on close it is given the same word's box again and animates
+  back into it. The values in `.reveal-window` are only a starting point for
+  before the first open. Percentages for the open size, not `vw`/`vh` or
+  measured pixels, so a classic scrollbar cannot push it past the visible area.
+- The trigger's click **must stop propagating** — it is outside the window now,
+  so the click-away listener would otherwise close what it just opened.
+- `left/bottom/width/height` animate over 620ms expo-out. It cannot use a
+  transform: scaling the mask would scale the canvas with it. `opacity` is
+  instant on the way in and **delayed 440ms on the way out**, so the shrink
+  back into the word is actually seen; that split lives in the two
+  `.reveal-window` transition lists and both must keep the geometry timings.
 - The social badges sit at `z-index: 60`, above the window's 40, so the links
   stay visible and clickable over the takeover. Keep them above it.
-- Closed only, the canvas tilts with the mouse: `rotateY` up to `TILT_MAX`
-  degrees, damped by `TILT_LERP`, driven from the single RAF loop. It is a CSS
-  rotation of the whole canvas about its own centre, nothing to do with the 3D
-  camera.
-- Opened by click/Enter/Space, closed by the `.reveal-close` button, a click
-  outside, or Escape. Two permanent document listeners handle the last two; the
-  opening click's target is inside the window, so it cannot self-close.
-- It is faded and gated by hand from `updateScene2Cards()` in `main.ts` (same
-  `progress` as the row, since it is not a child of it) via `setOpacity()` and
-  `setInteractive()`, and only accepts input above `REVEAL_ACTIVE_AT`;
-  scrolling back toward Scene 1 closes it.
+- Opened by clicking (or Enter/Space on) **PROJECTS** or **CONTACT** — CONTACT
+  is wired to the same window as a placeholder until it has content of its own.
+  Closed by the `.reveal-close` button, a click outside, or Escape; two
+  permanent document listeners handle the last two, and closing returns focus
+  to the word it came out of.
+- It is gated by hand from `updateScene2Row()` in `main.ts` via
+  `setInteractive()`, off the same `progress` as the row: below `ROW_ACTIVE_AT`
+  the words are not live and an open window is put away, so scrolling back
+  toward Scene 1 closes it.
+- There is **no closed-state tilt any more**. The canvas used to rotate under
+  the mouse while the window sat in the right card; with nothing visible while
+  closed there is nothing to tilt, and that code and its CSS were removed.
 - The window **mounts itself** into `#app` and only then builds its 3D layer.
   That order is load-bearing: the scene draws exactly one still frame at
   startup and then renders on demand, so its canvas has to be in the page for
@@ -261,8 +254,8 @@ other module touches it. It shares **nothing** with the Scene 1 starfield in
   view actually finds something. Each sprite's aspect is read off its texture
   once it loads, so only the height is authored.
 - `setActive(false)` recentres the camera and leaves **one still frame** on the
-  canvas. That frame is what the closed card shows; render-on-demand, so
-  nothing keeps drawing while the window is shut.
+  canvas, ready for the next open. Render-on-demand, so nothing keeps drawing
+  while the window is shut (and nothing is visible then either).
 
 ## Model spin
 The model spins slowly clockwise about its own vertical axis, forever.
@@ -440,7 +433,7 @@ One single `requestAnimationFrame` loop lives in `src/main.ts`:
 `scene.update(time, state)` runs every frame, reading `state` (mouse position
 and scroll) and rendering both passes. It **returns the smoothed scroll
 progress**, which `main.ts` uses to drive the DOM side of the transition (the
-intro line out, the Scene 2 card row in) off exactly the same value as the 3D
+intro line out, the Scene 2 row in) off exactly the same value as the 3D
 side — do not read `state.scroll` directly for animation, or it will drift out
 of sync.
 
@@ -458,3 +451,9 @@ asked: `src/lib/depth.ts` (depth-item/camera-Z navigation engine),
 `src/lib/projects.ts` (project data), `src/sections/` (hero/transition/work
 sections), Lenis smooth-scroll, GSAP, the HUD (fps/coord/scroll-hint
 overlay), and the red+wine accent palette / Polaroid-style project cards.
+
+Also gone, more recently: the **two flush Scene 2 cards** (`.scene2-cards` /
+`.scene2-card`, their `--card-*` tokens, the 1px boundary and collapsed
+divider, and the hover scale that grew card and window together), and the
+reveal window's **closed-state canvas tilt**. The Scene 2 row is bare type and
+one image now — see **Scene 2 row** above before adding any box back.
