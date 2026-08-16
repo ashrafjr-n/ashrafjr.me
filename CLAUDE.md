@@ -19,7 +19,7 @@ At the start of every session, and after every /clear, read vibe.md first before
   and only the white orbit rings, planets and figure show. The body background
   is deliberately flat (no gradient) to preserve that. Do not add a gradient,
   lighten the background, or put a ground/backdrop mesh behind the model.
-- Fonts loaded: **Space Grotesk** (`--font-display`, not yet applied to any
+- Fonts loaded: **Space Grotesk** (`--font-display`, still not applied to any
   element) and **JetBrains Mono** (`--font-code`, applied to body text and
   the GitHub badge).
 
@@ -55,6 +55,11 @@ back. What exists today:
 - `src/lib/state.ts` — shared `InputState` (`mouseX`, `mouseY`, `scroll`)
   written by `initPointer()` and `initScroll()`, read every frame by the scene.
 - GitHub badge — fixed top-left, links to `github.com/ashrafjr-n`.
+- Intro line — fixed top-centre, "Hello! I am ASHRAF." (`.intro`, built in
+  `main.ts`). Scene 1 only: `main.ts` fades and lifts it away over the first
+  `INTRO_FADE_END` of the scroll. It uses `--font-code`, the same face as the
+  badge; `--font-display` (Space Grotesk) is loaded but still unused anywhere.
+  No `text-transform` — the copy is rendered exactly as written.
 
 At rest (scroll 0) the world camera does not move; the mouse parallax affects
 the wide starfield only. Everything else moves only under scroll.
@@ -133,10 +138,19 @@ sit and how big the dots draw:
 - The mouse tilt is applied to the **wide cloud only**. Tilting the band would
   break its full-loop visibility (5° is enough to push its near side off frame).
 - Per-layer appearance goes through `createStarLayer`'s `look` argument
-  (brightness range + opacity), not hard-coded values. The band is deliberately
-  brighter and whiter than the ambient field — `BAND_BRIGHT_*` / `BAND_OPACITY`
-  vs `STAR_BRIGHT_*` / `STAR_OPACITY`, about 1.3x the ambient. Still pure
-  grayscale, so the white/black/silver palette holds.
+  (brightness range, opacity, boost), not hard-coded values. The band is
+  deliberately brighter and whiter than the ambient field — `BAND_BRIGHT_*` /
+  `BAND_OPACITY` vs `STAR_BRIGHT_*` / `STAR_OPACITY`, about 1.3x the ambient.
+- A random `BAND_BOOST_CHANCE` (~30%) of band stars are lifted brighter still,
+  rolled per star at build time so the pattern differs every load. **Their
+  vertex colour deliberately exceeds 1.** The band's base is already near-pure
+  white at full opacity, so there is no headroom inside 0..1; with additive
+  blending and the soft radial sprite, an over-1 colour drives more of the dot's
+  falloff to full white, which is what reads as brighter. `Color.setRGB` does
+  not clamp when the colour space matches the working space, so the value
+  survives into the buffer — don't "fix" it by clamping to 1.
+- All star colours stay pure grayscale (r = g = b), so the white/black/silver
+  palette holds regardless of brightness.
 - Three sizes points as `size * 0.5 * drawingBufferHeight / distance` — **fov
   plays no part**. Any change to the cloud's scale needs `size` rescaled by the
   same factor or the dots change apparent size.
@@ -216,10 +230,15 @@ draws in front of the stars, whatever their real depth. Keep this ordering.
 
 ## Animation loop
 One single `requestAnimationFrame` loop lives in `src/main.ts`:
-`scene.update(time, state)` runs every frame, reading `state` (mouse
-position) and rendering both passes. Do not create a second animation loop —
-any new per-frame logic (camera motion, model animation, etc.) should hook into
-this same loop, ideally inside `scene.ts`'s `update()` before the render calls.
+`scene.update(time, state)` runs every frame, reading `state` (mouse position
+and scroll) and rendering both passes. It **returns the smoothed scroll
+progress**, which `main.ts` uses to drive the DOM side of the transition (the
+intro line) off exactly the same value as the 3D side — do not read
+`state.scroll` directly for animation, or it will drift out of sync.
+
+Do not create a second animation loop — any new per-frame logic (camera motion,
+model animation, etc.) should hook into this same loop, ideally inside
+`scene.ts`'s `update()` before the render calls.
 
 ## Removed (do not assume these exist)
 The following existed in an earlier version of this project and were
