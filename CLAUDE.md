@@ -178,12 +178,14 @@ see the card hover notes above.)
   Anchoring to the mask's top-left corner instead was what the smaller pop-out
   version did; at full screen that forces the crop into the image's corner and
   needs a far bigger image, so don't go back to it.
-- `--img-w: max(104vw, 222vh)` follows from that anchor: half the image has to
-  cover 50vw and 50vh, and `max()` covers whichever binds on the current
-  aspect. The few percent over is the headroom the backdrop's parallax shift
-  moves within — undersize it, or raise `REVEAL_BACKDROP_DEPTH` a lot, and the
-  screen edge shows black. `--img-h` hard-codes the PNG's 2664/1250 aspect —
-  **replacing the backdrop means updating that ratio**.
+- `--img-w: max(180vw, 384vh)` — the backdrop is held at ~180% of the frame in
+  both axes (`max()` picks whichever binds on the current aspect; half the
+  image has to cover 50vw and 50vh at 100%). That is far more than the parallax
+  shift needs, and the surplus is the point: an edge of the image must never be
+  able to enter the frame, or the illusion of looking into a space collapses.
+  The cost is that the 2664px PNG upscales on large monitors (~2x at 2560
+  wide) — acceptable on a soft starfield. `--img-h` hard-codes the PNG's
+  2664/1250 aspect — **replacing the backdrop means updating that ratio**.
 - Open/close animates `left/bottom/width/height` (620ms expo-out) to a
   **full-screen** `0/0/100%/100%`. It cannot use a transform: scaling the mask
   would scale the image with it. Percentages, not `vw`/`vh`, so a classic
@@ -201,11 +203,20 @@ see the card hover notes above.)
   width in vw, positions deliberately uneven and clear of the badges and the
   close button. Every layer counter-moves against the mouse: the camera is
   fixed and only its facing turns, so turning right slides the world left.
-  Each planet has **its own `depth`** (px of travel at full deflection), the
-  bigger/nearer ones travelling most, and the backdrop's
-  `REVEAL_BACKDROP_DEPTH` sits below all of them so it reads farthest.
-  Vertical travel is `REVEAL_PARALLAX_Y` of the horizontal; everything is
-  damped by `REVEAL_PARALLAX_LERP` in the single RAF loop.
+  Vertical travel is `REVEAL_PARALLAX_Y` of the horizontal. The whole thing is
+  aiming at looking *through* a window into a real space, not at six images
+  sliding about, which is what the next two points are for.
+  - The planets share **three depth planes** (`REVEAL_TIER`: far/mid/near),
+    differing by a couple of px inside a plane and by ~20px between them. Six
+    individually-tuned rates were tried first and read as separate stickers.
+    `REVEAL_BACKDROP_DEPTH` sits well under all of them, so the backdrop is
+    plainly the farthest thing in the frame.
+  - Motion is a **spring, not a lerp** (`REVEAL_SPRING_STIFFNESS` /
+    `REVEAL_SPRING_DAMPING`): each layer carries a velocity, so it trails a
+    fast pointer, coasts on after it stops and settles over about a second,
+    just under critical damping. That lag is most of what makes it feel
+    cinematic — don't trade it back for something that tracks the cursor
+    tightly.
   - It goes live only `REVEAL_OPEN_MS` after opening — **keep that in step with
     `--reveal-duration`** — so the field never moves while the window is still
     growing, and dies the instant it closes. While it is off the mouse is read
