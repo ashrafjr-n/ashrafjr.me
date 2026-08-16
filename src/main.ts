@@ -40,8 +40,16 @@ function buildIntro(): HTMLParagraphElement {
   return intro
 }
 
+/** Top-left social icon row — GitHub, LinkedIn, email. */
+function buildSocialBadges(): HTMLDivElement {
+  const wrap = document.createElement('div')
+  wrap.className = 'social-badges'
+  wrap.append(buildGithubBadge())
+  return wrap
+}
+
 const intro = buildIntro()
-app.append(canvas, intro, buildGithubBadge())
+app.append(canvas, intro, buildSocialBadges())
 
 // --- Particle starfield ---
 const scene = initScene(canvas)

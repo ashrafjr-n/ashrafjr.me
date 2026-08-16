@@ -78,13 +78,20 @@ body {
 }
 
 /* ===========================================================
-   GitHub badge (top-left corner)
+   Social badges (top-left corner): GitHub (icon + label), then
+   icon-only LinkedIn and email links sharing the same hover style.
    =========================================================== */
-.github-badge {
+.social-badges {
   position: fixed;
   top: 2rem;
   left: 2rem;
   z-index: 30;
+  display: flex;
+  align-items: center;
+  gap: 1.1rem;
+}
+
+.github-badge {
   display: flex;
   align-items: center;
   gap: 0.45rem;
