@@ -1,0 +1,105 @@
+/**
+ * Social icon row (top-left).
+ *
+ * Each one is circular *in the artwork*: a full-bleed disc whose viewBox is
+ * cropped to the disc's own bounds, so all three paint the same circle inside
+ * the same 26px box. There is no CSS circle behind them and there must not be
+ * one — see the .social-icon rule in style.css. Colours are pure black/white
+ * only; brand colours were tried and reverted.
+ *
+ * The links are data, not three hand-written functions: add an entry to
+ * SOCIAL_LINKS and the one factory below builds it.
+ */
+
+/** GitHub's modern Invertocat (Simple Icons), black on a white disc. */
+const GITHUB_ICON = `
+  <svg class="social-icon" viewBox="0 0 32 32" aria-hidden="true">
+    <circle cx="16" cy="16" r="16" fill="#ffffff"/>
+    <g transform="translate(5.2 5.2) scale(0.9)">
+      <path fill="#000000" d="M12 .297c-6.63 0-12 5.373-12 12c0 5.303 3.438 9.8 8.205 11.385c.6.113.82-.258.82-.577c0-.285-.01-1.04-.015-2.04c-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729c1.205.084 1.838 1.236 1.838 1.236c1.07 1.835 2.809 1.305 3.495.998c.108-.776.417-1.305.76-1.605c-2.665-.3-5.466-1.332-5.466-5.93c0-1.31.465-2.38 1.235-3.22c-.135-.303-.54-1.523.105-3.176c0 0 1.005-.322 3.3 1.23c.96-.267 1.98-.399 3-.405c1.02.006 2.04.138 3 .405c2.28-1.552 3.285-1.23 3.285-1.23c.645 1.653.24 2.873.12 3.176c.765.84 1.23 1.91 1.23 3.22c0 4.61-2.805 5.625-5.475 5.92c.42.36.81 1.096.81 2.22c0 1.606-.015 2.896-.015 3.286c0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/>
+    </g>
+  </svg>
+`
+
+/**
+ * LinkedIn's circular badge (Entypo Social `linkedin-with-circle`) filled
+ * white. Its "in" is a knockout in that path, so the black circle behind is
+ * what shows through the letters — explicit rather than relying on the page
+ * black, so the starfield can never show through them.
+ */
+const LINKEDIN_ICON = `
+  <svg class="social-icon" viewBox="0.4 0.4 19.2 19.2" aria-hidden="true">
+    <circle cx="10" cy="10" r="9.6" fill="#000000"/>
+    <path fill="#ffffff" d="M10 .4C4.698.4.4 4.698.4 10s4.298 9.6 9.6 9.6s9.6-4.298 9.6-9.6S15.302.4 10 .4M7.65 13.979H5.706V7.723H7.65zm-.984-7.024c-.614 0-1.011-.435-1.011-.973c0-.549.409-.971 1.036-.971s1.011.422 1.023.971c0 .538-.396.973-1.048.973m8.084 7.024h-1.944v-3.467c0-.807-.282-1.355-.985-1.355c-.537 0-.856.371-.997.728c-.052.127-.065.307-.065.486v3.607H8.814v-4.26c0-.781-.025-1.434-.051-1.996h1.689l.089.869h.039c.256-.408.883-1.01 1.932-1.01c1.279 0 2.238.857 2.238 2.699z"/>
+  </svg>
+`
+
+/**
+ * The Gmail mark on a white disc, its five brand colours flattened to one
+ * black. The five shapes do not overlap, so flattening them keeps the "M"
+ * readable rather than filling in as a blob.
+ */
+const EMAIL_ICON = `
+  <svg class="social-icon" viewBox="0 0 48 48" aria-hidden="true">
+    <circle cx="24" cy="24" r="24" fill="#ffffff"/>
+    <g transform="translate(11 14.2) scale(0.1016)" fill="#000000">
+      <path d="M58.182 192.05V93.14L27.507 65.077L0 49.504v125.091c0 9.658 7.825 17.455 17.455 17.455z"/>
+      <path d="M197.818 192.05h40.727c9.659 0 17.455-7.826 17.455-17.455V49.505l-31.156 17.837l-27.026 25.798z"/>
+      <path d="m58.182 93.14l-4.174-38.647l4.174-36.989L128 69.868l69.818-52.364l4.669 34.992l-4.669 40.644L128 145.504z"/>
+      <path d="M197.818 17.504V93.14L256 49.504V26.231c0-21.585-24.64-33.89-41.89-20.945z"/>
+      <path d="m0 49.504l26.759 20.07L58.182 93.14V17.504L41.89 5.286C24.61-7.66 0 4.646 0 26.23z"/>
+    </g>
+  </svg>
+`
+
+interface SocialLink {
+  href: string
+  /** Accessible name; the icons themselves are aria-hidden. */
+  label: string
+  /** Inline SVG markup for the circular icon. */
+  icon: string
+  /** Visible caption. Omitted on the icon-only links. */
+  text?: string
+}
+
+/** Top-left social icon row, in render order. */
+const SOCIAL_LINKS: SocialLink[] = [
+  {
+    href: 'https://github.com/ashrafjr-n',
+    label: 'GitHub: ashrafjr-n',
+    icon: GITHUB_ICON,
+    text: 'ashrafjr-n',
+  },
+  {
+    href: 'https://www.linkedin.com/in/ashraf-al-jarabeah-a94509408/',
+    label: 'LinkedIn',
+    icon: LINKEDIN_ICON,
+  },
+  {
+    href: 'mailto:aannaelj@gmail.com',
+    label: 'Email',
+    icon: EMAIL_ICON,
+  },
+]
+
+/** One social link. All three share the `.social-badge` class and its hover. */
+function buildSocialLink({ href, label, icon, text }: SocialLink): HTMLAnchorElement {
+  const link = document.createElement('a')
+  link.className = 'social-badge'
+  link.href = href
+  link.setAttribute('aria-label', label)
+  // mailto: has nowhere to open a tab; the two outbound links do.
+  if (!href.startsWith('mailto:')) {
+    link.target = '_blank'
+    link.rel = 'noopener noreferrer'
+  }
+  link.innerHTML = text ? `${icon}<span>${text}</span>` : icon
+  return link
+}
+
+export function buildSocialBadges(): HTMLDivElement {
+  const wrap = document.createElement('div')
+  wrap.className = 'social-badges'
+  for (const item of SOCIAL_LINKS) wrap.append(buildSocialLink(item))
+  return wrap
+}
