@@ -12,9 +12,9 @@ At the start of every session, and after every /clear, read vibe.md first before
 - Cinematic, high-contrast.
 - Palette is **white / black / silver-gray only** — no other colors anywhere
   (CSS, 3D materials, gradients, shadows). Enforce this on every visual change.
-  **One deliberate exception:** the LinkedIn and email social icons are official
-  brand artwork in their real brand colors (see the social icon row below).
-  That exception is scoped to those two logo assets and nothing else.
+  **There are no exceptions, including brand logos.** The social icons were
+  briefly shown in real brand colors (LinkedIn blue, Gmail multicolor) and that
+  was reverted — every logo mark is recolored to pure white/black on the way in.
 - Design tokens live in the `:root` block of `src/style.css`.
 - **The page background is pure `#000000` (`--bg`) and must stay that way.**
   The `space_boi` model's own material is pure black, so at `#000000` the model
@@ -69,18 +69,22 @@ back. What exists today:
   `.social-icon` only sizes them — it deliberately carries no `border-radius`,
   `background`, `border`, `clip-path` or mask, and none should be added back:
   a CSS ring around a square glyph was tried and rejected.
-  - **GitHub** — Entypo Social's `github-with-circle`, a disc with the mark
-    knocked out, drawn in `currentColor` (dim white, silver on hover). It is
-    the only one of the three still monochrome; GitHub's own brand mark is
-    black/white, so there is no brand colour to apply.
-  - **LinkedIn** — the official-style circular badge: brand blue `#0a66c2`
-    disc with a white "in". Built as a white `<circle>` behind Entypo Social's
-    `linkedin-with-circle`, whose "in" is a knockout — the white circle is what
-    shows through it. LinkedIn ships no official *circular* asset (its real
-    logo is a rounded square), so this composition is the closest true one.
-  - **Email** — the official multi-colour Gmail mark (Iconify `logos:google-gmail`)
-    on a white disc, scaled 0.1016 and translated to centre it in a 48x48
-    viewBox. `mailto:` target, so the Gmail mark matches the address.
+  All three share one treatment — **white disc, pure black mark, no other
+  colour** — so keep any future icon to that pattern.
+  - **GitHub** — the modern official Invertocat (Simple Icons `github`) in
+    black, scaled 0.9 and centred on a white `<circle>` in a 32x32 viewBox.
+    An older Entypo cartoon cat-face-in-a-circle was used before and rejected.
+  - **LinkedIn** — Entypo Social's `linkedin-with-circle` filled white, over a
+    black `<circle>` of the same radius. The "in" is a knockout in that path,
+    so the black circle behind is what shows through it. The circle behind is
+    explicit rather than relying on the page black, so the starfield can never
+    show through the letters. LinkedIn ships no official *circular* asset (its
+    real logo is a rounded square), so this composition is the closest true one.
+  - **Email** — the official Gmail mark (Iconify `logos:google-gmail`),
+    recoloured from its five brand colours to a single black, on a white disc;
+    scaled 0.1016 and translated to centre it in a 48x48 viewBox. The mark's
+    five shapes don't overlap, so flattening them to one colour keeps the "M"
+    readable. `mailto:` target, so the Gmail mark matches the address.
 
   Paths are hand-embedded (no icon package is installed); don't hand-draw new
   ones, pull the circular variant from a recognized set the same way.
