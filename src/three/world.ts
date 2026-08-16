@@ -39,11 +39,20 @@ const MODEL_URL = '/models/space_boi.glb'
 const MODEL_SPAN = 3.5
 
 /**
- * Radians per second the model spins about its own Y axis. Negative because
- * from this bird's-eye camera a positive Y rotation reads counter-clockwise,
- * and we want clockwise. ~70s per revolution — slow enough to feel calm.
+ * Radians per second the model turns about its own Y axis — and therefore the
+ * exact rate at which the stars embedded in the model sweep around its centre.
+ *
+ * The site's starfield brackets this rate (see SPEED_TIERS in `scene.ts`) so
+ * the two sets of stars read as one system. Change this and the starfield
+ * follows automatically; that coupling is deliberate.
  */
-const SPIN_SPEED = -0.09
+export const MODEL_SPIN_RATE = 0.09 // ~70s per revolution: calm
+
+/**
+ * Negative because from this bird's-eye camera a positive Y rotation reads
+ * counter-clockwise, and we want clockwise.
+ */
+const SPIN_SPEED = -MODEL_SPIN_RATE
 
 /**
  * Normalize the GLB: uniform-scale it to MODEL_SPAN, center it on x/z and drop
