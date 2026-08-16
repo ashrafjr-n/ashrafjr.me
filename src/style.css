@@ -20,26 +20,14 @@
   --text-dim: rgba(255, 255, 255, 0.5);
   --accent: #e8e8ec;
 
-  /* Scene 2 card row geometry. Shared, because the reveal window (a separate
-     fixed element) has to land exactly on the right card's inner box. */
-  --card-row-w: min(760px, 82vw);
-  --card-row-h: clamp(225px, 35vh, 370px);
-  --card-row-bottom: 7vh;
-
-  /* The card row's line: one hairline used for both the outer boundary and the
-     divider, so the two never read differently. Held far under pure white — a
-     solid #fff line was harsh against the black, and 0.3 still read heavy. */
-  --card-line: rgba(255, 255, 255, 0.16);
-  /* The same line, deepened, while a card is hovered and lifted. */
-  --card-line-hover: rgba(255, 255, 255, 0.34);
-  /* How far a hovered card grows. The reveal window scales by the same factor
-     about the same centre, so the star crop stays filling the right card. */
-  --card-hover-scale: 1.09;
-  /* Shared by the card and the window so the two grow as one. */
-  --card-hover-duration: 420ms;
-  /* A faint bloom off the outer edge, so the line sits in the scene rather
-     than on top of it. Deliberately almost invisible. */
-  --card-line-glow: 0 0 26px rgba(255, 255, 255, 0.03);
+  /* Scene 2 row: how far off the bottom it sits, how far apart the three
+     elements are, and how large the portrait and the two words run. Sized so
+     the portrait reads as the focal point with the words balancing it either
+     side. */
+  --row-bottom: 9vh;
+  --row-gap: clamp(1.5rem, 5vw, 4.5rem);
+  --row-mark-h: clamp(190px, 32vh, 350px);
+  --row-word-size: clamp(1.4rem, 3.4vw, 3rem);
 
   /* Open/close easing for the reveal window: a long expo-out tail. */
   --reveal-ease: cubic-bezier(0.16, 1, 0.3, 1);
@@ -103,139 +91,138 @@ body {
 }
 
 /* ===========================================================
-   Scene 2 cards (bottom-centre, below the model)
+   Scene 2 row (bottom-centre, below the model)
 
-   Two flush cards: one white line around the pair and one white line between
-   them, so the row reads as a single wide rectangle split in two. Sharp
-   corners on purpose — no border-radius here. Hidden through Scene 1 and only
-   faded in near the end of the scroll, from the RAF loop.
+   CONTACT — the portrait — PROJECTS, on one line and centred on each other.
+   There are deliberately NO containers here: no card, no border, no divider,
+   no background, no border-radius. The two flush bordered cards this replaced
+   were removed on purpose; don't give these elements a box of any kind.
+   Hidden through Scene 1 and only faded in near the end of the scroll, from
+   the RAF loop.
    =========================================================== */
-.scene2-cards {
+.scene2-row {
   position: fixed;
-  bottom: var(--card-row-bottom);
+  bottom: var(--row-bottom);
   left: 50%;
   z-index: 20;
   transform: translateX(-50%);
   display: flex;
-  width: var(--card-row-w);
-  height: var(--card-row-h);
-  /* No border here — each card carries its own, so a hovered one can grow as a
-     complete rectangle. The pair overlaps by 1px, which keeps the shared edge a
-     single line and leaves the outer boundary identical to a row border. */
+  align-items: center; /* the words sit on the portrait's centre line */
+  justify-content: center;
+  gap: var(--row-gap);
+  max-width: 94vw;
   opacity: 0;
   pointer-events: none;
   will-change: opacity;
 }
 
-.scene2-card {
-  flex: 1 1 0;
-  min-width: 0;
-  border: 1px solid var(--card-line);
-  box-shadow: var(--card-line-glow);
-  /* Flex items honour z-index without being positioned, which is what lets a
-     hovered card lift above its neighbour instead of being overlapped by it. */
-  z-index: 0;
-  transition: transform var(--card-hover-duration) var(--reveal-ease),
-    border-color var(--card-hover-duration) ease;
+/* The centrepiece: an ASCII-art portrait, sized by height so its own aspect
+   decides the width. */
+.scene2-mark {
+  display: block;
+  flex-shrink: 0;
+  height: var(--row-mark-h);
+  width: auto;
+  /* The artwork ships both schemes and the page is black-only, so pin it to
+     the dark one — on a light-mode system its greys would otherwise flip to
+     near-black and vanish into the background. */
+  color-scheme: dark;
+  user-select: none;
 }
 
-/* The row itself stays transparent to the pointer; the cards opt back in, but
-   only once Scene 2 has landed (main.ts adds .is-live) — an opacity-0 element
-   is still a hit target. The card under the reveal window is deliberately left
-   out: the window covers it and owns its clicks and tilt, and the row sits
-   above the closed window, so an interactive card there would swallow them.
-   That card's hover is mirrored from the window instead. */
-.scene2-cards.is-live .scene2-card:not(:last-child) {
+/* The flanking words. A <button> reset back to plain type: the affordance is
+   the type itself, not a box around it. */
+.scene2-word {
+  flex-shrink: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  font-family: var(--font-code);
+  font-size: var(--row-word-size);
+  font-weight: 700; /* requested in index.html — anything else synthesizes */
+  letter-spacing: 0.08em;
+  line-height: 1;
+  white-space: nowrap;
+  color: var(--accent);
+  text-shadow: 0 0 18px rgba(255, 255, 255, 0.28);
+  cursor: pointer;
+  transition: color 0.25s ease, text-shadow 0.25s ease, transform 0.25s ease;
+}
+
+/* The row stays transparent to the pointer; the words opt back in, but only
+   once Scene 2 has landed (main.ts adds .is-live) — an opacity-0 element is
+   still a hit target. */
+.scene2-row.is-live .scene2-word {
   pointer-events: auto;
 }
 
-/* Pull the second card 1px onto the first so their adjacent borders collapse
-   into one divider — same single hairline as before, but now each card is a
-   whole rectangle that can grow on its own. */
-.scene2-card + .scene2-card {
-  margin-left: -1px;
+/* Hover lifts the type itself — brighter and a touch higher. No box appears. */
+.scene2-word:hover,
+.scene2-word:focus-visible {
+  color: #ffffff;
+  text-shadow: 0 0 30px rgba(255, 255, 255, 0.5);
+  transform: translateY(-2px);
 }
 
-/* Hover: grows a little and lifts over its neighbour, with a stronger line
-   while it is up. Transform only, so the other card never moves or resizes. */
-.scene2-card:hover,
-.scene2-card.is-hovered {
-  transform: scale(var(--card-hover-scale));
-  border-color: var(--card-line-hover);
-  z-index: 2;
+/* Keyboard focus only: the pointer never sees this. */
+.scene2-word:focus-visible {
+  outline: 1px solid rgba(255, 255, 255, 0.45);
+  outline-offset: 8px;
 }
 
 /* ===========================================================
-   Scene 2 reveal window (sits on the right card)
+   Scene 2 reveal window (opened by the row's words)
 
    This is a MASK, not a viewport of its own. The 3D canvas inside is always
-   viewport-sized — opening the card only grows the mask, so what was already
-   on screen stays put, at the same size, and the extra area uncovers more of
-   the same rendered frame. Never scale the canvas to open it; that would read
-   as a zoom rather than a window opening.
+   viewport-sized — opening only grows the mask, so what was already on screen
+   stays put, at the same size, and the extra area uncovers more of the same
+   rendered frame. Never scale the canvas to open it; that would read as a zoom
+   rather than a window opening.
 
-   It is a separate fixed element rather than the card itself, because the card
-   is a flex item in the row and could not fly out to the corner. Its closed
-   geometry is therefore derived from the row's own tokens so it lands exactly
-   on the right card's inner box:
-     left   — the divider is centred in the row, so the right card's inner edge
-              is always 0.5px right of centre, whatever the row's width
-     width  — (row width - 2px outer border - 1px divider) / 2
-     height — row height - 2px outer border
+   It has no resting box on screen: it is invisible while closed, and grows out
+   of whichever word was clicked. left/bottom/width/height are therefore
+   written from ui/reveal-window.ts (the word's own measured box, then
+   0/0/100%/100%) — the values here are only a starting point for before the
+   first open.
    =========================================================== */
 .reveal-window {
-  --closed-w: calc((var(--card-row-w) - 3px) / 2);
-  --closed-h: calc(var(--card-row-h) - 2px);
-
   position: fixed;
-  left: calc(50% + 0.5px);
-  bottom: calc(var(--card-row-bottom) + 1px);
-  width: var(--closed-w);
-  height: var(--closed-h);
-  /* Under the row (20) while closed, so a hovered card's border draws over the
-     star crop when it grows across the divider. It goes above everything the
-     moment it opens. */
-  z-index: 15;
+  left: 50%;
+  bottom: var(--row-bottom);
+  width: 0;
+  height: 0;
+  /* Over everything except the badges (60). */
+  z-index: 40;
   overflow: hidden;
-  cursor: pointer;
-  /* Faded in from the RAF loop on the same progress as the row, so no opacity
-     transition here — it would fight the per-frame writes. */
+  /* Invisible until it is opened. On the way out the fade waits until the
+     shrink back into the word has almost finished, so the closing animation
+     is actually seen; on the way in it is instant, since the window has to be
+     there before it starts growing. */
   opacity: 0;
   pointer-events: none;
   transition: left var(--reveal-duration) var(--reveal-ease),
     bottom var(--reveal-duration) var(--reveal-ease),
     width var(--reveal-duration) var(--reveal-ease),
     height var(--reveal-duration) var(--reveal-ease),
-    transform var(--card-hover-duration) var(--reveal-ease);
+    opacity 180ms linear 440ms;
 }
 
-/* Hover on the right card grows the window by the same factor, about the same
-   centre — the window is that card's box inset 1px all round, so one scale
-   keeps them concentric and the view goes on filling the card. This is the
-   only time the window itself is transformed; opening must never scale it. */
-.reveal-window.is-hovered:not(.is-open) {
-  transform: scale(var(--card-hover-scale));
-}
-
-/* Grown to fill the viewport. Percentages, not vw/vh, so a classic scrollbar
-   cannot push it wider than the visible area — the page is 300vh tall and
-   always scrollable. No frame at this size: the edges are the screen's own. */
+/* Grown to fill the viewport (the size itself is written from JS, in
+   percentages, so a classic scrollbar cannot push it past the visible area).
+   No frame at this size: the edges are the screen's own. */
 .reveal-window.is-open {
-  left: 0;
-  bottom: 0;
-  width: 100%;
-  height: 100%;
-  /* Over the row and everything else except the badges (60). */
-  z-index: 40;
-  cursor: default;
+  opacity: 1;
+  pointer-events: auto;
+  transition: left var(--reveal-duration) var(--reveal-ease),
+    bottom var(--reveal-duration) var(--reveal-ease),
+    width var(--reveal-duration) var(--reveal-ease),
+    height var(--reveal-duration) var(--reveal-ease),
+    opacity 0s;
 }
 
 /* The 3D layer (three/reveal.ts). Always the size of the viewport and centred
-   on the window, never resized: opening the window uncovers more of the same
-   drawing buffer instead of re-rendering at a new size, and the closed card is
-   simply a small slice of that same view. Centring uses the standalone
-   `translate` property so the closed-state tilt can own `transform` outright
-   and clear it at rest. */
+   on the window, never resized: growing the window uncovers more of the same
+   drawing buffer instead of re-rendering at a new size. */
 .reveal-canvas {
   position: absolute;
   left: 50%;
@@ -244,8 +231,6 @@ body {
   width: 100vw;
   height: 100vh;
   display: block;
-  transform-origin: 50% 50%;
-  will-change: transform;
   pointer-events: none;
 }
 
@@ -260,8 +245,8 @@ body {
   align-items: center;
   justify-content: center;
   border: 0;
-  /* Its own line, not --card-line: the box is tuned to stay readable while the
-     card row's hairline goes lighter. */
+  /* The only rule on the page that still draws a line — the close corner needs
+     to read against whatever the 3D view is showing behind it. */
   border-left: 1px solid rgba(255, 255, 255, 0.3);
   border-bottom: 1px solid rgba(255, 255, 255, 0.3);
   background: transparent;
