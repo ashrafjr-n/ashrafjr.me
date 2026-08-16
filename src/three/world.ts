@@ -36,7 +36,7 @@ const MODEL_URL = '/models/space_boi.glb'
  * wide, shallow diorama, so it is fitted by footprint rather than height —
  * fitting by height would blow the footprint far past the viewport.
  */
-const MODEL_SPAN = 3.1
+const MODEL_SPAN = 3.5
 
 /**
  * Radians per second the model spins about its own Y axis. Negative because
