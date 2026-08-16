@@ -13,21 +13,21 @@ At the start of every session, and after every /clear, read vibe.md first before
 - Palette is **white / black / silver-gray only** — no other colors anywhere
   (CSS, 3D materials, gradients, shadows). Enforce this on every visual change.
 - Design tokens live in the `:root` block of `src/style.css`.
-- **Scene 1 silver is `#a9aeb3`, declared twice and must stay in sync:**
-  `--silver` in `src/style.css` and `SILVER` in `src/three/world.ts`. The page
-  background and the platform mesh must render the *exact* same pixel value —
-  the body background is deliberately flat (no gradient) and the platform uses
-  an unlit `MeshBasicMaterial` with `toneMapped: false` for that reason. Do not
-  add a gradient to the body or a lit material to the platform.
+- **The page background is pure `#000000` (`--bg`) and must stay that way.**
+  The `space_boi` model's own material is pure black, so at `#000000` the model
+  reads as one continuous surface with the page — its base slab is invisible
+  and only the white orbit rings, planets and figure show. The body background
+  is deliberately flat (no gradient) to preserve that. Do not add a gradient,
+  lighten the background, or put a ground/backdrop mesh behind the model.
 - Fonts loaded: **Space Grotesk** (`--font-display`, not yet applied to any
   element) and **JetBrains Mono** (`--font-code`, applied to body text and
   the GitHub badge).
 
 ## Current state
-Scene 1 is the static opening composition: the `space_boi` diorama on a silver
-platform, seen from a bird's-eye camera, over the drifting starfield. Most of
-the original scroll/section system was intentionally stripped out and has not
-come back. What exists today:
+Scene 1 is the static opening composition: the `space_boi` diorama seen from a
+bird's-eye camera, over the drifting starfield, on pure black. Most of the
+original scroll/section system was intentionally stripped out and has not come
+back. What exists today:
 
 - `src/main.ts` — mounts the full-screen `#scene` canvas, initializes the
   Three.js scene (`src/three/scene.ts`), starts mouse-pointer tracking
@@ -41,14 +41,15 @@ come back. What exists today:
   the only live input values.
 - `src/three/world.ts` — the Scene 1 world layer: its own `Scene` +
   bird's-eye `PerspectiveCamera` (fov 35, at `(0, 8, 6.5)` looking at
-  `(0, 0.25, 0)`, ~47° above the horizon), white key/fill/ambient lights, the
-  flat silver square platform, and the GLB load. Exports `SILVER`.
+  `(0, 0.25, 0)`, ~47° above the horizon), white key/fill/ambient lights, and
+  the GLB load. **There is no platform/pedestal mesh** — one existed briefly
+  and was deliberately removed; the model's own black base is the ground.
 - `public/models/space_boi.glb` — loaded via `GLTFLoader` (imported from
   `three/examples/jsm/loaders/GLTFLoader.js` inside the installed `three`
   package — no extra dependency, no Draco). It is a wide, shallow diorama with
-  its own black base slab, so `fitToPlatform()` scales it by its **horizontal
+  its own black base slab, so `fitModel()` scales it by its **horizontal
   footprint** (`MODEL_SPAN`), not its height — fitting by height overflows the
-  viewport. It is then centered on x/z and dropped onto the platform.
+  viewport. It is then centered on x/z and dropped so it rests on `y = 0`.
 - `src/lib/state.ts` — shared `InputState` (`mouseX`, `mouseY` only) written
   by a `mousemove` listener, read every frame by the scene.
 - GitHub badge — fixed top-left, links to `github.com/ashrafjr-n`.
