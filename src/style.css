@@ -123,13 +123,18 @@ body {
   display: block;
   flex-shrink: 0;
   height: var(--row-mark-h);
+  /* The artwork's own viewBox, 1036 x 1363. Stated here rather than left to
+     the inline <svg>'s intrinsic width so the row's layout is the same before
+     and after the fetch lands, and never depends on how a flex item sizes an
+     SVG child. Keep it in step with the file. */
+  aspect-ratio: 1036 / 1363;
   user-select: none;
 }
 
 .scene2-mark svg {
   display: block;
+  width: 100%;
   height: 100%;
-  width: auto;
 }
 
 /* The flanking words. A <button> reset back to plain type: the affordance is
