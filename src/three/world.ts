@@ -31,18 +31,19 @@ const CAMERA_POS = { x: 0, y: 9.3, z: 4.6 }
 const CAMERA_TARGET = { x: 0, y: 0.25, z: 0 } // model's own mid-height: centers it on screen
 
 // --- Scene 2 framing, reached at scroll progress 1 ---
-// Closer in (distance ~10.2 -> ~5.0) and dropped from ~63° above the horizon to
-// ~3° *below* it, so the model is viewed near-level and very slightly from
-// underneath rather than from overhead.
-const SCENE2_CAMERA_POS = { x: 0, y: 0.09, z: 4.99 }
-const SCENE2_CAMERA_TARGET = { x: 0, y: 0.35, z: 0 }
+// Dead level: the eye and the look-at point share a height, so the pitch is
+// exactly 0° — a straight-on view of the model rather than the ~63° overhead of
+// Scene 1. Keep these two `y` values equal to keep the view level.
+// The height is the model's own mid-height, which centres it in frame.
+const SCENE2_CAMERA_POS = { x: 0, y: 0.3, z: 4.99 }
+const SCENE2_CAMERA_TARGET = { x: 0, y: 0.3, z: 0 }
 
 /**
- * Peak multiplier added to the model's spin during the transition. The boost
- * follows sin(pi * progress): idle at both ends, fastest half-way through, so
- * Scene 2 settles back to the normal idle rate on its own.
+ * Full turns the model makes across the scroll transition, on top of its idle
+ * spin. Driven by progress rather than elapsed time, so it lands on exactly
+ * this many turns however fast or slow the page is scrolled.
  */
-const SPIN_BOOST = 7
+const TRANSITION_TURNS = 1
 
 const MODEL_URL = '/models/space_boi.glb'
 /**
@@ -134,13 +135,20 @@ export function createWorld(aspect: number): WorldLayer {
     (err) => console.error(`[world] failed to load ${MODEL_URL}`, err),
   )
 
+  /** Idle spin only, accumulated over elapsed time. */
+  let idleAngle = 0
+
   // Frame-rate independent: the angle advances by elapsed time, not per frame.
   function update(delta: number, progress: number): void {
-    // Spin, boosted mid-transition. sin(pi * progress) is 0 at both ends, so
-    // Scene 1 and Scene 2 both sit at the plain idle rate and the ramp in and
-    // out is smooth without any separate state or timer.
-    const boost = 1 + SPIN_BOOST * Math.sin(Math.PI * progress)
-    pivot.rotation.y += SPIN_SPEED * boost * delta
+    idleAngle += SPIN_SPEED * delta
+
+    // Total spin = the idle turn + exactly TRANSITION_TURNS across the scroll.
+    // The transition term is a function of progress, not of elapsed time, which
+    // is what makes it land on a whole number of turns no matter how fast the
+    // page is scrolled — a time-integrated boost cannot, since the total then
+    // depends on how long the user took. Negative to match SPIN_SPEED, so the
+    // scroll turn continues in the idle direction instead of fighting it.
+    pivot.rotation.y = idleAngle - TRANSITION_TURNS * Math.PI * 2 * progress
 
     // Dolly in and drop the angle. Both the eye and the look-at point blend, so
     // the camera arcs down and forward together instead of just pitching.
