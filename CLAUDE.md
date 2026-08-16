@@ -133,7 +133,8 @@ back. What exists today:
     `--font-code` at **weight 700** — that weight is requested in `index.html`;
     keep it there. **Hover is brightness only** — `--accent` to pure white, no
     lift, no glow, no box. A `translateY` lift and a `text-shadow` were both
-    tried and removed; the words carry no shadow at rest either.
+    tried and removed; the words carry no shadow at rest either. Only PROJECTS
+    does anything; CONTACT is an inert placeholder (see **Reveal window**).
   - The portrait (`.scene2-mark`) is `public/assets/svg/me.svg`, an ASCII-art
     self-portrait — see **Scene 2 portrait** below. Its box is `--row-mark-h`
     tall with the artwork's own `aspect-ratio` (1036 / 1363) stated in CSS, so
@@ -202,9 +203,16 @@ sprite textures. The `projects-background.png` files went unreferenced with
 that change and have been deleted.
 
 **The window is a mask, not a viewport of its own.** The canvas inside is
-always viewport-sized, so opening grows the mask to fill the screen and
-uncovers more of the same rendered frame rather than re-rendering. Never resize
-or scale the canvas to open it; that would read as a zoom.
+always viewport-sized, so opening grows the mask and uncovers more of the same
+rendered frame rather than re-rendering. Never resize or scale the canvas to
+open it; that would read as a zoom.
+
+**Open, it is inset, not edge-to-edge.** It stops `--reveal-inset` short of all
+four screen edges and carries a 1px `--reveal-frame` hairline there, so the
+scene reads as a framed view. One token drives all four sides — that is what
+keeps the margin even — and the black gap alone would be invisible on a black
+page, which is why the line is there. It replaced a full-bleed takeover; don't
+put that back without being asked.
 
 - It is a **`position: fixed` element with no resting box**: while closed it is
   `opacity: 0` and inert, and it has no place on screen of its own. There is
@@ -212,10 +220,12 @@ or scale the canvas to open it; that would read as a zoom.
 - **Its geometry is written from JS, not CSS.** `bindTrigger(el)` makes a word
   open it: on open the window is put on that word's measured box with
   transitions suppressed and flushed (`void root.offsetWidth`), then grown to
-  `0/0/100%/100%`; on close it is given the same word's box again and animates
-  back into it. The values in `.reveal-window` are only a starting point for
-  before the first open. Percentages for the open size, not `vw`/`vh` or
-  measured pixels, so a classic scrollbar cannot push it past the visible area.
+  the inset box (`applyOpenBox()`, which writes `var(--reveal-inset)` and
+  `calc(100% - 2 * ...)` straight into the inline style); on close it is given
+  the same word's box again and animates back into it. The values in
+  `.reveal-window` are only a starting point for before the first open.
+  Percentages for the open size, not `vw`/`vh` or measured pixels, so a classic
+  scrollbar cannot push it past the visible area.
 - The trigger's click **must stop propagating** — it is outside the window now,
   so the click-away listener would otherwise close what it just opened.
 - `left/bottom/width/height` animate over 620ms expo-out. It cannot use a
@@ -225,11 +235,17 @@ or scale the canvas to open it; that would read as a zoom.
   `.reveal-window` transition lists and both must keep the geometry timings.
 - The social badges sit at `z-index: 60`, above the window's 40, so the links
   stay visible and clickable over the takeover. Keep them above it.
-- Opened by clicking (or Enter/Space on) **PROJECTS** or **CONTACT** — CONTACT
-  is wired to the same window as a placeholder until it has content of its own.
-  Closed by the `.reveal-close` button, a click outside, or Escape; two
-  permanent document listeners handle the last two, and closing returns focus
-  to the word it came out of.
+- Opened by clicking (or Enter/Space on) **PROJECTS**, and only PROJECTS.
+  **CONTACT is deliberately inert** — it is built and styled identically but
+  nothing is bound to it, and `buildScene2Row()` does not even return it, so
+  nothing can be. It briefly shared this window as a placeholder and that was
+  undone; it gets its own behaviour later. Closed by the `.reveal-close`
+  button, a click outside, or Escape; two permanent document listeners handle
+  the last two, and closing returns focus to the word it came out of.
+- The close corner's `×` is a **text glyph sized well past its 64px box**
+  (`font-size: 118px`): the mark inks at about half its em, so that is what
+  puts its edges near the box's. Its line box overflows the button, which is
+  harmless — the button doesn't clip. Retune the font-size, not the box.
 - It is gated by hand from `updateScene2Row()` in `main.ts` via
   `setInteractive()`, off the same `progress` as the row: below `ROW_ACTIVE_AT`
   the words are not live and an open window is put away, so scrolling back
@@ -286,6 +302,11 @@ other module touches it. It shares **nothing** with the Scene 1 starfield in
   distance. Several sit outside the resting frustum on purpose, so turning the
   view actually finds something. Each sprite's aspect is read off its texture
   once it loads, so only the height is authored.
+- **`PLANETS` may list the same file more than once** — `white.png` appears
+  twice, once near and large on the left and once further off and half the size
+  on the right, which reads as one body seen at two depths. The loader groups
+  the list **by file**, so a texture is fetched and uploaded once however many
+  planets use it. Keep that grouping if more repeats are added.
 - `setActive(false)` recentres the camera and leaves **one still frame** on the
   canvas, ready for the next open. Render-on-demand, so nothing keeps drawing
   while the window is shut (and nothing is visible then either).
