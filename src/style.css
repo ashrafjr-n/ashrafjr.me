@@ -124,6 +124,129 @@ body {
 }
 
 /* ===========================================================
+   Scene 2 reveal window (sits on the right card)
+
+   This is a MASK, not an image container. The image inside is 300% of the
+   closed window and never scales, moves or animates — opening the card only
+   grows the mask, so the crop that was already visible stays at the exact same
+   spot inside it and the extra size uncovers more of the same image.
+
+   It is a separate fixed element rather than the card itself, because the card
+   is a flex item in the row and could not fly out to the corner. Its closed
+   geometry is therefore derived from the row's own tokens so it lands exactly
+   on the right card's inner box:
+     left   — the divider is centred in the row, so the right card's inner edge
+              is always 0.5px right of centre, whatever the row's width
+     width  — (row width - 2px outer border - 1px divider) / 2
+     height — row height - 2px outer border
+   =========================================================== */
+.reveal-window {
+  --closed-w: calc((var(--card-row-w) - 3px) / 2);
+  --closed-h: calc(var(--card-row-h) - 2px);
+  /* 300% of the closed window: big enough that the open window is still a crop
+     of it, so the mask never runs off the edge of the image. */
+  --img-w: calc(var(--closed-w) * 3);
+  --img-h: calc(var(--img-w) / 2.0246); /* projects-background.png is 2470x1220 */
+  /* Where the closed window sits inside the image, as a fraction of it. Chosen
+     so the small ringed planet anchors the closed crop, and so growing right
+     and down from there uncovers the large ringed planet. */
+  --crop-x: calc(var(--img-w) * 0.12);
+  --crop-y: calc(var(--img-h) * 0.16);
+  /* Open size, expressed against the image so the crop maths holds on every
+     viewport: 0.12 + 0.68 and 0.16 + 0.78 both stay inside the image. */
+  --open-w: calc(var(--img-w) * 0.68);
+  --open-h: calc(var(--img-h) * 0.78);
+
+  position: fixed;
+  left: calc(50% + 0.5px);
+  bottom: calc(var(--card-row-bottom) + 1px);
+  width: var(--closed-w);
+  height: var(--closed-h);
+  /* Above the badges (30) and the row (20) so the open card clears everything. */
+  z-index: 40;
+  overflow: hidden;
+  cursor: pointer;
+  /* Faded in from the RAF loop on the same progress as the row, so no opacity
+     transition here — it would fight the per-frame writes. */
+  opacity: 0;
+  pointer-events: none;
+  transition: left var(--reveal-duration) var(--reveal-ease),
+    bottom var(--reveal-duration) var(--reveal-ease),
+    width var(--reveal-duration) var(--reveal-ease),
+    height var(--reveal-duration) var(--reveal-ease);
+}
+
+/* Grown into a large preview in the top-right corner. Percentages resolve
+   against the viewport minus any scrollbar, unlike vw — which matters here
+   because the page is 300vh tall and always scrollable. */
+.reveal-window.is-open {
+  left: calc(100% - 4vw - var(--open-w));
+  bottom: calc(100% - 5vh - var(--open-h));
+  width: var(--open-w);
+  height: var(--open-h);
+  cursor: default;
+  /* Outline, not border: it is painted outside the box, so gaining the frame
+     costs no layout and the image underneath cannot shift by a pixel. */
+  outline: 1px solid #ffffff;
+}
+
+/* Never resized, never repositioned. The only thing written to it is the
+   rotateY tilt, and only while the window is closed. */
+.reveal-image {
+  position: absolute;
+  left: calc(var(--crop-x) * -1);
+  top: calc(var(--crop-y) * -1);
+  width: var(--img-w);
+  height: auto;
+  max-width: none;
+  /* Pivot: the centre of the closed crop, so the tilt reads as the view turning
+     about what is actually on screen. perspective() lives in the transform, so
+     this is the vanishing point too. */
+  transform-origin: calc(var(--crop-x) + var(--closed-w) / 2)
+    calc(var(--crop-y) + var(--closed-h) / 2);
+  transform: perspective(1400px) rotateY(0deg);
+  will-change: transform;
+  user-select: none;
+  -webkit-user-drag: none;
+  pointer-events: none;
+}
+
+/* Close affordance, only while open. Fades in after the growth has landed. */
+.reveal-close {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 34px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-left: 1px solid #ffffff;
+  border-bottom: 1px solid #ffffff;
+  background: transparent;
+  color: #ffffff;
+  font-family: var(--font-code);
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 300ms ease;
+}
+
+.reveal-window.is-open .reveal-close {
+  opacity: 0.7;
+  pointer-events: auto;
+  transition-delay: 380ms;
+}
+
+.reveal-close:hover,
+.reveal-close:focus-visible {
+  opacity: 1;
+}
+
+/* ===========================================================
    Social badges (top-left corner): GitHub (icon + label), then
    icon-only LinkedIn and email links sharing the same hover style.
    =========================================================== */
