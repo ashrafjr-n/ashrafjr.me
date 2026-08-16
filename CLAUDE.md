@@ -106,7 +106,7 @@ back. What exists today:
   1px outer border and `.scene2-card + .scene2-card` carries the 1px
   `border-left`, so the divider is never double-thick and the two cards stay
   flush (no gap). Sharp corners on purpose — no `border-radius`. **Both lines
-  are one token, `--card-line`** (white at 0.3), plus a near-invisible
+  are one token, `--card-line`** (white at 0.16), plus a near-invisible
   `--card-line-glow` bloom on the row; a solid `#fff` line was tried and read
   too harsh against the black. Keep the boundary and the divider on that same
   token so they never diverge. **DOM overlay, not
@@ -125,9 +125,14 @@ At rest (scroll 0) the world camera does not move; the mouse parallax affects
 the wide starfield only. Everything else moves only under scroll.
 
 ## Reveal window (right Scene 2 card)
-`public/assets/projects-background.png` (2470x1220, the same black/white
-starfield-with-planets language as the model) shown through the right card.
-**The card is a mask, not an image container.** The image is many times the
+The project preview, shown through the right card. Assets live in
+`public/assets/projects/`: `projects-background.png` (2664x1250) is the
+backdrop — a **uniform starfield with no planets in it** — and `black.png`,
+`white.png`, `one/two/three/four.png` are the planets, transparent-background
+sprites layered over it. (`public/assets/projects-background.png`, one level
+up, is the older combined art and is no longer referenced by anything.)
+
+**The card is a mask, not an image container.** The backdrop is many times the
 size of the closed window and never scales — opening grows the mask to fill
 the whole viewport, so what was already on screen stays put at the same size
 and the new area uncovers more of the same image. Never scale or pan the image
@@ -140,20 +145,19 @@ to open it; that would read as a zoom.
   exactly on the right card's inner box — `left: calc(50% + 0.5px)` works
   whatever the row's width because the divider is always centred. Change the
   row's size only through those tokens or the two will drift apart.
-- **One anchor point holds the image**: 0.68/0.50 of itself — the large ringed
-  planet — pinned to the centre of the mask in every state
-  (`left: calc(50% - var(--anchor-x))`). So the closed card is deliberately
-  composed on that planet, and opening uncovers the field around it evenly.
-  Anchoring the image to the mask's top-left corner instead was what the
-  smaller pop-out version did; at full screen it forces the crop into the
-  image's top-left corner and needs a far bigger image, so don't go back to it.
-- `--img-w: max(160vw, 210vh)` follows from that anchor: at full screen the
-  mask needs 0.32 of the image to the right of the anchor to cover 50vw, and
-  half its height to cover 50vh; `max()` covers whichever binds on the current
-  aspect. Undersizing it shows black at the screen edge. The cost is that the
-  2470px-wide PNG upscales on large monitors (~1.7x at 2560 wide) — acceptable
-  on a soft starfield. `--img-h` hard-codes the PNG's 2470/1220 aspect —
-  **replacing the image means updating that ratio and re-picking the anchor**.
+- **One anchor point holds the backdrop**: its own centre, pinned to the centre
+  of the mask in every state (`left: calc(50% - var(--anchor-x))`). Centring is
+  both free — the field is uniform, there is no subject to compose on — and the
+  cheapest option, since it makes the image smallest for full-screen coverage.
+  Anchoring to the mask's top-left corner instead was what the smaller pop-out
+  version did; at full screen that forces the crop into the image's corner and
+  needs a far bigger image, so don't go back to it.
+- `--img-w: max(104vw, 222vh)` follows from that anchor: half the image has to
+  cover 50vw and 50vh, and `max()` covers whichever binds on the current
+  aspect. The few percent over is the headroom the backdrop's parallax shift
+  moves within — undersize it, or raise `REVEAL_BACKDROP_DEPTH` a lot, and the
+  screen edge shows black. `--img-h` hard-codes the PNG's 2664/1250 aspect —
+  **replacing the backdrop means updating that ratio**.
 - Open/close animates `left/bottom/width/height` (620ms expo-out) to a
   **full-screen** `0/0/100%/100%`. It cannot use a transform: scaling the mask
   would scale the image with it. Percentages, not `vw`/`vh`, so a classic
@@ -166,6 +170,26 @@ to open it; that would read as a zoom.
   loop, about a **fixed** `transform-origin` at the anchor point
   (`perspective()` lives in the transform, so that point is the vanishing point
   too). It is a rotation, never a pan — the crop must not slide.
+- **Parallax planet field, open state only.** Six planets (`REVEAL_PLANETS` in
+  `main.ts`) are scattered over the backdrop — centre as a % of the window,
+  width in vw, positions deliberately uneven and clear of the badges and the
+  close button. Every layer counter-moves against the mouse: the camera is
+  fixed and only its facing turns, so turning right slides the world left.
+  Each planet has **its own `depth`** (px of travel at full deflection), the
+  bigger/nearer ones travelling most, and the backdrop's
+  `REVEAL_BACKDROP_DEPTH` sits below all of them so it reads farthest.
+  Vertical travel is `REVEAL_PARALLAX_Y` of the horizontal; everything is
+  damped by `REVEAL_PARALLAX_LERP` in the single RAF loop.
+  - It goes live only `REVEAL_OPEN_MS` after opening — **keep that in step with
+    `--reveal-duration`** — so the field never moves while the window is still
+    growing, and dies the instant it closes. While it is off the mouse is read
+    as 0, so a closed window cannot move.
+  - Layers damp back to exactly 0 and then have their inline `transform`
+    dropped, so nothing is left applied to a closed window. Planet centring
+    therefore uses the standalone `translate` property, not a
+    `translate(-50%,-50%)` inside `transform` that clearing would wipe.
+  - The backdrop is the one layer carrying both motions, so its transform is
+    composed (parallax shift + the closed-state tilt) rather than just set.
 - Opened by click/Enter/Space, closed by the `.reveal-close` button, a click
   outside, or Escape. Two permanent document listeners handle the last two; the
   opening click's target is inside the window, so it cannot self-close.
