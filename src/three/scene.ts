@@ -209,6 +209,9 @@ interface StarLayer {
   fly: Float32Array | null
   /** Exponent applied to scroll progress before displacing this layer. */
   ease: number
+  /** The attribute's own backing array, written directly each frame. */
+  positions: Float32Array
+  /** Flagged after each write so Three re-uploads the buffer. */
   posAttr: Float32BufferAttribute
 }
 
@@ -236,7 +239,7 @@ function advance(
   flyY: number,
   flyZ: number,
 ): void {
-  const arr = layer.posAttr.array as Float32Array
+  const arr = layer.positions
   // Same scroll value for every layer; each just responds on its own curve.
   const t = layer.ease === 1 ? progress : Math.pow(progress, layer.ease)
 
@@ -347,8 +350,9 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
       colors[i3 + 2] = c.b
     }
 
+    const posAttr = new Float32BufferAttribute(positions, 3)
     const geometry = new BufferGeometry()
-    geometry.setAttribute('position', new Float32BufferAttribute(positions, 3))
+    geometry.setAttribute('position', posAttr)
     geometry.setAttribute('color', new Float32BufferAttribute(colors, 3))
 
     const material = new PointsMaterial({
@@ -382,7 +386,8 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
       scatter,
       fly,
       ease: transition.ease ?? 1,
-      posAttr: geometry.getAttribute('position') as Float32BufferAttribute,
+      positions,
+      posAttr,
     }
   }
 
