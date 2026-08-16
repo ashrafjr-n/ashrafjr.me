@@ -1,6 +1,6 @@
 /**
  * Base Three.js scene — a slow drifting starfield, plus the Scene 1 world
- * layer (model + platform) composited on top of it.
+ * layer (the model) composited on top of it.
  *
  * A constant forward drift in z (with wrap-around) gives an infinite "flying
  * through space" base. Mouse parallax is layered on top via shared input
@@ -65,7 +65,7 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
   const renderer = new WebGLRenderer({ canvas, antialias: true, alpha: true })
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
   renderer.setSize(window.innerWidth, window.innerHeight, false)
-  renderer.setClearColor(0x000000, 0) // transparent: the CSS silver shows through
+  renderer.setClearColor(0x000000, 0) // transparent: the CSS black shows through
   renderer.autoClear = false // two passes per frame, cleared manually below
 
   const scene = new Scene()
@@ -118,7 +118,7 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
 
   const posAttr = geometry.getAttribute('position') as Float32BufferAttribute
 
-  // --- Scene 1 world layer (model + platform), drawn over the starfield ---
+  // --- Scene 1 world layer (the model), drawn over the starfield ---
   const world = createWorld(window.innerWidth / window.innerHeight)
 
   // --- Animation: constant drift + smoothed mouse parallax ---
