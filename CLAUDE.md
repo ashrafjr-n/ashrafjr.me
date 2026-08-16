@@ -44,6 +44,8 @@ back. What exists today:
   markup and behaviour live in `src/ui/`, not here.
 - `src/ui/social.ts` — the social icon row: the three inline SVGs, the
   `SOCIAL_LINKS` data and the one factory that builds them.
+- `src/ui/mark.ts` — the Scene 2 portrait and its draw/hold/wipe cycle (see
+  **Scene 2 portrait** below).
 - `src/ui/reveal-window.ts` — the reveal window as one unit: its DOM, its
   open/close behaviour, its JS-written geometry and the 3D layer behind it
   (see **Reveal window** below). `main.ts` only mounts it, binds the trigger
@@ -129,15 +131,13 @@ back. What exists today:
   - The two words are `.scene2-word` **`<button>`s reset to plain type**
     (`background: none; border: 0`), so Enter/Space and focus come for free.
     `--font-code` at **weight 700** — that weight is requested in `index.html`;
-    keep it there. Hover/focus lifts the type itself (brighter, `translateY`)
-    rather than drawing anything around it.
-  - The portrait (`.scene2-mark`) is `public/assets/svg/me.svg`, an animated
-    ASCII-art self-portrait, mounted as a plain `<img>` and sized by height so
-    its own aspect (1036x1363) sets the width. It carries a
-    `prefers-color-scheme: light` variant that would flip its greys to
-    near-black on the black page, so the CSS pins `color-scheme: dark` on it —
-    don't remove that. Its greys are palette-safe; its one off-palette cursor
-    colour was recoloured to grey on the way in.
+    keep it there. **Hover is brightness only** — `--accent` to pure white, no
+    lift, no glow, no box. A `translateY` lift and a `text-shadow` were both
+    tried and removed; the words carry no shadow at rest either.
+  - The portrait (`.scene2-mark`) is `public/assets/svg/me.svg`, an ASCII-art
+    self-portrait — see **Scene 2 portrait** below. Its box is `--row-mark-h`
+    tall with the artwork's own `aspect-ratio` (1036 / 1363) stated in CSS, so
+    the row's layout holds before the file has even loaded.
   - The row is `pointer-events: none` and the words opt back in via
     `.scene2-row.is-live .scene2-word`, gated from `main.ts` because an
     opacity-0 element is still a hit target.
@@ -155,6 +155,39 @@ back. What exists today:
 
 At rest (scroll 0) the world camera does not move; the mouse parallax affects
 the wide starfield only. Everything else moves only under scroll.
+
+## Scene 2 portrait (`src/ui/mark.ts`)
+`public/assets/svg/me.svg` — an ASCII-art self-portrait, 127 text lines, each
+clipped by a `<rect>` that widens from 0 to 1008 to reveal it. It draws itself
+in, holds, wipes back out and repeats, forever, but **only while Scene 2 is on
+screen**.
+
+- It is **inlined**, not an `<img>`: `mark.ts` fetches the file and injects it,
+  because an `<img>`'s internals cannot be reached. It stays in `public/` (a
+  295KB string does not belong in the JS bundle), so the row is briefly empty
+  on first arrival — the CSS box is sized anyway, so nothing shifts.
+- **The artwork's own SMIL animation is stripped and replaced.** Every
+  `<animate>`/`<set>` is removed in the same task as the inject, so the
+  built-in typing pass never gets a frame — it used to run once at page load
+  and freeze long before anyone scrolled down. Each line's full width is read
+  off its `<animate to="...">` first. The typing cursor rects are left at
+  `opacity: 0`, which is what they are without their `set`.
+- The whole picture is **one number**: how many lines are filled, fractionally.
+  Drawing top-to-bottom and wiping bottom-to-top are that number going up and
+  coming back down, so there is no separate reverse pass. `DRAW_MS` /
+  `HOLD_MS` / `WIPE_MS` are the cycle, and the wipe runs straight into the next
+  draw with no gap by construction (the cycle is `clock % CYCLE_MS`).
+- Only the lines between the last state and the new one are written, so a frame
+  touches one or two rects, not 127.
+- It runs off the **single RAF loop** like everything else — `main.ts` calls
+  `mark.update(time, rowShown > 0)`, where `rowShown` is the row's own fade. Off
+  screen it rewinds to blank, so arriving in Scene 2 always starts from the
+  first line. Do not give it a loop, an IntersectionObserver or a timer.
+- The file's `@media (prefers-color-scheme: light)` block is **cut out of the
+  stylesheet on the way in** (`stripLightScheme`). Inline, that stylesheet is a
+  document-level one, and on a light-mode system it would flip every grey to
+  near-black on a black page. Its greys are otherwise palette-safe; its one
+  off-palette cursor colour was recoloured to grey in the file itself.
 
 ## Reveal window (opened from the Scene 2 row)
 The project preview. The element and everything it does live in
@@ -440,9 +473,11 @@ of sync.
 Do not create a second animation loop — any new per-frame logic (camera motion,
 model animation, etc.) should hook into this same loop, ideally inside
 `scene.ts`'s `update()` before the render calls. UI features do the same the
-other way round: `src/ui/reveal-window.ts` exposes an `update()` that this loop
-calls once a frame, and its 3D scene has its own renderer but no loop of its
-own — the window calls into it only while it is open.
+other way round: `src/ui/reveal-window.ts` and `src/ui/mark.ts` each expose an
+`update()` that this loop calls once a frame. The window's 3D scene has its own
+renderer but no loop of its own — the window calls into it only while it is
+open — and the portrait's animation is a plain function of that loop's `time`,
+not SMIL, a CSS animation or a timer.
 
 ## Removed (do not assume these exist)
 The following existed in an earlier version of this project and were
