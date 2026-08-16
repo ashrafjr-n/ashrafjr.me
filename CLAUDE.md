@@ -24,7 +24,10 @@ At the start of every session, and after every /clear, read vibe.md first before
   lighten the background, or put a ground/backdrop mesh behind the model.
 - Fonts loaded: **Space Grotesk** (`--font-display`, still not applied to any
   element) and **JetBrains Mono** (`--font-code`, applied to body text, the
-  social badges and the intro line).
+  social badges and the intro line). **Weight 400 only** for both — the
+  Google Fonts request in `index.html` was trimmed to what is actually
+  rendered, so anything set bolder than 400 will synthesize until the weight is
+  added back to that URL.
 
 ## Current state
 Scene 1 is the static opening composition: the `space_boi` diorama seen from a
