@@ -37,6 +37,13 @@ const MODEL_URL = '/models/space_boi.glb'
 const MODEL_SPAN = 3.1
 
 /**
+ * Radians per second the model spins about its own Y axis. Negative because
+ * from this bird's-eye camera a positive Y rotation reads counter-clockwise,
+ * and we want clockwise. ~70s per revolution — slow enough to feel calm.
+ */
+const SPIN_SPEED = -0.09
+
+/**
  * Normalize the GLB: uniform-scale it to MODEL_SPAN, center it on x/z and drop
  * it so its lowest point rests on y = 0.
  *
@@ -58,6 +65,8 @@ function fitModel(model: Object3D): void {
 export interface WorldLayer {
   scene: Scene
   camera: PerspectiveCamera
+  /** Advance the spin. Driven by the single RAF loop; `delta` is in seconds. */
+  update(delta: number): void
   resize(aspect: number): void
 }
 
@@ -92,10 +101,15 @@ export function createWorld(aspect: number): WorldLayer {
     (err) => console.error(`[world] failed to load ${MODEL_URL}`, err),
   )
 
+  // Frame-rate independent: the angle advances by elapsed time, not per frame.
+  function update(delta: number): void {
+    pivot.rotation.y += SPIN_SPEED * delta
+  }
+
   function resize(nextAspect: number): void {
     camera.aspect = nextAspect
     camera.updateProjectionMatrix()
   }
 
-  return { scene, camera, resize }
+  return { scene, camera, update, resize }
 }
