@@ -32,7 +32,16 @@ function buildGithubBadge(): HTMLAnchorElement {
   return link
 }
 
-app.append(canvas, buildGithubBadge())
+/** Scene 1 intro line, centred near the top of the viewport above the model. */
+function buildIntro(): HTMLParagraphElement {
+  const intro = document.createElement('p')
+  intro.className = 'intro'
+  intro.textContent = 'Hello! I am ASHRAF.'
+  return intro
+}
+
+const intro = buildIntro()
+app.append(canvas, intro, buildGithubBadge())
 
 // --- Particle starfield ---
 const scene = initScene(canvas)

@@ -55,6 +55,29 @@ body {
 }
 
 /* ===========================================================
+   Scene 1 intro line (top-centre, above the model)
+   =========================================================== */
+.intro {
+  position: fixed;
+  top: 14vh;
+  left: 50%;
+  z-index: 20;
+  /* translateX centres it; the Y offset is driven from the RAF loop as the
+     scroll transition runs, so the line drifts up as it fades. */
+  transform: translate(-50%, 0);
+  margin: 0;
+  font-family: var(--font-code);
+  font-size: clamp(0.85rem, 1.9vw, 1.35rem);
+  font-weight: 400;
+  letter-spacing: 0.16em;
+  white-space: nowrap;
+  color: var(--accent);
+  text-shadow: 0 0 18px rgba(255, 255, 255, 0.28);
+  pointer-events: none;
+  will-change: opacity, transform;
+}
+
+/* ===========================================================
    GitHub badge (top-left corner)
    =========================================================== */
 .github-badge {
