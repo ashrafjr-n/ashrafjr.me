@@ -33,12 +33,11 @@ back. What exists today:
   Three.js scene (`src/three/scene.ts`), starts mouse-pointer tracking
   (`src/lib/state.ts`), builds and appends the GitHub badge, and runs the
   single RAF loop.
-- `src/three/scene.ts` — owns the renderer and the drifting particle starfield
-  (white/silver dots only). The starfield camera is fixed at the origin; only
-  the particle field tilts in response to mouse position. It also owns the
-  two-pass composite (see **Render passes** below). There is no scroll input
-  wired up anywhere in the app right now — `state.mouseX`/`state.mouseY` are
-  the only live input values.
+- `src/three/scene.ts` — owns the renderer and the orbiting particle starfield
+  (white/silver dots only; see **Starfield** below). The particle field also
+  tilts in response to mouse position. It owns the two-pass composite (see
+  **Render passes**). There is no scroll input wired up anywhere in the app
+  right now — `state.mouseX`/`state.mouseY` are the only live input values.
 - `src/three/world.ts` — the Scene 1 world layer: its own `Scene` +
   bird's-eye `PerspectiveCamera` (fov 35, at `(0, 8, 6.5)` looking at
   `(0, 0.25, 0)`, ~47° above the horizon), white key/fill/ambient lights, the
@@ -75,12 +74,41 @@ The model spins slowly clockwise about its own vertical axis, forever.
   background tab animates slower than wall-clock — expected, same as the
   starfield.
 
+## Starfield
+The site's stars **orbit the model's centre** on roughly the model's own
+orbital plane, so they read as one system with the stars embedded in the model.
+There is no toward-camera dolly any more — that was removed deliberately
+because it clashed with the model's rotating stars. Do not reintroduce it.
+
+- Each star stores its own `radius` / `angle` / `speed`; per frame only the
+  angle advances and x/z are recomputed as `cos/sin * radius`. Height is
+  written once at init and never touched, which is what keeps every star on a
+  level circle around the model's axis.
+- With `x = cos`, `z = sin`, an **increasing** angle reads clockwise from the
+  bird's-eye camera — matching the model's spin, which gets there via a
+  *negative* `rotation.y`. The two conventions differ; don't "fix" one to match
+  the other.
+- Speeds come from `SPEED_TIERS`: ~78% slow, ~18% medium, ~4% fast, randomised
+  within each tier so the motion is not uniform.
+- The cloud is a **flattened ball** (`CLOUD_RADIUS`, `CLOUD_FLATTEN`), not a
+  thin disc. The camera pitches ~50° down, so its frustum passes through a thin
+  disc and out the underside within ~25 units, leaving the frame empty. This
+  was tried and rejected — keep the ball flattened, not flat.
+- `PARTICLE_COUNT` is high (~5.8k) because only a narrow cone of the cloud is
+  ever on screen. Count and `size` are tuned together against the pre-change
+  on-screen star density (~93 stars/megapixel); re-measure if either changes.
+- Three sizes points as `size * 0.5 * drawingBufferHeight / distance` — **fov
+  plays no part**. Any change to the cloud's scale needs `size` rescaled by the
+  same factor or the dots change apparent size.
+
 ## Render passes
 `renderer.autoClear` is **false**. Every frame, `scene.ts` does:
-`clear()` → render starfield (origin camera) → `clearDepth()` → render world
-layer (bird's-eye camera). The two layers have separate scenes and cameras so
-the world camera can be repositioned freely without disturbing the starfield's
-fixed-at-origin drift/wrap logic. Keep this ordering.
+`clear()` → render starfield → `clearDepth()` → render world layer. **Both
+passes use the world layer's bird's-eye camera** (`world.camera`) — sharing one
+vantage is what makes the star orbits line up with the model's own plane, and
+the starfield's old origin camera was removed for that reason. The two layers
+still have separate scenes so the depth clear can guarantee the model always
+draws in front of the stars, whatever their real depth. Keep this ordering.
 
 ## Animation loop
 One single `requestAnimationFrame` loop lives in `src/main.ts`:
