@@ -87,7 +87,7 @@ body {
    =========================================================== */
 .scene2-cards {
   position: fixed;
-  bottom: 6vh;
+  bottom: 10vh;
   left: 50%;
   z-index: 20;
   transform: translateX(-50%);
