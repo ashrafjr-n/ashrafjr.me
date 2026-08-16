@@ -271,7 +271,12 @@ body {
   background: transparent;
   color: #ffffff;
   font-family: var(--font-code);
-  font-size: 42px;
+  /* The × glyph inks at roughly half its em, so this is deliberately far
+     larger than the 64px box: it puts the mark's own edges nearly on the box's
+     edges. The line box overflows the button — harmless, the button does not
+     clip and the ink stays inside it. Retune this, not the box, if the mark
+     should sit tighter or looser in the corner. */
+  font-size: 118px;
   line-height: 1;
   cursor: pointer;
   opacity: 0;
