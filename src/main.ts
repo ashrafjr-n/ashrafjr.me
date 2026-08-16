@@ -154,6 +154,7 @@ function buildRevealWindow(): { root: HTMLDivElement; image: HTMLImageElement; c
   const root = document.createElement('div')
   root.className = 'reveal-window'
   root.setAttribute('role', 'button')
+  root.tabIndex = 0
   root.setAttribute('aria-label', 'Open project preview')
   root.setAttribute('aria-expanded', 'false')
 
@@ -221,12 +222,96 @@ function updateIntro(progress: number): void {
   intro.style.transform = `translate(-50%, ${-t * INTRO_DRIFT}px)`
 }
 
-/** Fade the Scene 2 cards in, off the same progress as everything else. */
+/**
+ * Fade the Scene 2 cards in, off the same progress as everything else. The
+ * reveal window rides the same value — it is a separate element, so it has to
+ * be faded and gated by hand rather than inheriting the row's opacity.
+ */
 function updateScene2Cards(progress: number): void {
-  const t = Math.max((progress - CARDS_FADE_START) / (1 - CARDS_FADE_START), 0)
+  const t = Math.min(Math.max((progress - CARDS_FADE_START) / (1 - CARDS_FADE_START), 0), 1)
   if (Math.abs(t - cardsShown) < 0.002) return // skip redundant style writes
   cardsShown = t
-  scene2Cards.style.opacity = String(Math.min(t, 1))
+  scene2Cards.style.opacity = String(t)
+  reveal.root.style.opacity = String(t)
+
+  const active = t > REVEAL_ACTIVE_AT
+  reveal.root.style.pointerEvents = active ? 'auto' : 'none'
+  // Scrolling back toward Scene 1 puts it away rather than leaving an open
+  // preview fading over the transition.
+  if (!active && isRevealOpen) closeReveal()
+}
+
+// --- Reveal window: click to open, mouse tilt while closed ---
+let isRevealOpen = false
+let tilt = 0
+let tiltTarget = 0
+let tiltWritten = 0
+
+function openReveal(): void {
+  if (isRevealOpen) return
+  isRevealOpen = true
+  reveal.root.classList.add('is-open')
+  reveal.root.setAttribute('aria-expanded', 'true')
+  tiltTarget = 0 // the tilt is a closed-state affordance only
+}
+
+function closeReveal(): void {
+  if (!isRevealOpen) return
+  isRevealOpen = false
+  reveal.root.classList.remove('is-open')
+  reveal.root.setAttribute('aria-expanded', 'false')
+}
+
+reveal.root.addEventListener('click', () => {
+  if (!isRevealOpen) openReveal()
+})
+
+reveal.close.addEventListener('click', (e) => {
+  e.stopPropagation() // don't let it read as a click on the window itself
+  closeReveal()
+})
+
+// Click-away and Escape, the two patterns expected of an expanded preview. One
+// permanent listener each: the opening click's target is inside the window, so
+// it can never close what it just opened.
+document.addEventListener('click', (e) => {
+  if (isRevealOpen && !reveal.root.contains(e.target as Node)) closeReveal()
+})
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') closeReveal()
+})
+
+// Keyboard equivalent of the click, since the window is a focusable control.
+reveal.root.addEventListener('keydown', (e) => {
+  if (isRevealOpen || (e.key !== 'Enter' && e.key !== ' ')) return
+  e.preventDefault() // Space would otherwise scroll the page
+  openReveal()
+})
+
+reveal.root.addEventListener(
+  'mousemove',
+  (e) => {
+    if (isRevealOpen) return
+    const rect = reveal.root.getBoundingClientRect()
+    const nx = ((e.clientX - rect.left) / rect.width) * 2 - 1 // -1 left .. 1 right
+    tiltTarget = Math.min(Math.max(nx, -1), 1) * REVEAL_TILT_MAX
+  },
+  { passive: true },
+)
+reveal.root.addEventListener('mouseleave', () => {
+  tiltTarget = 0
+})
+
+/**
+ * Damp the image's tilt toward its target. Pure rotation about a fixed pivot —
+ * the image never translates or scales, so this cannot disturb the crop the
+ * mask is showing.
+ */
+function updateRevealTilt(): void {
+  tilt += (tiltTarget - tilt) * REVEAL_TILT_LERP
+  if (Math.abs(tilt - tiltWritten) < 0.01) return // skip redundant style writes
+  tiltWritten = tilt
+  reveal.image.style.transform = `perspective(1400px) rotateY(${tilt.toFixed(2)}deg)`
 }
 
 // --- Single RAF loop: the only one in the app; hook new per-frame work in here
@@ -234,6 +319,7 @@ function raf(time: number) {
   const progress = scene.update(time, state)
   updateIntro(progress)
   updateScene2Cards(progress)
+  updateRevealTilt()
   requestAnimationFrame(raf)
 }
 
