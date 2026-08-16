@@ -262,6 +262,8 @@ canvas.id = 'scene'
 const intro = buildIntro()
 const scene2Cards = buildScene2Cards()
 const reveal = buildRevealWindow()
+/** The card the reveal window sits on: the last one in the row. */
+const revealCard = scene2Cards.lastElementChild as HTMLDivElement
 app.append(canvas, intro, scene2Cards, reveal.root, buildSocialBadges())
 
 // --- Starfield + model, and the input they read ---
@@ -346,6 +348,7 @@ function openReveal(): void {
   reveal.root.classList.add('is-open')
   reveal.root.setAttribute('aria-expanded', 'true')
   tiltTarget = 0 // the tilt is a closed-state affordance only
+  revealCard.classList.remove('is-hovered') // don't leave the card lifted under it
   // Hand over to the parallax only when the window is actually full-screen.
   clearTimeout(parallaxTimer)
   parallaxTimer = window.setTimeout(() => {
@@ -402,6 +405,14 @@ reveal.root.addEventListener(
 )
 reveal.root.addEventListener('mouseleave', () => {
   tiltTarget = 0
+  revealCard.classList.remove('is-hovered')
+})
+
+// The window covers the right card's interior, so a pointer over the star crop
+// never reaches the card itself — mirror it, or that card would only respond to
+// a hover on its 1px border.
+reveal.root.addEventListener('mouseenter', () => {
+  if (!isRevealOpen) revealCard.classList.add('is-hovered')
 })
 
 /**

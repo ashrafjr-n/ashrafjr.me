@@ -187,8 +187,10 @@ body {
   bottom: calc(var(--card-row-bottom) + 1px);
   width: var(--closed-w);
   height: var(--closed-h);
-  /* Above the badges (30) and the row (20) so the open card clears everything. */
-  z-index: 40;
+  /* Under the row (20) while closed, so a hovered card's border draws over the
+     star crop when it grows across the divider. It goes above everything the
+     moment it opens. */
+  z-index: 15;
   overflow: hidden;
   cursor: pointer;
   /* Faded in from the RAF loop on the same progress as the row, so no opacity
@@ -209,6 +211,8 @@ body {
   bottom: 0;
   width: 100%;
   height: 100%;
+  /* Over the row and everything else except the badges (60). */
+  z-index: 40;
   cursor: default;
 }
 
