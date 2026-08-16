@@ -116,6 +116,21 @@ const BAND_BRIGHT_MIN = 0.96
 const BAND_BRIGHT_MAX = 1.0
 const BAND_OPACITY = 1.0
 
+/**
+ * A random ~30% of band stars are lifted brighter still, so the ring reads as
+ * mixed rather than uniform. Rolled per star, so it is a different scattering
+ * of stars on every load rather than a fixed pattern.
+ *
+ * The multiplier deliberately pushes the vertex colour **above 1**. The band's
+ * base is already near-pure white at full opacity, so there is no headroom left
+ * inside 0..1; with additive blending and the soft radial sprite, an over-1
+ * colour drives more of each dot's falloff to full white, which is what reads
+ * as a brighter, whiter star. It stays grayscale, so the palette holds.
+ */
+const BAND_BOOST_CHANCE = 0.3
+const BAND_BOOST_MIN = 1.7
+const BAND_BOOST_MAX = 2.4
+
 // Default star shading — grayscale brightness from pure white down to a
 // slightly dimmer silver-white, no color tint. Used by the ambient field.
 const STAR_BRIGHT_MIN = 0.78
@@ -285,7 +300,14 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
     count: number,
     pointSize: number,
     place: () => { radius: number; y: number },
-    look: { brightMin?: number; brightMax?: number; opacity?: number } = {},
+    look: {
+      brightMin?: number
+      brightMax?: number
+      opacity?: number
+      boostChance?: number
+      boostMin?: number
+      boostMax?: number
+    } = {},
     transition: { scatter?: () => number; fly?: () => number; ease?: number } = {},
   ): StarLayer {
     const positions = new Float32Array(count * 3)
@@ -315,7 +337,10 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
       positions[i3 + 2] = Math.sin(angle) * radius
 
       // White/silver only — grayscale, no color tint whatever the range.
-      const v = rand(look.brightMin ?? STAR_BRIGHT_MIN, look.brightMax ?? STAR_BRIGHT_MAX)
+      let v = rand(look.brightMin ?? STAR_BRIGHT_MIN, look.brightMax ?? STAR_BRIGHT_MAX)
+      if (look.boostChance && Math.random() < look.boostChance) {
+        v *= rand(look.boostMin ?? 1, look.boostMax ?? 1)
+      }
       c.setRGB(v, v, v)
       colors[i3] = c.r
       colors[i3 + 1] = c.g
@@ -387,6 +412,9 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
     brightMin: BAND_BRIGHT_MIN,
     brightMax: BAND_BRIGHT_MAX,
     opacity: BAND_OPACITY,
+    boostChance: BAND_BOOST_CHANCE,
+    boostMin: BAND_BOOST_MIN,
+    boostMax: BAND_BOOST_MAX,
   }, {
     // On scroll these widen out of their tight orbit and scatter away.
     scatter: () => rand(BAND_SCATTER_MIN, BAND_SCATTER_MAX),
