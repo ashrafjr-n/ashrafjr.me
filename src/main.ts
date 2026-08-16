@@ -131,6 +131,48 @@ function buildIntro(): HTMLParagraphElement {
 /** How many cards sit in the Scene 2 row. They share one outer boundary. */
 const SCENE2_CARD_COUNT = 2
 
+/** The large preview the right card is a window onto. */
+const REVEAL_IMAGE_SRC = '/assets/projects-background.png'
+/** Widest tilt of the image under the mouse, in degrees, either side of centre. */
+const REVEAL_TILT_MAX = 5
+/** Per-frame approach rate of the tilt toward its target — damped, not jumpy. */
+const REVEAL_TILT_LERP = 0.12
+/**
+ * Fade fraction above which the window accepts input. The row is still
+ * arriving below that, so the window is inert (and untouchable) until Scene 2
+ * has effectively landed.
+ */
+const REVEAL_ACTIVE_AT = 0.9
+
+/**
+ * The reveal window: a fixed-position mask that sits exactly on the right card
+ * and holds an image far larger than itself. Kept out of the row because the
+ * card is a flex item and could not fly out to the corner; the CSS derives its
+ * closed geometry from the row's tokens so the two line up.
+ */
+function buildRevealWindow(): { root: HTMLDivElement; image: HTMLImageElement; close: HTMLButtonElement } {
+  const root = document.createElement('div')
+  root.className = 'reveal-window'
+  root.setAttribute('role', 'button')
+  root.setAttribute('aria-label', 'Open project preview')
+  root.setAttribute('aria-expanded', 'false')
+
+  const image = document.createElement('img')
+  image.className = 'reveal-image'
+  image.src = REVEAL_IMAGE_SRC
+  image.alt = ''
+  image.draggable = false
+
+  const close = document.createElement('button')
+  close.className = 'reveal-close'
+  close.type = 'button'
+  close.setAttribute('aria-label', 'Close project preview')
+  close.textContent = '×'
+
+  root.append(image, close)
+  return { root, image, close }
+}
+
 /**
  * Scene 2 card row: bottom-centre, below the model in the levelled Scene 2
  * view. The cards are flush — one white boundary around the pair and a single
@@ -157,7 +199,8 @@ canvas.id = 'scene'
 
 const intro = buildIntro()
 const scene2Cards = buildScene2Cards()
-app.append(canvas, intro, scene2Cards, buildSocialBadges())
+const reveal = buildRevealWindow()
+app.append(canvas, intro, scene2Cards, reveal.root, buildSocialBadges())
 
 // --- Starfield + model, and the input they read ---
 const scene = initScene(canvas)
