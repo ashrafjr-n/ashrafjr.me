@@ -91,7 +91,8 @@ body {
   gap: 1.1rem;
 }
 
-.github-badge {
+/* One rule for all three links — the icon-only two simply have no caption. */
+.social-badge {
   display: flex;
   align-items: center;
   gap: 0.45rem;
@@ -105,33 +106,29 @@ body {
   transition: color 0.25s ease, filter 0.25s ease;
 }
 
-/* The three icons are circular *in the artwork* — each SVG is a filled disc
-   with its mark knocked out, and every viewBox is cropped to the disc's own
-   bounds. So this rule only sizes them; there is no CSS circle here and there
-   must not be one (no border-radius, no background, no clip-path). */
+/* The three icons are circular *in the artwork*: each SVG paints a full-bleed
+   disc whose viewBox is cropped to the disc's own bounds. So this rule only
+   sizes them; there is no CSS circle here and there must not be one (no
+   border-radius, no background, no clip-path). */
 .social-icon {
   display: block;
   width: 26px;
   height: 26px;
   flex-shrink: 0;
-  transition: transform 0.25s ease, color 0.25s ease;
+  transition: transform 0.25s ease;
 }
 
-.github-badge span {
-  letter-spacing: 0.12em;
-}
-
-.github-badge:hover,
-.github-badge:focus-visible {
+.social-badge:hover,
+.social-badge:focus-visible {
   color: var(--accent);
   filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.45));
 }
 
-.github-badge:hover svg,
-.github-badge:focus-visible svg {
+.social-badge:hover .social-icon,
+.social-badge:focus-visible .social-icon {
   transform: rotate(-8deg) scale(1.08);
 }
 
-.github-badge:active {
+.social-badge:active {
   transform: translateY(1px);
 }
