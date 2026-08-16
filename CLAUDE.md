@@ -112,15 +112,27 @@ back. What exists today:
   bloom; a solid `#fff` line was tried and read too harsh against the black.
   Keep both cards on that same token so the boundary and the divider never
   diverge.
-- Card hover — the hovered card scales to 1.035 and lifts to `z-index: 2` over
-  its neighbour, its border deepening to `--card-line-hover`. It is a transform,
-  so the other card never moves or resizes; flex items honour `z-index` without
-  being positioned, which is what lets the growing one overlap rather than be
-  clipped. The reveal window covers the right card's interior, so a pointer over
-  the star crop never reaches that card — `main.ts` mirrors the window's
-  `mouseenter`/`mouseleave` onto it as `.is-hovered`, and drops the class on
-  open. That is also why the closed window sits at `z-index: 15`, under the row:
-  a card growing across the divider must draw its border over the star crop. **DOM overlay, not
+- Card hover — the hovered card scales by `--card-hover-scale` (1.09) and lifts
+  to `z-index: 2` over its neighbour, its border deepening to
+  `--card-line-hover`. It is a transform, so the other card never moves or
+  resizes; flex items honour `z-index` without being positioned, which is what
+  lets the growing one overlap rather than be clipped. The closed window sits at
+  `z-index: 15`, under the row, so a card growing across the divider draws its
+  border over the star crop.
+  - **The right card and the reveal window scale together**, by the same factor
+    about the same centre — the window is that card's box inset 1px all round,
+    so one scale keeps them concentric and the star crop goes on filling the
+    card. `--card-hover-duration` is shared by both for the same reason. This
+    is the *only* time the window itself is transformed; opening still must not
+    scale it.
+  - Pointer routing is the fiddly part. The row is `pointer-events: none` and
+    the cards opt back in via `.scene2-cards.is-live .scene2-card`, gated from
+    `main.ts` because an opacity-0 element is still a hit target. The card the
+    window covers is excluded (`:not(:last-child)`): the row paints above the
+    closed window, so an interactive card there would swallow the window's
+    clicks and tilt. Its hover is mirrored from the window's own
+    `mouseenter`/`mouseleave` instead, through `setRevealCardHover()`, which
+    sets `.is-hovered` on both elements and is cleared on open. **DOM overlay, not
   3D** — nothing was added to the Three.js layers, so Scene 1 and the
   transition are untouched. `opacity` starts at 0 in CSS and `main.ts` fades it
   in over the last `1 - CARDS_FADE_START` of the scroll off the same
@@ -144,10 +156,12 @@ sprites layered over it. (`public/assets/projects-background.png`, one level
 up, is the older combined art and is no longer referenced by anything.)
 
 **The card is a mask, not an image container.** The backdrop is many times the
-size of the closed window and never scales — opening grows the mask to fill
-the whole viewport, so what was already on screen stays put at the same size
-and the new area uncovers more of the same image. Never scale or pan the image
-to open it; that would read as a zoom.
+size of the closed window and never scales *as part of opening* — opening grows
+the mask to fill the whole viewport, so what was already on screen stays put at
+the same size and the new area uncovers more of the same image. Never scale or
+pan the image to open it; that would read as a zoom. (The one scale that does
+exist is the closed card's hover lift, which grows window and card together —
+see the card hover notes above.)
 
 - It is a **separate `position: fixed` element**, not the card itself: the card
   is a flex item in the row and could not fly out to the corner. Its closed
