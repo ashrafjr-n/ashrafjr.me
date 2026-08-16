@@ -28,6 +28,11 @@ body {
   /* Flat, ungraded black — shows through the transparent canvas and must stay
      pixel-identical to the model's black, so no gradient here. */
   background: var(--bg);
+  /* Scroll length for the Scene 1 -> Scene 2 transition. Everything on screen
+     is position:fixed, so the page has no content to scroll — this is what
+     creates the scroll range that drives `state.scroll`. 300vh = two viewport
+     heights of travel from Scene 1 to Scene 2. */
+  min-height: 300vh;
   color: var(--text-dim);
   font-family: var(--font-code);
   -webkit-font-smoothing: antialiased;

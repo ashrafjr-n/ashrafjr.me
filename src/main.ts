@@ -1,6 +1,6 @@
 import './style.css'
 import { initScene } from './three/scene'
-import { state, initPointer } from './lib/state'
+import { state, initPointer, initScroll } from './lib/state'
 
 const app = document.querySelector<HTMLDivElement>('#app')!
 
@@ -38,8 +38,9 @@ app.append(canvas, buildGithubBadge())
 const scene = initScene(canvas)
 window.addEventListener('resize', () => scene.resize())
 
-// --- Pointer parallax input ---
+// --- Pointer parallax + scroll transition input ---
 initPointer()
+initScroll()
 
 // --- Single RAF loop: drives the starfield ---
 function raf(time: number) {
