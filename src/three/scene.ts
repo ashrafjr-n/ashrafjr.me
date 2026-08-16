@@ -1,9 +1,14 @@
 /**
- * Base Three.js scene — a slow drifting starfield behind the Hero.
+ * Base Three.js scene — a slow drifting starfield, plus the Scene 1 world
+ * layer (model + platform) composited on top of it.
  *
  * A constant forward drift in z (with wrap-around) gives an infinite "flying
  * through space" base. Mouse parallax is layered on top via shared input
  * state, lerped for smooth, cinematic motion.
+ *
+ * Two render passes share one renderer: the starfield keeps its own camera
+ * fixed at the origin (so its motion is untouched), then depth is cleared and
+ * the world layer is drawn over it from a bird's-eye camera.
  * Palette: white/silver/gray only — no color pops.
  */
 import {
@@ -19,6 +24,7 @@ import {
   WebGLRenderer,
 } from 'three'
 import type { InputState } from '../lib/state'
+import { createWorld } from './world'
 
 export interface SceneController {
   update(time: number, state: InputState): void
@@ -59,7 +65,8 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
   const renderer = new WebGLRenderer({ canvas, antialias: true, alpha: true })
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
   renderer.setSize(window.innerWidth, window.innerHeight, false)
-  renderer.setClearColor(0x000000, 0) // transparent: dark CSS bg shows through
+  renderer.setClearColor(0x000000, 0) // transparent: the CSS silver shows through
+  renderer.autoClear = false // two passes per frame, cleared manually below
 
   const scene = new Scene()
 
@@ -111,6 +118,9 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
 
   const posAttr = geometry.getAttribute('position') as Float32BufferAttribute
 
+  // --- Scene 1 world layer (model + platform), drawn over the starfield ---
+  const world = createWorld(window.innerWidth / window.innerHeight)
+
   // --- Animation: constant drift + smoothed mouse parallax ---
   let prevTime = performance.now()
 
@@ -137,7 +147,10 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
     }
     posAttr.needsUpdate = true
 
+    renderer.clear()
     renderer.render(scene, camera)
+    renderer.clearDepth() // world layer sits in front of the starfield
+    renderer.render(world.scene, world.camera)
   }
 
   function resize(): void {
@@ -145,6 +158,7 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
     const h = window.innerHeight
     camera.aspect = w / h
     camera.updateProjectionMatrix()
+    world.resize(w / h)
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
     renderer.setSize(w, h, false)
   }
