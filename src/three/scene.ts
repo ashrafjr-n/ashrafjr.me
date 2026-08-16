@@ -2,9 +2,9 @@
  * Base Three.js scene — a slow drifting starfield behind the Hero.
  *
  * A constant forward drift in z (with wrap-around) gives an infinite "flying
- * through space" base. Interaction (scroll + mouse) is layered on top via
- * shared input state, all of it lerped for smooth, cinematic motion.
- * Palette: mostly dim white with a few red (--accent) and wine pops. No purple.
+ * through space" base. Mouse parallax is layered on top via shared input
+ * state, lerped for smooth, cinematic motion.
+ * Palette: white/silver/gray only — no color pops.
  */
 import {
   AdditiveBlending,
@@ -12,7 +12,6 @@ import {
   CanvasTexture,
   Color,
   Float32BufferAttribute,
-  MathUtils,
   PerspectiveCamera,
   Points,
   PointsMaterial,
@@ -31,23 +30,9 @@ const SPREAD_XY = 900 // half-width of the x/y volume
 const DEPTH = 2400 // z length of the field (deep for parallax)
 const DRIFT_SPEED = 30 // world units per second the field moves toward camera
 
-// --- Interaction tuning (all gentle / clamped) ---
-const SCROLL_DOLLY = 0.6 // world units of forward camera travel per px scrolled
+// --- Interaction tuning (mouse parallax; gentle / clamped) ---
 const MAX_TILT = 0.09 // max parallax tilt from the mouse (~5°), radians
 const TILT_LERP = 0.05 // how fast tilt eases toward the target
-const DOLLY_LERP = 0.08 // how fast the camera eases toward its scroll target
-const WARP_FACTOR = 0.018 // velocity -> z-stretch
-const MAX_WARP = 0.8 // cap on extra z-scale (1 + MAX_WARP)
-const WARP_LERP = 0.06
-const BASE_FOV = 70
-const MIN_FOV = 58 // fov floor when warping
-const FOV_FACTOR = 0.32 // velocity -> fov reduction
-const MAX_FOV_DROP = 12
-const FOV_LERP = 0.06
-
-// Palette (red + wine, no purple)
-const RED = new Color('#ff1f3c')
-const WINE = new Color('#5c0a1e')
 
 /** Soft round sprite so points are dots, not squares. */
 function createCircleTexture(): CanvasTexture {
@@ -97,16 +82,10 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
     positions[i3 + 1] = rand(-SPREAD_XY, SPREAD_XY)
     positions[i3 + 2] = rand(-DEPTH, 0) // ahead of the camera (down -z)
 
-    // Mostly dim white; small fraction red / wine pops.
-    const roll = Math.random()
-    if (roll < 0.08) {
-      c.copy(RED)
-    } else if (roll < 0.14) {
-      c.copy(WINE)
-    } else {
-      const v = rand(0.45, 0.9)
-      c.setRGB(v, v, v)
-    }
+    // White/silver only — grayscale brightness from pure white down to
+    // a slightly dimmer silver-white, no color tint.
+    const v = rand(0.78, 1.0)
+    c.setRGB(v, v, v)
     colors[i3] = c.r
     colors[i3 + 1] = c.g
     colors[i3 + 2] = c.b
@@ -132,48 +111,27 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
 
   const posAttr = geometry.getAttribute('position') as Float32BufferAttribute
 
-  // --- Animation: constant drift + smoothed scroll / mouse interaction ---
+  // --- Animation: constant drift + smoothed mouse parallax ---
   let prevTime = performance.now()
 
   function update(time: number, state: InputState): void {
     const delta = Math.min((time - prevTime) / 1000, 0.1) // clamp big tab-switch gaps
     prevTime = time
-    const v = Math.abs(state.velocity)
 
-    // (a) Mouse parallax — tilt the field a few degrees, lerped.
+    // Mouse parallax — tilt the field a few degrees, lerped.
     const tiltY = state.mouseX * MAX_TILT
     const tiltX = -state.mouseY * MAX_TILT
     points.rotation.y += (tiltY - points.rotation.y) * TILT_LERP
     points.rotation.x += (tiltX - points.rotation.x) * TILT_LERP
 
-    // (b) Forward dolly — scroll flies the camera INTO the field (-z), lerped.
-    const targetZ = -state.scroll * SCROLL_DOLLY
-    camera.position.z += (targetZ - camera.position.z) * DOLLY_LERP
-
-    // (c) Velocity warp — stretch the field along z when scrolling fast, ease back.
-    const warpTarget = 1 + Math.min(v * WARP_FACTOR, MAX_WARP)
-    points.scale.z += (warpTarget - points.scale.z) * WARP_LERP
-
-    // (d) Dynamic FOV — narrow slightly with speed for a warp feel, lerped + clamped.
-    const fovTarget = MathUtils.clamp(
-      BASE_FOV - Math.min(v * FOV_FACTOR, MAX_FOV_DROP),
-      MIN_FOV,
-      BASE_FOV,
-    )
-    if (Math.abs(fovTarget - camera.fov) > 0.01) {
-      camera.fov += (fovTarget - camera.fov) * FOV_LERP
-      camera.updateProjectionMatrix()
-    }
-
-    // Constant forward drift + wrap. Threshold is in the points' local space,
-    // so divide the (world) camera z by the warp scale to keep the wrap correct.
+    // Constant forward drift + wrap. The camera sits fixed at z=0, so
+    // particles wrap back to the far edge once they cross it.
     const step = DRIFT_SPEED * delta
-    const threshold = camera.position.z / points.scale.z
     const arr = posAttr.array as Float32Array
     for (let i = 0; i < PARTICLE_COUNT; i++) {
       const zi = i * 3 + 2
       arr[zi] += step // move toward the camera (+z)
-      while (arr[zi] > threshold) {
+      while (arr[zi] > 0) {
         arr[zi] -= DEPTH // wrap back to the far edge -> infinite field
       }
     }
