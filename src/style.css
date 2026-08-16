@@ -93,7 +93,9 @@ body {
   transform: translateX(-50%);
   display: flex;
   width: min(760px, 82vw);
-  height: clamp(110px, 18vh, 190px);
+  /* Top of the row lands around 66vh with the 10vh bottom offset, which keeps
+     it clear of the model in the levelled Scene 2 view. */
+  height: clamp(150px, 24vh, 260px);
   border: 1px solid #ffffff;
   opacity: 0;
   pointer-events: none;
