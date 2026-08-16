@@ -177,16 +177,17 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
     points.rotation.y += (tiltY - points.rotation.y) * TILT_LERP
     points.rotation.x += (tiltX - points.rotation.x) * TILT_LERP
 
-    // Constant forward drift + wrap. The camera sits fixed at z=0, so
-    // particles wrap back to the far edge once they cross it.
-    const step = DRIFT_SPEED * delta
+    // Advance each star along its own orbit. Increasing the angle with
+    // x = cos, z = sin turns the disc clockwise from the bird's-eye camera —
+    // the same direction the model spins. Height is never rewritten, so every
+    // star stays on its own level circle around the model's centre.
     const arr = posAttr.array as Float32Array
     for (let i = 0; i < PARTICLE_COUNT; i++) {
-      const zi = i * 3 + 2
-      arr[zi] += step // move toward the camera (+z)
-      while (arr[zi] > 0) {
-        arr[zi] -= DEPTH // wrap back to the far edge -> infinite field
-      }
+      const angle = angles[i] + speeds[i] * delta
+      angles[i] = angle
+      const i3 = i * 3
+      arr[i3] = Math.cos(angle) * radii[i]
+      arr[i3 + 2] = Math.sin(angle) * radii[i]
     }
     posAttr.needsUpdate = true
 
