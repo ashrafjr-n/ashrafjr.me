@@ -24,7 +24,7 @@
      fixed element) has to land exactly on the right card's inner box. */
   --card-row-w: min(760px, 82vw);
   --card-row-h: clamp(225px, 35vh, 370px);
-  --card-row-bottom: 13vh;
+  --card-row-bottom: 10vh;
 
   /* The card row's line: one hairline used for both the outer boundary and the
      divider, so the two never read differently. Held far under pure white — a
