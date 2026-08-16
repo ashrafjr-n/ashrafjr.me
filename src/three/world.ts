@@ -35,7 +35,7 @@ const CAMERA_TARGET = { x: 0, y: 0.25, z: 0 } // model's own mid-height: centers
 // exactly 0° — a straight-on view of the model rather than the ~63° overhead of
 // Scene 1. Keep these two `y` values equal to keep the view level.
 // The height is the model's own mid-height, which centres it in frame.
-const SCENE2_CAMERA_POS = { x: 0, y: 0.3, z: 4.99 }
+const SCENE2_CAMERA_POS = { x: 0, y: 0.3, z: 4.3 }
 const SCENE2_CAMERA_TARGET = { x: 0, y: 0.3, z: 0 }
 
 /**
