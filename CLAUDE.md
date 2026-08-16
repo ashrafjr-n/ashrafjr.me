@@ -102,14 +102,25 @@ back. What exists today:
 - Scene 2 card row (`.scene2-cards`, bottom-centre) — two flush `.scene2-card`
   divs built in `main.ts` from `SCENE2_CARD_COUNT`, sitting below the model in
   the levelled Scene 2 view. **Both are empty** — shape only, no content yet.
-  They read as one wide rectangle split by a single line: the row carries the
-  1px outer border and `.scene2-card + .scene2-card` carries the 1px
-  `border-left`, so the divider is never double-thick and the two cards stay
-  flush (no gap). Sharp corners on purpose — no `border-radius`. **Both lines
-  are one token, `--card-line`** (white at 0.16), plus a near-invisible
-  `--card-line-glow` bloom on the row; a solid `#fff` line was tried and read
-  too harsh against the black. Keep the boundary and the divider on that same
-  token so they never diverge. **DOM overlay, not
+  They read as one wide rectangle split by a single line: **each card carries
+  its own full 1px border** and the second is pulled onto the first with
+  `margin-left: -1px`, so the two adjacent borders collapse into one divider
+  and the outer boundary is unchanged. The row itself has no border — a card
+  needs a complete rectangle of its own to be able to grow on hover. Sharp
+  corners on purpose — no `border-radius`. **The line is one token,
+  `--card-line`** (white at 0.16), plus a near-invisible `--card-line-glow`
+  bloom; a solid `#fff` line was tried and read too harsh against the black.
+  Keep both cards on that same token so the boundary and the divider never
+  diverge.
+- Card hover — the hovered card scales to 1.035 and lifts to `z-index: 2` over
+  its neighbour, its border deepening to `--card-line-hover`. It is a transform,
+  so the other card never moves or resizes; flex items honour `z-index` without
+  being positioned, which is what lets the growing one overlap rather than be
+  clipped. The reveal window covers the right card's interior, so a pointer over
+  the star crop never reaches that card — `main.ts` mirrors the window's
+  `mouseenter`/`mouseleave` onto it as `.is-hovered`, and drops the class on
+  open. That is also why the closed window sits at `z-index: 15`, under the row:
+  a card growing across the divider must draw its border over the star crop. **DOM overlay, not
   3D** — nothing was added to the Three.js layers, so Scene 1 and the
   transition are untouched. `opacity` starts at 0 in CSS and `main.ts` fades it
   in over the last `1 - CARDS_FADE_START` of the scroll off the same
@@ -143,8 +154,9 @@ to open it; that would read as a zoom.
   geometry is therefore *derived* from the row's tokens (`--card-row-w/h/bottom`
   on `:root`, shared with `.scene2-cards`) rather than measured, so it lands
   exactly on the right card's inner box — `left: calc(50% + 0.5px)` works
-  whatever the row's width because the divider is always centred. Change the
-  row's size only through those tokens or the two will drift apart.
+  whatever the row's width because the divider is always centred, and the 1px
+  border collapse leaves that inner box exactly where a row border did. Change
+  the row's size only through those tokens or the two will drift apart.
 - **One anchor point holds the backdrop**: its own centre, pinned to the centre
   of the mask in every state (`left: calc(50% - var(--anchor-x))`). Centring is
   both free — the field is uniform, there is no subject to compose on — and the
