@@ -105,6 +105,20 @@ const BAND_Y_MAX = 1.0
  * smaller size to draw dots the same size on screen.
  */
 const BAND_POINT_SIZE = 0.025
+/**
+ * The band reads brighter and whiter than the ambient field: near-pure white
+ * against the field's dimmer silver spread, at full opacity. Brightness only —
+ * its size, motion, speed and scatter are untouched by these.
+ */
+const BAND_BRIGHT_MIN = 0.96
+const BAND_BRIGHT_MAX = 1.0
+const BAND_OPACITY = 1.0
+
+// Default star shading — grayscale brightness from pure white down to a
+// slightly dimmer silver-white, no color tint. Used by the ambient field.
+const STAR_BRIGHT_MIN = 0.78
+const STAR_BRIGHT_MAX = 1.0
+const STAR_OPACITY = 0.85
 
 // --- Scene 1 -> Scene 2 scroll transition ---
 /**
@@ -269,6 +283,7 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
     count: number,
     pointSize: number,
     place: () => { radius: number; y: number },
+    look: { brightMin?: number; brightMax?: number; opacity?: number } = {},
     transition: { scatter?: () => number; fly?: () => number; ease?: number } = {},
   ): StarLayer {
     const positions = new Float32Array(count * 3)
@@ -297,9 +312,8 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
       positions[i3 + 1] = y // fixed height: orbits stay level
       positions[i3 + 2] = Math.sin(angle) * radius
 
-      // White/silver only — grayscale brightness from pure white down to
-      // a slightly dimmer silver-white, no color tint.
-      const v = rand(0.78, 1.0)
+      // White/silver only — grayscale, no color tint whatever the range.
+      const v = rand(look.brightMin ?? STAR_BRIGHT_MIN, look.brightMax ?? STAR_BRIGHT_MAX)
       c.setRGB(v, v, v)
       colors[i3] = c.r
       colors[i3 + 1] = c.g
@@ -318,7 +332,7 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
       transparent: true,
       depthWrite: false,
       blending: AdditiveBlending,
-      opacity: 0.85,
+      opacity: look.opacity ?? STAR_OPACITY,
     })
 
     const points = new Points(geometry, material)
@@ -356,7 +370,7 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
     // Orbit radius is the distance from the model's *vertical axis*, so height
     // drops out of it — that is what keeps each star on a level circle.
     return { radius: dist * sinPolar, y: dist * cosPolar * CLOUD_FLATTEN }
-  }, {
+  }, {}, {
     // On scroll these fly toward and past the camera, and are never wrapped
     // back around — the field thins out as Scene 1 is left behind.
     fly: () => rand(FLY_DISTANCE_MIN, FLY_DISTANCE_MAX),
@@ -368,6 +382,10 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
     radius: rand(BAND_RADIUS_MIN, BAND_RADIUS_MAX),
     y: rand(BAND_Y_MIN, BAND_Y_MAX),
   }), {
+    brightMin: BAND_BRIGHT_MIN,
+    brightMax: BAND_BRIGHT_MAX,
+    opacity: BAND_OPACITY,
+  }, {
     // On scroll these widen out of their tight orbit and scatter away.
     scatter: () => rand(BAND_SCATTER_MIN, BAND_SCATTER_MAX),
     ease: BAND_SCATTER_EASE,
