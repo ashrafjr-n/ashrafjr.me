@@ -68,9 +68,13 @@ The model spins slowly clockwise about its own vertical axis, forever.
   onto the model itself, and Three applies translation *after* rotation, so
   spinning the model directly would swing it around the GLB's own origin —
   an orbit, not a spin. Keep the model inside the pivot.
-- `SPIN_SPEED` is **negative** (`-0.09` rad/s, ~70s per revolution). From this
-  bird's-eye camera a positive Y rotation reads counter-clockwise, so clockwise
-  needs a negative rate. Flip the sign if the direction is ever meant to change.
+- `SPIN_SPEED` is **negative** (`-MODEL_SPIN_RATE`, 0.09 rad/s, ~70s per
+  revolution). From this bird's-eye camera a positive Y rotation reads
+  counter-clockwise, so clockwise needs a negative rate. Flip the sign if the
+  direction is ever meant to change.
+- `MODEL_SPIN_RATE` is **exported** and the starfield's speed tiers are
+  multiples of it, so changing it re-paces the site's stars too. That coupling
+  is deliberate — see **Starfield**.
 - It advances by `delta` seconds, not per frame, so the speed is frame-rate
   independent. `delta` is clamped to 0.1s in `scene.ts`, so a throttled
   background tab animates slower than wall-clock — expected, same as the
@@ -91,14 +95,25 @@ because it clashed with the model's rotating stars. Do not reintroduce it.
   *negative* `rotation.y`. The two conventions differ; don't "fix" one to match
   the other.
 - Speeds come from `SPEED_TIERS`: ~78% slow, ~18% medium, ~4% fast, randomised
-  within each tier so the motion is not uniform.
+  within each tier so the motion is not uniform. **The tier bounds are
+  multiples of `MODEL_SPIN_RATE`** (exported from `world.ts`), which is the rate
+  the model's own embedded stars travel at. The slow tier starts at 0.8x that
+  rate, so no site star ever crawls while the model's stars sweep past it —
+  that mismatch is what made the two look like separate layers. Keep the tiers
+  as multiples; don't hard-code rad/s back in.
+- `POLAR_LIMIT` caps how near the poles a star may sit. A star close to the
+  rotation axis has a near-zero orbit radius, so it turns on the spot and reads
+  as frozen however fast it spins. Removing those was a big part of making the
+  orbiting legible — don't raise this back toward 1.
 - The cloud is a **flattened ball** (`CLOUD_RADIUS`, `CLOUD_FLATTEN`), not a
   thin disc. The camera pitches ~63° down, so its frustum passes through a thin
   disc and out the underside within ~25 units, leaving the frame empty. This
   was tried and rejected — keep the ball flattened, not flat.
-- `PARTICLE_COUNT` is high (~5.8k) because only a narrow cone of the cloud is
-  ever on screen. Count and `size` are tuned together against the pre-change
-  on-screen star density (~93 stars/megapixel); re-measure if either changes.
+- `PARTICLE_COUNT` is high (~20k) because only a narrow cone of the cloud is
+  ever on screen, and it scales with `CLOUD_RADIUS`^3 — widening the cloud
+  thins the visible field out fast. Count and `size` are tuned together against
+  the original on-screen star density (~93 stars/megapixel, median dot area
+  3px, median peak brightness 60); re-measure if either changes.
 - Three sizes points as `size * 0.5 * drawingBufferHeight / distance` — **fov
   plays no part**. Any change to the cloud's scale needs `size` rescaled by the
   same factor or the dots change apparent size.
