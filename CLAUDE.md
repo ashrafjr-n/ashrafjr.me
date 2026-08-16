@@ -21,7 +21,7 @@ At the start of every session, and after every /clear, read vibe.md first before
   lighten the background, or put a ground/backdrop mesh behind the model.
 - Fonts loaded: **Space Grotesk** (`--font-display`, still not applied to any
   element) and **JetBrains Mono** (`--font-code`, applied to body text, the
-  GitHub badge and the intro line).
+  social badges and the intro line).
 
 ## Current state
 Scene 1 is the static opening composition: the `space_boi` diorama seen from a
@@ -31,7 +31,7 @@ back. What exists today:
 
 - `src/main.ts` — mounts the full-screen `#scene` canvas, initializes the
   Three.js scene (`src/three/scene.ts`), starts mouse-pointer tracking
-  (`src/lib/state.ts`), builds and appends the GitHub badge, and runs the
+  (`src/lib/state.ts`), builds and appends the social icon row, and runs the
   single RAF loop.
 - `src/three/scene.ts` — owns the renderer and the orbiting particle starfield
   (white/silver dots only; see **Starfield** below). The particle field also
@@ -54,12 +54,25 @@ back. What exists today:
   to `MODEL_SPAN` wants `CAMERA_TARGET` nudged to keep the framing centred.
 - `src/lib/state.ts` — shared `InputState` (`mouseX`, `mouseY`, `scroll`)
   written by `initPointer()` and `initScroll()`, read every frame by the scene.
-- GitHub badge — fixed top-left, links to `github.com/ashrafjr-n`.
-- Intro line — fixed top-centre, "Hello! I am ASHRAF." (`.intro`, built in
+- Social icon row (`.social-badges`, top-left) — three `.github-badge`-class
+  links built in `main.ts`: GitHub (icon + "ashrafjr-n" label, links to
+  `github.com/ashrafjr-n`), and two icon-only links (no label span) for
+  LinkedIn and email (`mailto:aannaelj@gmail.com`). All three share one hover
+  style off the `.github-badge` class; the icon-only two just omit the
+  `<span>`. The GitHub icon's path is hand-embedded (not pulled from an
+  installed package); the LinkedIn and email icons were sourced from Simple
+  Icons and Heroicons (solid) respectively to match its `viewBox="0 0 24 24"`,
+  `fill="currentColor"` convention — don't hand-draw new icon paths, pull from
+  a recognized icon set the same way.
+- Intro line — fixed top-centre, "Hi! I am ASHRAF." (`.intro`, built in
   `main.ts`). Scene 1 only: `main.ts` fades and lifts it away over the first
   `INTRO_FADE_END` of the scroll. It uses `--font-code`, the same face as the
   badge; `--font-display` (Space Grotesk) is loaded but still unused anywhere.
   No `text-transform` — the copy is rendered exactly as written.
+- Custom cursor — `public/cursor-saturn.svg` (small ringed-planet graphic, set
+  via `body { cursor: url(...) }` in `style.css`). Elements with their own
+  `cursor: pointer` (currently `.github-badge` and its two reuses) override it
+  with the standard pointer, so interactive elements still read as clickable.
 
 At rest (scroll 0) the world camera does not move; the mouse parallax affects
 the wide starfield only. Everything else moves only under scroll.
