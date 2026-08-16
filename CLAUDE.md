@@ -41,9 +41,10 @@ back. What exists today:
   the only live input values.
 - `src/three/world.ts` — the Scene 1 world layer: its own `Scene` +
   bird's-eye `PerspectiveCamera` (fov 35, at `(0, 8, 6.5)` looking at
-  `(0, 0.25, 0)`, ~47° above the horizon), white key/fill/ambient lights, and
-  the GLB load. **There is no platform/pedestal mesh** — one existed briefly
-  and was deliberately removed; the model's own black base is the ground.
+  `(0, 0.25, 0)`, ~47° above the horizon), white key/fill/ambient lights, the
+  GLB load, and the spin (`update(delta)`). **There is no platform/pedestal
+  mesh** — one existed briefly and was deliberately removed; the model's own
+  black base is the ground.
 - `public/models/space_boi.glb` — loaded via `GLTFLoader` (imported from
   `three/examples/jsm/loaders/GLTFLoader.js` inside the installed `three`
   package — no extra dependency, no Draco). It is a wide, shallow diorama with
@@ -54,8 +55,25 @@ back. What exists today:
   by a `mousemove` listener, read every frame by the scene.
 - GitHub badge — fixed top-left, links to `github.com/ashrafjr-n`.
 
-The model has no animation, and the world camera does not move. Nothing in
-Scene 1 responds to input yet — the mouse parallax affects the starfield only.
+The world camera does not move. Nothing in Scene 1 responds to input yet — the
+mouse parallax affects the starfield only.
+
+## Model spin
+The model spins slowly clockwise about its own vertical axis, forever.
+
+- The model is parented to a **pivot `Group`** that sits at the origin. Only
+  `pivot.rotation.y` is ever touched; the centring offset lives on the child.
+  This is load-bearing: `fitModel()` centres the GLB by writing a translation
+  onto the model itself, and Three applies translation *after* rotation, so
+  spinning the model directly would swing it around the GLB's own origin —
+  an orbit, not a spin. Keep the model inside the pivot.
+- `SPIN_SPEED` is **negative** (`-0.09` rad/s, ~70s per revolution). From this
+  bird's-eye camera a positive Y rotation reads counter-clockwise, so clockwise
+  needs a negative rate. Flip the sign if the direction is ever meant to change.
+- It advances by `delta` seconds, not per frame, so the speed is frame-rate
+  independent. `delta` is clamped to 0.1s in `scene.ts`, so a throttled
+  background tab animates slower than wall-clock — expected, same as the
+  starfield.
 
 ## Render passes
 `renderer.autoClear` is **false**. Every frame, `scene.ts` does:
