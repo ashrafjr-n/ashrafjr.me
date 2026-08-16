@@ -17,7 +17,7 @@
   --bg: #050505;
   --surface: #101010;
   --text-dim: rgba(255, 255, 255, 0.5);
-  --accent: #ff1f3c;
+  --accent: #e8e8ec;
 }
 
 /* ===========================================================
@@ -82,7 +82,7 @@ body {
 .github-badge:hover,
 .github-badge:focus-visible {
   color: var(--accent);
-  filter: drop-shadow(0 0 6px rgba(255, 31, 60, 0.45));
+  filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.45));
 }
 
 .github-badge:hover svg,
