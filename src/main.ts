@@ -121,6 +121,26 @@ function buildIntro(): HTMLParagraphElement {
   return intro
 }
 
+/** How many cards sit in the Scene 2 row. They share one outer boundary. */
+const SCENE2_CARD_COUNT = 2
+
+/**
+ * Scene 2 card row: bottom-centre, below the model in the levelled Scene 2
+ * view. The cards are flush — one white boundary around the pair and a single
+ * white line between them, so they read as one wide rectangle split in two.
+ * Empty for now.
+ */
+function buildScene2Cards(): HTMLDivElement {
+  const row = document.createElement('div')
+  row.className = 'scene2-cards'
+  for (let i = 0; i < SCENE2_CARD_COUNT; i++) {
+    const card = document.createElement('div')
+    card.className = 'scene2-card'
+    row.append(card)
+  }
+  return row
+}
+
 // --- Mount ---
 const app = document.querySelector<HTMLDivElement>('#app')!
 
@@ -129,7 +149,8 @@ const canvas = document.createElement('canvas')
 canvas.id = 'scene'
 
 const intro = buildIntro()
-app.append(canvas, intro, buildSocialBadges())
+const scene2Cards = buildScene2Cards()
+app.append(canvas, intro, scene2Cards, buildSocialBadges())
 
 // --- Starfield + model, and the input they read ---
 const scene = initScene(canvas)
