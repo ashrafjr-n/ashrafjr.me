@@ -14,12 +14,9 @@
   --font-display: "Space Grotesk", sans-serif;
   --font-code: "JetBrains Mono", monospace;
 
-  /* Scene 1 silver. Mirrored in src/three/world.ts as SILVER — the platform
-     mesh uses the exact same value so it reads as one continuous surface.
-     Change both together. */
-  --silver: #a9aeb3;
-
-  --bg: var(--silver);
+  /* Pure black — the same value the model's own material renders, so the model
+     reads as one continuous surface with the page. Must stay #000000. */
+  --bg: #000000;
   --text-dim: rgba(255, 255, 255, 0.5);
   --accent: #e8e8ec;
 }
@@ -28,8 +25,8 @@
    Base
    =========================================================== */
 body {
-  /* Flat, ungraded silver — shows through the transparent canvas and must stay
-     pixel-identical to the platform mesh, so no gradient here. */
+  /* Flat, ungraded black — shows through the transparent canvas and must stay
+     pixel-identical to the model's black, so no gradient here. */
   background: var(--bg);
   color: var(--text-dim);
   font-family: var(--font-code);
