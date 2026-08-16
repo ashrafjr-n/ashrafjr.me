@@ -8,6 +8,8 @@
  * Palette: white/silver/gray only.
  */
 import {
+  AmbientLight,
+  DirectionalLight,
   DoubleSide,
   Mesh,
   MeshBasicMaterial,
@@ -54,6 +56,14 @@ export function createWorld(aspect: number): WorldLayer {
   const camera = new PerspectiveCamera(CAMERA_FOV, aspect, 0.1, 200)
   camera.position.set(CAMERA_POS.x, CAMERA_POS.y, CAMERA_POS.z)
   camera.lookAt(CAMERA_TARGET.x, CAMERA_TARGET.y, CAMERA_TARGET.z)
+
+  // Pure-white lights only — they shape the model without tinting it. The
+  // platform is unlit, so none of this touches the background match.
+  const key = new DirectionalLight(0xffffff, 2.2)
+  key.position.set(4, 8, 5)
+  const fill = new DirectionalLight(0xffffff, 0.8)
+  fill.position.set(-5, 3, -4)
+  scene.add(new AmbientLight(0xffffff, 1.1), key, fill)
 
   scene.add(createPlatform())
 
