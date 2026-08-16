@@ -44,6 +44,8 @@ back. What exists today:
   tilts in response to mouse position. It owns the two-pass composite (see
   **Render passes**). It also owns the smoothed `progress` that drives the
   Scene 1 → Scene 2 transition (see **Scroll transition**).
+- `src/three/reveal.ts` — the reveal window's own 3D scene: its own renderer,
+  scene and fixed camera, shared with nothing (see **Reveal window** below).
 - `src/three/world.ts` — the Scene 1 world layer: its own `Scene` +
   bird's-eye `PerspectiveCamera` (fov 35, at `(0, 9.3, 4.6)` looking at
   `(0, 0.25, 0)`, ~63° above the horizon), white key/fill/ambient lights, the
@@ -118,11 +120,10 @@ back. What exists today:
   resizes; flex items honour `z-index` without being positioned, which is what
   lets the growing one overlap rather than be clipped. The closed window sits at
   `z-index: 15`, under the row, so a card growing across the divider draws its
-  border over the star crop.
+  border over the 3D view.
   - **The right card and the reveal window scale together**, by the same factor
     about the same centre — the window is that card's box inset 1px all round,
-    so one scale keeps them concentric and the star crop goes on filling the
-    card. `--card-hover-duration` is shared by both for the same reason. This
+    so one scale keeps them concentric and the view goes on filling the card. `--card-hover-duration` is shared by both for the same reason. This
     is the *only* time the window itself is transformed; opening still must not
     scale it.
   - Pointer routing is the fiddly part. The row is `pointer-events: none` and
@@ -132,12 +133,13 @@ back. What exists today:
     closed window, so an interactive card there would swallow the window's
     clicks and tilt. Its hover is mirrored from the window's own
     `mouseenter`/`mouseleave` instead, through `setRevealCardHover()`, which
-    sets `.is-hovered` on both elements and is cleared on open. **DOM overlay, not
-  3D** — nothing was added to the Three.js layers, so Scene 1 and the
-  transition are untouched. `opacity` starts at 0 in CSS and `main.ts` fades it
-  in over the last `1 - CARDS_FADE_START` of the scroll off the same
-  `progress` the scene returns, so the row is invisible until Scene 2. The
-  right card carries the reveal window (below); the left one is still empty.
+    sets `.is-hovered` on both elements and is cleared on open.
+  - The row is a **DOM overlay** — nothing about it was added to the Scene 1
+    Three.js layers, so Scene 1 and the transition are untouched. `opacity`
+    starts at 0 in CSS and `main.ts` fades it in over the last
+    `1 - CARDS_FADE_START` of the scroll off the same `progress` the scene
+    returns, so the row is invisible until Scene 2. The right card carries the
+    reveal window (below, which *is* 3D); the left one is still empty.
 - Reveal window (`.reveal-window`) — see **Reveal window** below.
 - Cursor — the default system cursor everywhere. A custom Saturn cursor and
   then a custom arrow both existed and were reverted; `public/cursor-saturn.svg`
@@ -148,20 +150,24 @@ At rest (scroll 0) the world camera does not move; the mouse parallax affects
 the wide starfield only. Everything else moves only under scroll.
 
 ## Reveal window (right Scene 2 card)
-The project preview, shown through the right card. Assets live in
-`public/assets/projects/`: `projects-background.png` (2664x1250) is the
-backdrop — a **uniform starfield with no planets in it** — and `black.png`,
-`white.png`, `one/two/three/four.png` are the planets, transparent-background
-sprites layered over it. (`public/assets/projects-background.png`, one level
-up, is the older combined art and is no longer referenced by anything.)
+The project preview, shown through the right card. It is a **real Three.js
+scene** (`src/three/reveal.ts`), not stacked images: a particle star volume
+around a fixed camera, with the planet PNGs as billboards at their own
+distances. An earlier version composited `projects-background.png` and six
+planet `<img>`s with CSS transforms; that was replaced because layer
+translation cannot produce a true look-around, and it should not come back.
+`public/assets/projects/black|white|one|two|three|four.png` are still used, as
+sprite textures. Both `projects-background.png` files (in `projects/` and one
+level up) are **no longer referenced by anything**.
 
-**The card is a mask, not an image container.** The backdrop is many times the
-size of the closed window and never scales *as part of opening* — opening grows
-the mask to fill the whole viewport, so what was already on screen stays put at
-the same size and the new area uncovers more of the same image. Never scale or
-pan the image to open it; that would read as a zoom. (The one scale that does
-exist is the closed card's hover lift, which grows window and card together —
-see the card hover notes above.)
+**The card is a mask, not a viewport of its own.** The canvas inside is always
+viewport-sized, so opening grows the mask to fill the screen and what was
+already on screen stays put at the same size, uncovering more of the same
+rendered frame — the closed card is literally a small slice of the view the
+open one fills the screen with. Never resize or scale the canvas to open it;
+that would read as a zoom. (The one scale that does exist is the closed card's
+hover lift, which grows window and card together — see the card hover notes
+above.)
 
 - It is a **separate `position: fixed` element**, not the card itself: the card
   is a flex item in the row and could not fly out to the corner. Its closed
@@ -171,68 +177,65 @@ see the card hover notes above.)
   whatever the row's width because the divider is always centred, and the 1px
   border collapse leaves that inner box exactly where a row border did. Change
   the row's size only through those tokens or the two will drift apart.
-- **One anchor point holds the backdrop**: its own centre, pinned to the centre
-  of the mask in every state (`left: calc(50% - var(--anchor-x))`). Centring is
-  both free — the field is uniform, there is no subject to compose on — and the
-  cheapest option, since it makes the image smallest for full-screen coverage.
-  Anchoring to the mask's top-left corner instead was what the smaller pop-out
-  version did; at full screen that forces the crop into the image's corner and
-  needs a far bigger image, so don't go back to it.
-- `--img-w: max(180vw, 384vh)` — the backdrop is held at ~180% of the frame in
-  both axes (`max()` picks whichever binds on the current aspect; half the
-  image has to cover 50vw and 50vh at 100%). That is far more than the parallax
-  shift needs, and the surplus is the point: an edge of the image must never be
-  able to enter the frame, or the illusion of looking into a space collapses.
-  The cost is that the 2664px PNG upscales on large monitors (~2x at 2560
-  wide) — acceptable on a soft starfield. `--img-h` hard-codes the PNG's
-  2664/1250 aspect — **replacing the backdrop means updating that ratio**.
 - Open/close animates `left/bottom/width/height` (620ms expo-out) to a
   **full-screen** `0/0/100%/100%`. It cannot use a transform: scaling the mask
-  would scale the image with it. Percentages, not `vw`/`vh`, so a classic
+  would scale the canvas with it. Percentages, not `vw`/`vh`, so a classic
   scrollbar cannot push it past the visible area. There is no frame at that
   size — the edges are the screen's.
 - The social badges sit at `z-index: 60`, above the window's 40, so the links
   stay visible and clickable over the takeover. Keep them above it.
-- Closed only, the image tilts with the mouse: `rotateY` up to
+- Closed only, the canvas tilts with the mouse: `rotateY` up to
   `REVEAL_TILT_MAX` degrees, damped by `REVEAL_TILT_LERP` in the single RAF
-  loop, about a **fixed** `transform-origin` at the anchor point
-  (`perspective()` lives in the transform, so that point is the vanishing point
-  too). It is a rotation, never a pan — the crop must not slide.
-- **Parallax planet field, open state only.** Six planets (`REVEAL_PLANETS` in
-  `main.ts`) are scattered over the backdrop — centre as a % of the window,
-  width in vw, positions deliberately uneven and clear of the badges and the
-  close button. Every layer counter-moves against the mouse: the camera is
-  fixed and only its facing turns, so turning right slides the world left.
-  Vertical travel is `REVEAL_PARALLAX_Y` of the horizontal. The whole thing is
-  aiming at looking *through* a window into a real space, not at six images
-  sliding about, which is what the next two points are for.
-  - The planets share **three depth planes** (`REVEAL_TIER`: far/mid/near),
-    differing by a couple of px inside a plane and by ~20px between them. Six
-    individually-tuned rates were tried first and read as separate stickers.
-    `REVEAL_BACKDROP_DEPTH` sits well under all of them, so the backdrop is
-    plainly the farthest thing in the frame.
-  - Motion is a **spring, not a lerp** (`REVEAL_SPRING_STIFFNESS` /
-    `REVEAL_SPRING_DAMPING`): each layer carries a velocity, so it trails a
-    fast pointer, coasts on after it stops and settles over about a second,
-    just under critical damping. That lag is most of what makes it feel
-    cinematic — don't trade it back for something that tracks the cursor
-    tightly.
-  - It goes live only `REVEAL_OPEN_MS` after opening — **keep that in step with
-    `--reveal-duration`** — so the field never moves while the window is still
-    growing, and dies the instant it closes. While it is off the mouse is read
-    as 0, so a closed window cannot move.
-  - Layers damp back to exactly 0 and then have their inline `transform`
-    dropped, so nothing is left applied to a closed window. Planet centring
-    therefore uses the standalone `translate` property, not a
-    `translate(-50%,-50%)` inside `transform` that clearing would wipe.
-  - The backdrop is the one layer carrying both motions, so its transform is
-    composed (parallax shift + the closed-state tilt) rather than just set.
+  loop. It is a CSS rotation of the whole canvas about its own centre, nothing
+  to do with the 3D camera.
 - Opened by click/Enter/Space, closed by the `.reveal-close` button, a click
   outside, or Escape. Two permanent document listeners handle the last two; the
   opening click's target is inside the window, so it cannot self-close.
 - It is faded and gated by hand in `updateScene2Cards()` (same `progress` as the
   row, since it is not a child of it) and only accepts input above
   `REVEAL_ACTIVE_AT`; scrolling back toward Scene 1 closes it.
+
+### The 3D layer (`src/three/reveal.ts`)
+Its own renderer, scene and camera. It shares **nothing** with the Scene 1
+starfield in `scene.ts`/`world.ts` but the technique — don't try to merge them.
+
+- **Still one RAF loop in the app.** `main.ts` calls `revealScene.update()` only
+  while the window is open and full-screen; the scene draws nothing otherwise,
+  and skips the draw even then when the view has not moved enough to matter.
+  Everything is built once at startup and reused, so reopening allocates
+  nothing and there is no second loop or second context per open.
+- The canvas is sized to the **viewport**, never to the window
+  (`renderer.setSize(innerWidth, innerHeight, false)` — the `false` leaves the
+  CSS size alone). That is what lets the open animation uncover a frame instead
+  of re-rendering at a new size every frame of it.
+- The renderer is **opaque** (no `alpha`): when open it covers the screen and
+  has to hide the Scene 1 canvas behind it rather than composite over it.
+- **Camera position is fixed at the origin, for good.** The mouse only turns
+  it — `rotation.order = 'YXZ'` so yaw and pitch stay independent and the
+  horizon cannot roll. Turning the camera is the whole point: it reads as
+  looking around inside the space, where translating layers reads as sliding
+  pictures. Note that rotation alone gives no depth parallax by construction;
+  the depth comes from the objects really being at different distances.
+- The turn is **sprung, not lerped** (`SPRING_STIFFNESS` / `SPRING_DAMPING`,
+  just under critical damping): it trails a fast pointer, coasts on after it
+  stops and settles over about a second. That weight is most of what makes it
+  feel cinematic — don't trade it for something that tracks the cursor tightly.
+- Stars are a `Points` volume *surrounding* the camera: uniform directions and
+  a cube-rooted radius between `STAR_NEAR` and `STAR_FAR`, so density per unit
+  volume is even. The near bound matters — Three sizes points as
+  `size * 0.5 * height / distance`, so a star much closer than that draws as a
+  blob. Same soft radial sprite, additive blending and grayscale-only colours
+  as the site's other field.
+- Planets are billboards (`Sprite`), aimed by `yaw`/`pitch` from the camera and
+  placed at `dist`, listed in `PLANETS`. On-screen size is
+  `size / (2 * dist * tan(fov/2))` — the current values run ~17% of the frame
+  height for the nearest down to ~4% for the farthest, and opacity falls with
+  distance. Several sit outside the resting frustum on purpose, so turning the
+  view actually finds something. Each sprite's aspect is read off its texture
+  once it loads, so only the height is authored.
+- `setActive(false)` recentres the camera and leaves **one still frame** on the
+  canvas. That frame is what the closed card shows; render-on-demand, so
+  nothing keeps drawing while the window is shut.
 
 ## Model spin
 The model spins slowly clockwise about its own vertical axis, forever.
@@ -416,7 +419,9 @@ of sync.
 
 Do not create a second animation loop — any new per-frame logic (camera motion,
 model animation, etc.) should hook into this same loop, ideally inside
-`scene.ts`'s `update()` before the render calls.
+`scene.ts`'s `update()` before the render calls. The reveal window's 3D scene
+follows that rule too: it has its own renderer but no loop of its own, and this
+one calls into it only while the window is open.
 
 ## Removed (do not assume these exist)
 The following existed in an earlier version of this project and were
