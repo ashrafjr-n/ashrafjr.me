@@ -219,18 +219,18 @@ body {
   position: absolute;
   top: 0;
   right: 0;
-  width: 34px;
-  height: 34px;
+  width: 64px;
+  height: 64px;
   display: flex;
   align-items: center;
   justify-content: center;
   border: 0;
-  border-left: 1px solid #ffffff;
-  border-bottom: 1px solid #ffffff;
+  border-left: 1px solid var(--card-line);
+  border-bottom: 1px solid var(--card-line);
   background: transparent;
   color: #ffffff;
   font-family: var(--font-code);
-  font-size: 15px;
+  font-size: 28px;
   line-height: 1;
   cursor: pointer;
   opacity: 0;
@@ -257,7 +257,9 @@ body {
   position: fixed;
   top: 2rem;
   left: 2rem;
-  z-index: 30;
+  /* Above the reveal window (40), which takes over the whole screen when it is
+     open — the links stay reachable at all times. */
+  z-index: 60;
   display: flex;
   align-items: center;
   gap: 1.1rem;
