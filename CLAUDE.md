@@ -37,8 +37,8 @@ back. What exists today:
 
 - `src/main.ts` — mounts the full-screen `#scene` canvas, initializes the
   Three.js scene (`src/three/scene.ts`), starts mouse-pointer tracking
-  (`src/lib/state.ts`), builds and appends the social icon row, and runs the
-  single RAF loop.
+  (`src/lib/state.ts`), builds and appends the social icon row and the Scene 2
+  card row, and runs the single RAF loop.
 - `src/three/scene.ts` — owns the renderer and the orbiting particle starfield
   (white/silver dots only; see **Starfield** below). The particle field also
   tilts in response to mouse position. It owns the two-pass composite (see
@@ -99,6 +99,18 @@ back. What exists today:
   `INTRO_FADE_END` of the scroll. It uses `--font-code`, the same face as the
   badge; `--font-display` (Space Grotesk) is loaded but still unused anywhere.
   No `text-transform` — the copy is rendered exactly as written.
+- Scene 2 card row (`.scene2-cards`, bottom-centre) — two flush `.scene2-card`
+  divs built in `main.ts` from `SCENE2_CARD_COUNT`, sitting below the model in
+  the levelled Scene 2 view. **Both are empty** — shape only, no content yet.
+  They read as one wide rectangle split by a single line: the row carries the
+  1px white outer border and `.scene2-card + .scene2-card` carries the 1px
+  white `border-left`, so the divider is never double-thick and the two cards
+  stay flush (no gap). Sharp corners on purpose — no `border-radius`, and the
+  line style is plain white, matching the outer boundary. **DOM overlay, not
+  3D** — nothing was added to the Three.js layers, so Scene 1 and the
+  transition are untouched. `opacity` starts at 0 in CSS and `main.ts` fades it
+  in over the last `1 - CARDS_FADE_START` of the scroll off the same
+  `progress` the scene returns, so the row is invisible until Scene 2.
 - Cursor — the default system cursor everywhere. A custom Saturn cursor and
   then a custom arrow both existed and were reverted; `public/cursor-saturn.svg`
   is gone and no `cursor: url(...)` rule remains. The only cursor rule left is
@@ -283,8 +295,9 @@ One single `requestAnimationFrame` loop lives in `src/main.ts`:
 `scene.update(time, state)` runs every frame, reading `state` (mouse position
 and scroll) and rendering both passes. It **returns the smoothed scroll
 progress**, which `main.ts` uses to drive the DOM side of the transition (the
-intro line) off exactly the same value as the 3D side — do not read
-`state.scroll` directly for animation, or it will drift out of sync.
+intro line out, the Scene 2 card row in) off exactly the same value as the 3D
+side — do not read `state.scroll` directly for animation, or it will drift out
+of sync.
 
 Do not create a second animation loop — any new per-frame logic (camera motion,
 model animation, etc.) should hook into this same loop, ideally inside
