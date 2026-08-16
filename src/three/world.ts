@@ -28,7 +28,7 @@ export const SILVER = 0xa9aeb3
 // --- Framing ---
 const CAMERA_FOV = 35
 const CAMERA_POS = { x: 0, y: 8, z: 6.5 } // ~47° above the horizon: bird's-eye
-const CAMERA_TARGET = { x: 0, y: 1, z: 0 }
+const CAMERA_TARGET = { x: 0, y: 0.25, z: 0 } // model's own mid-height: centers it on screen
 
 const PLATFORM_SIZE = 4.4 // world units, square — a silver margin around the model
 const PLATFORM_Y = -0.015 // just under y=0 so it never z-fights the model's base
