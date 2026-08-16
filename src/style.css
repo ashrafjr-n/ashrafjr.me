@@ -30,6 +30,8 @@
      divider, so the two never read differently. Held far under pure white — a
      solid #fff line was harsh against the black, and 0.3 still read heavy. */
   --card-line: rgba(255, 255, 255, 0.16);
+  /* The same line, deepened, while a card is hovered and lifted. */
+  --card-line-hover: rgba(255, 255, 255, 0.34);
   /* A faint bloom off the outer edge, so the line sits in the scene rather
      than on top of it. Deliberately almost invisible. */
   --card-line-glow: 0 0 26px rgba(255, 255, 255, 0.03);
@@ -112,8 +114,9 @@ body {
   display: flex;
   width: var(--card-row-w);
   height: var(--card-row-h);
-  border: 1px solid var(--card-line);
-  box-shadow: var(--card-line-glow);
+  /* No border here — each card carries its own, so a hovered one can grow as a
+     complete rectangle. The pair overlaps by 1px, which keeps the shared edge a
+     single line and leaves the outer boundary identical to a row border. */
   opacity: 0;
   pointer-events: none;
   will-change: opacity;
@@ -122,12 +125,28 @@ body {
 .scene2-card {
   flex: 1 1 0;
   min-width: 0;
+  border: 1px solid var(--card-line);
+  box-shadow: var(--card-line-glow);
+  /* Flex items honour z-index without being positioned, which is what lets a
+     hovered card lift above its neighbour instead of being overlapped by it. */
+  z-index: 0;
+  transition: transform 420ms var(--reveal-ease), border-color 420ms ease;
 }
 
-/* The divider: the same soft hairline as the outer boundary, drawn once
-   between the two cards so the pair stays flush with no double-thick edge. */
+/* Pull the second card 1px onto the first so their adjacent borders collapse
+   into one divider — same single hairline as before, but now each card is a
+   whole rectangle that can grow on its own. */
 .scene2-card + .scene2-card {
-  border-left: 1px solid var(--card-line);
+  margin-left: -1px;
+}
+
+/* Hover: grows a little and lifts over its neighbour, with a stronger line
+   while it is up. Transform only, so the other card never moves or resizes. */
+.scene2-card:hover,
+.scene2-card.is-hovered {
+  transform: scale(1.035);
+  border-color: var(--card-line-hover);
+  z-index: 2;
 }
 
 /* ===========================================================
