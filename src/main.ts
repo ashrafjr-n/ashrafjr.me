@@ -1,98 +1,49 @@
 import './style.css'
-import 'lenis/dist/lenis.css'
-import Lenis from 'lenis'
-import { initHero } from './sections/hero'
-import { initTransition } from './sections/transition'
-import { initWork } from './sections/work'
 import { initScene } from './three/scene'
 import { state, initPointer } from './lib/state'
-import { registerSection, updateDepth, getSectionCount } from './lib/depth'
-
-const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
 const app = document.querySelector<HTMLDivElement>('#app')!
 
-// --- Perspective world that holds all depth items ---
-const world = document.createElement('div')
-world.className = 'world'
+/** Background WebGL canvas — fixed, full-screen, sits below everything else. */
+const canvas = document.createElement('canvas')
+canvas.id = 'scene'
 
-// Persistent fixed overlays (canvas, HUD, scroll hint, cinematic layers) +
-// the Hero content, which becomes depth item 0.
-const { canvas, heroContent, scrollHint } = initHero(app)
-app.append(world)
+/** Top-left GitHub badge — icon + username, links out. */
+function buildGithubBadge(): HTMLAnchorElement {
+  const link = document.createElement('a')
+  link.className = 'github-badge'
+  link.href = 'https://github.com/ashrafjr-n'
+  link.target = '_blank'
+  link.rel = 'noopener noreferrer'
+  link.setAttribute('aria-label', 'GitHub: ashrafjr-n')
+  link.innerHTML = `
+    <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" aria-hidden="true">
+      <path d="M12 .5C5.73.5.5 5.73.5 12c0 5.1 3.29 9.42 7.86 10.95.57.1.78-.25.78-.55
+        0-.27-.01-1.16-.02-2.11-3.2.7-3.88-1.36-3.88-1.36-.52-1.33-1.28-1.69-1.28-1.69
+        -1.04-.71.08-.7.08-.7 1.15.08 1.76 1.18 1.76 1.18 1.03 1.76 2.7 1.25 3.36.96
+        .1-.75.4-1.25.73-1.54-2.55-.29-5.24-1.28-5.24-5.7 0-1.26.45-2.29 1.18-3.1
+        -.12-.29-.51-1.46.11-3.04 0 0 .97-.31 3.18 1.18a11 11 0 0 1 2.9-.39c.98 0 1.97.13
+        2.9.39 2.2-1.49 3.17-1.18 3.17-1.18.63 1.58.24 2.75.12 3.04.74.81 1.18 1.84 1.18
+        3.1 0 4.43-2.7 5.4-5.27 5.69.41.36.78 1.06.78 2.14 0 1.55-.01 2.79-.01 3.17
+        0 .3.2.66.79.55A10.52 10.52 0 0 0 23.5 12C23.5 5.73 18.27.5 12 .5Z"/>
+    </svg>
+    <span>ashrafjr-n</span>
+  `
+  return link
+}
 
-const heroItem = document.createElement('div')
-heroItem.className = 'depth-item depth-item--hero'
-heroItem.append(heroContent)
-world.append(heroItem)
-registerSection(heroItem, 0)
+app.append(canvas, buildGithubBadge())
 
-// A brief "Selected Work" label becomes depth item 1, between Hero and the
-// first project.
-initTransition(world, 1)
-
-// Work projects become depth items 2..N+1.
-initWork(world, 2)
-
-// --- Invisible scroll proxy: the only thing that generates page height.
-//     One extra viewport of trailing distance lets the last section pass. ---
-const sectionCount = getSectionCount()
-const proxy = document.createElement('div')
-proxy.className = 'scroll-proxy'
-proxy.style.height = `${(sectionCount + 1) * 100}vh`
-app.append(proxy)
-
-// --- Particle starfield (unchanged) ---
+// --- Particle starfield ---
 const scene = initScene(canvas)
 window.addEventListener('resize', () => scene.resize())
 
 // --- Pointer parallax input ---
 initPointer()
 
-// --- HUD live readouts ---
-const fpsEl = document.querySelector<HTMLElement>('#fps')
-const coordEl = document.querySelector<HTMLElement>('#coord')
-
-// --- Smooth scroll (Lenis) reads the scroll proxy ---
-const lenis = new Lenis({
-  lerp: 0.08, // heavy, cinematic glide
-  smoothWheel: true,
-  orientation: 'vertical',
-})
-
-lenis.on('scroll', (e) => {
-  state.scroll = e.scroll
-  state.targetVel = e.velocity
-})
-
-// Reduced motion keeps the depth navigation but tones down the particle warp.
-const velScale = prefersReducedMotion ? 0.25 : 1
-
-// --- Single RAF loop: Lenis -> state -> scene -> depth -> HUD ---
-let lastTime = performance.now()
-let fps = 60
-
+// --- Single RAF loop: drives the starfield ---
 function raf(time: number) {
-  lenis.raf(time)
-
-  // Smooth velocity toward the latest raw value (decays back to 0 when idle).
-  state.velocity += (state.targetVel * velScale - state.velocity) * 0.1
-
   scene.update(time, state)
-  updateDepth(state.scroll)
-
-  // Fade the scroll hint out once the camera starts moving.
-  scrollHint.classList.toggle('is-hidden', state.scroll > 40)
-
-  // Rough fps estimate from frame delta, smoothed a little.
-  const delta = time - lastTime
-  lastTime = time
-  if (delta > 0) fps += ((1000 / delta) - fps) * 0.1
-  if (fpsEl) fpsEl.textContent = String(Math.round(fps))
-
-  // Current scroll position, zero-padded for the cinematic readout.
-  if (coordEl) coordEl.textContent = Math.round(state.scroll).toString().padStart(3, '0') + '.000'
-
   requestAnimationFrame(raf)
 }
 
