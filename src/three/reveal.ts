@@ -83,9 +83,14 @@ const PLANETS: PlanetSpec[] = [
 ]
 
 // --- Look-around ---
-/** Widest turn from centre, in radians: ~17° across, ~9° up and down. */
+/**
+ * Widest turn from centre, in radians: ~17° across, ~2° up and down. The two
+ * are deliberately lopsided — the left/right turn is the pronounced move and
+ * the vertical one is only a hint of weight, so the horizon stays put while
+ * the view sweeps sideways. Keep the pitch a small fraction of the yaw.
+ */
 const MAX_YAW = 0.3
-const MAX_PITCH = 0.16
+const MAX_PITCH = 0.04
 /**
  * The turn is sprung, not lerped: the camera carries angular velocity, so it
  * trails a fast pointer, coasts on after it stops and settles over about a
