@@ -86,6 +86,14 @@ orbital plane, so they read as one system with the stars embedded in the model.
 There is no toward-camera dolly any more — that was removed deliberately
 because it clashed with the model's rotating stars. Do not reintroduce it.
 
+There are **two star layers**, both built by `createStarLayer` and advanced by
+`advance()`, sharing one motion style — they differ only in where their stars
+sit and how big the dots draw:
+
+1. **the wide cloud** (`PARTICLE_COUNT`) — the ambient full-screen field.
+2. **the close-in band** (`BAND_*`) — the orbits that stay on screen for a
+   whole revolution. See **Why the wide field only shows arcs** below.
+
 - Each star stores its own `radius` / `angle` / `speed`; per frame only the
   angle advances and x/z are recomputed as `cos/sin * radius`. Height is
   written once at init and never touched, which is what keeps every star on a
@@ -114,9 +122,37 @@ because it clashed with the model's rotating stars. Do not reintroduce it.
   thins the visible field out fast. Count and `size` are tuned together against
   the original on-screen star density (~93 stars/megapixel, median dot area
   3px, median peak brightness 60); re-measure if either changes.
+- The mouse tilt is applied to the **wide cloud only**. Tilting the band would
+  break its full-loop visibility (5° is enough to push its near side off frame).
 - Three sizes points as `size * 0.5 * drawingBufferHeight / distance` — **fov
   plays no part**. Any change to the cloud's scale needs `size` rescaled by the
   same factor or the dots change apparent size.
+
+### Why the wide field only shows arcs (this is not a bug)
+Stars in the wide cloud sweep a partial arc on screen, not a visible full loop.
+**The orbit maths is already a true endless 360° circle** — `angle` is unbounded
+and only increases, with no clamp, wrap or easing. Do not go looking for one.
+
+The arc is camera geometry: the camera sits *inside* the cloud, 10.4 units from
+the model's centre, while orbit radii run to 62. Most of any orbit therefore
+passes beside or behind the camera. Measured against the frustum: the median
+ever-visible star is on screen for **11.7% of its orbit** (~42°), and **no** star
+in the wide cloud keeps a full orbit on screen.
+
+For a full loop to be visible the orbit must fit the view cone, which caps it at
+radius **~2.85** at the model's plane — barely wider than the model. That is
+what the close-in band is, and why it is a separate layer rather than a tweak to
+the cloud. Its window is genuinely tight and was solved against the frustum:
+
+- **inner bound 2.47** — the model's slab is *square*, so its corners reach
+  `MODEL_SPAN * √2/2`. Inside that the model draws over the band (the world
+  layer renders after a depth clear) and the loop visibly breaks.
+- **outer bound ~2.85** at y=0, ~3.00 at y=+1.
+- **height** — the window closes entirely below y=−0.5 and above y=+1.5.
+
+Known limitation: the band clips on **portrait** windows (aspect below ~0.85).
+It cannot be fixed by shrinking the band, because anything under 2.47 disappears
+behind the model's slab — it would need a different camera.
 
 ## Render passes
 `renderer.autoClear` is **false**. Every frame, `scene.ts` does:
