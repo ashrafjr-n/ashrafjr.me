@@ -23,21 +23,21 @@ const INTRO_FADE_END = 0.28
 const INTRO_DRIFT = 70
 
 /**
- * Scroll progress at which the Scene 2 cards start appearing. They belong to
- * Scene 2 only, so they stay fully invisible through Scene 1 and the bulk of
- * the transition and are only there once the camera has settled.
+ * Scroll progress at which the Scene 2 row starts appearing. It belongs to
+ * Scene 2 only, so it stays fully invisible through Scene 1 and the bulk of
+ * the transition and is only there once the camera has settled.
  */
-const CARDS_FADE_START = 0.82
+const ROW_FADE_START = 0.82
 
 /**
- * Fade fraction above which the reveal window accepts input. The row is still
- * arriving below that, so the window is inert (and untouchable) until Scene 2
- * has effectively landed.
+ * Fade fraction above which the row's words accept input. The row is still
+ * arriving below that, so they are inert (and untouchable) until Scene 2 has
+ * effectively landed.
  */
-const REVEAL_ACTIVE_AT = 0.9
+const ROW_ACTIVE_AT = 0.9
 
-/** How many cards sit in the Scene 2 row. They share one outer boundary. */
-const SCENE2_CARD_COUNT = 2
+/** The ASCII-art portrait at the centre of the Scene 2 row. */
+const MARK_SRC = '/assets/svg/me.svg'
 
 /** Scene 1 intro line, centred near the top of the viewport above the model. */
 function buildIntro(): HTMLParagraphElement {
@@ -47,21 +47,37 @@ function buildIntro(): HTMLParagraphElement {
   return intro
 }
 
+/** One of the row's words. A real button, so Enter/Space come for free. */
+function buildRowWord(text: string): HTMLButtonElement {
+  const word = document.createElement('button')
+  word.className = 'scene2-word'
+  word.type = 'button'
+  word.textContent = text
+  return word
+}
+
 /**
- * Scene 2 card row: bottom-centre, below the model in the levelled Scene 2
- * view. The cards are flush — one white boundary around the pair and a single
- * white line between them, so they read as one wide rectangle split in two.
- * Empty for now.
+ * Scene 2 row: bottom-centre, below the model in the levelled Scene 2 view.
+ * CONTACT, the portrait, PROJECTS — three elements on one line, vertically
+ * centred on each other. No cards, no frames, no dividers: the two flush
+ * bordered cards that used to be here were removed deliberately, so nothing in
+ * this row may grow a background, border or rectangle of its own.
  */
-function buildScene2Cards(): HTMLDivElement {
+function buildScene2Row(): { row: HTMLDivElement; contact: HTMLButtonElement; projects: HTMLButtonElement } {
   const row = document.createElement('div')
-  row.className = 'scene2-cards'
-  for (let i = 0; i < SCENE2_CARD_COUNT; i++) {
-    const card = document.createElement('div')
-    card.className = 'scene2-card'
-    row.append(card)
-  }
-  return row
+  row.className = 'scene2-row'
+
+  const contact = buildRowWord('CONTACT')
+  const projects = buildRowWord('PROJECTS')
+
+  const mark = document.createElement('img')
+  mark.className = 'scene2-mark'
+  mark.src = MARK_SRC
+  mark.alt = 'ASCII-art portrait of Ashraf'
+  mark.draggable = false
+
+  row.append(contact, mark, projects)
+  return { row, contact, projects }
 }
 
 // --- Mount ---
@@ -72,16 +88,19 @@ const canvas = document.createElement('canvas')
 canvas.id = 'scene'
 
 const intro = buildIntro()
-const scene2Cards = buildScene2Cards()
-app.append(canvas, intro, scene2Cards)
+const { row: scene2Row, contact, projects } = buildScene2Row()
+app.append(canvas, intro, scene2Row)
 
 // --- Starfield + model, and the input they read ---
 const scene = initScene(canvas)
 
-// The reveal window mounts itself here, over the last card in the row — the one
-// it covers — and brings its own 3D layer with it. The badges go on last so
-// they stay the topmost element.
-const revealWindow = createRevealWindow(scene2Cards.lastElementChild as HTMLDivElement, app)
+// The reveal window mounts itself here and brings its own 3D layer with it. It
+// has no resting box on screen: it grows out of whichever word opened it.
+// CONTACT is wired to the same window as a placeholder — there is no contact
+// content of its own yet.
+const revealWindow = createRevealWindow(app)
+revealWindow.bindTrigger(projects)
+revealWindow.bindTrigger(contact)
 app.append(buildSocialBadges())
 
 window.addEventListener('resize', () => {
@@ -93,7 +112,7 @@ initPointer()
 initScroll()
 
 let introShown = -1
-let cardsShown = -1
+let rowShown = -1
 
 /** Fade and lift the intro line, driven by the same progress as the scene. */
 function updateIntro(progress: number): void {
@@ -105,21 +124,20 @@ function updateIntro(progress: number): void {
 }
 
 /**
- * Fade the Scene 2 cards in, off the same progress as everything else. The
- * reveal window rides the same value — it is a separate element, so it has to
- * be faded and gated by hand rather than inheriting the row's opacity.
+ * Fade the Scene 2 row in, off the same progress as everything else. The
+ * reveal window is not part of the row and carries no opacity of its own here:
+ * it is invisible until it is opened, which only the row's live words can do.
  */
-function updateScene2Cards(progress: number): void {
-  const t = clamp((progress - CARDS_FADE_START) / (1 - CARDS_FADE_START), 0, 1)
-  if (Math.abs(t - cardsShown) < 0.002) return // skip redundant style writes
-  cardsShown = t
-  scene2Cards.style.opacity = String(t)
-  revealWindow.setOpacity(t)
+function updateScene2Row(progress: number): void {
+  const t = clamp((progress - ROW_FADE_START) / (1 - ROW_FADE_START), 0, 1)
+  if (Math.abs(t - rowShown) < 0.002) return // skip redundant style writes
+  rowShown = t
+  scene2Row.style.opacity = String(t)
 
-  const active = t > REVEAL_ACTIVE_AT
-  scene2Cards.classList.toggle('is-live', active) // lets the cards take hover
+  const active = t > ROW_ACTIVE_AT
+  scene2Row.classList.toggle('is-live', active) // lets the words take the pointer
   // Scrolling back toward Scene 1 also puts an open window away, rather than
-  // leaving a preview fading over the transition.
+  // leaving a preview over the transition.
   revealWindow.setInteractive(active)
 }
 
@@ -127,7 +145,7 @@ function updateScene2Cards(progress: number): void {
 function raf(time: number) {
   const progress = scene.update(time, state)
   updateIntro(progress)
-  updateScene2Cards(progress)
+  updateScene2Row(progress)
   revealWindow.update(state)
   requestAnimationFrame(raf)
 }

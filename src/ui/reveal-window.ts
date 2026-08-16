@@ -1,17 +1,20 @@
 /**
- * Scene 2 reveal window — the project preview shown through the right card.
+ * Scene 2 reveal window — the project preview, opened from the words in the
+ * Scene 2 row.
  *
- * One feature, one module: the element, its open/close behaviour, its
- * closed-state mouse tilt and the 3D layer behind it (`three/reveal.ts`) all
- * live here. `main.ts` only mounts the root, fades it with the rest of Scene 2
- * and calls `update()` from the single RAF loop.
+ * One feature, one module: the element, its open/close behaviour and the 3D
+ * layer behind it (`three/reveal.ts`) all live here. `main.ts` only mounts it,
+ * hands it its triggers and calls `update()` from the single RAF loop.
  *
  * The element is a MASK, not a viewport: the canvas inside is always the size
  * of the screen, so opening grows the mask and uncovers more of the same
  * rendered frame. Nothing here may scale or resize that canvas — see the
  * .reveal-window rules in style.css.
+ *
+ * While closed it is invisible and inert: it has no resting box of its own on
+ * screen any more. It grows out of whichever word was clicked and shrinks back
+ * into it, so its geometry is written from here rather than set in CSS.
  */
-import { clamp } from '../lib/math'
 import type { InputState } from '../lib/state'
 import { createRevealScene } from '../three/reveal'
 
@@ -22,29 +25,41 @@ import { createRevealScene } from '../three/reveal'
  */
 const OPEN_MS = 620
 
-/** Widest tilt of the canvas under the mouse, in degrees, either side of centre. */
-const TILT_MAX = 5
-/** Per-frame approach rate of the tilt toward its target — damped, not jumpy. */
-const TILT_LERP = 0.12
-
 export interface RevealWindow {
-  /** Fade with the rest of Scene 2 — it is not a child of the card row. */
-  setOpacity(opacity: number): void
+  /** Make `trigger` open the window, growing the view out of its own box. */
+  bindTrigger(trigger: HTMLElement): void
   /**
    * Take or refuse input. Turning it off also puts an open window away, so
-   * scrolling back toward Scene 1 never leaves a preview fading over the
-   * transition.
+   * scrolling back toward Scene 1 never leaves a preview over the transition.
    */
   setInteractive(active: boolean): void
-  /** Per-frame: the closed-state tilt, and the look-around while open. */
+  /** Per-frame: the look-around while open. Draws nothing while closed. */
   update(state: InputState): void
   resize(): void
 }
 
+/** The window's own geometry, in the same terms as its CSS box. */
+interface Box {
+  left: number
+  bottom: number
+  width: number
+  height: number
+}
+
+/** Where an element sits, as a box the fixed-position window can be given. */
+function boxOf(el: HTMLElement): Box {
+  const rect = el.getBoundingClientRect()
+  return {
+    left: rect.left,
+    bottom: window.innerHeight - rect.bottom,
+    width: rect.width,
+    height: rect.height,
+  }
+}
+
 /**
- * Build the window's DOM. A fixed-position mask, kept out of the card row
- * because a flex item could not fly out to the corner; the CSS derives its
- * closed geometry from the row's tokens so the two line up.
+ * Build the window's DOM. A fixed-position mask over everything, with no frame
+ * of its own — at full size its edges are the screen's.
  */
 function buildElements(): {
   root: HTMLDivElement
@@ -53,14 +68,13 @@ function buildElements(): {
 } {
   const root = document.createElement('div')
   root.className = 'reveal-window'
-  root.setAttribute('role', 'button')
-  root.tabIndex = 0
-  root.setAttribute('aria-label', 'Open project preview')
-  root.setAttribute('aria-expanded', 'false')
+  root.setAttribute('role', 'dialog')
+  root.setAttribute('aria-label', 'Project preview')
+  root.setAttribute('aria-hidden', 'true')
 
-  // Always the size of the viewport, centred on the window, so the closed card
-  // shows a slice of the same 3D view the open one fills the screen with — and
-  // so opening never has to resize the drawing buffer, only uncover more of it.
+  // Always the size of the viewport, centred on the window, so growing the
+  // window uncovers more of the same frame instead of resizing the drawing
+  // buffer.
   const canvas = document.createElement('canvas')
   canvas.className = 'reveal-canvas'
 
@@ -75,16 +89,12 @@ function buildElements(): {
 }
 
 /**
- * `card` is the card the window sits on — the right one in the row. It is left
- * inert to the pointer (see the pointer-events rule in style.css), so the
- * window's own hover is the single source of the lift for both of them.
- *
- * The window mounts itself into `parent` rather than leaving that to the
- * caller, because the order matters: the 3D layer draws exactly one still frame
- * at startup and then renders on demand, so its canvas has to be in the page
+ * The window mounts itself into `parent` and only then builds its 3D layer.
+ * That order is load-bearing: the scene draws exactly one still frame at
+ * startup and then renders on demand, so its canvas has to be in the page
  * already for that frame to reach the screen.
  */
-export function createRevealWindow(card: HTMLElement, parent: HTMLElement): RevealWindow {
+export function createRevealWindow(parent: HTMLElement): RevealWindow {
   const { root, canvas, close } = buildElements()
   parent.append(root)
 
@@ -94,30 +104,50 @@ export function createRevealWindow(card: HTMLElement, parent: HTMLElement): Reve
   const scene = createRevealScene(canvas)
 
   let isOpen = false
-  let tilt = 0
-  let tiltTarget = 0
-  let tiltWritten = 0
+  /** The word the window is currently out of — where it shrinks back to. */
+  let openedFrom: HTMLElement | null = null
 
   /** True only once the window has finished growing; the mouse is ignored until then. */
   let isLookLive = false
   let lookTimer = 0
 
-  /**
-   * The card and the window over it grow together, but they are separate
-   * subtrees, so the hover class goes on both by hand.
-   */
-  function setCardHover(on: boolean): void {
-    card.classList.toggle('is-hovered', on)
-    root.classList.toggle('is-hovered', on)
+  function applyBox(box: Box): void {
+    root.style.left = `${box.left}px`
+    root.style.bottom = `${box.bottom}px`
+    root.style.width = `${box.width}px`
+    root.style.height = `${box.height}px`
   }
 
-  function open(): void {
+  /**
+   * Percentages, not `vw`/`vh` or measured pixels: they resolve against the
+   * viewport minus a classic scrollbar, and the page is always scrollable, so
+   * the window can never be grown wider than the visible area.
+   */
+  function applyFullScreen(): void {
+    root.style.left = '0px'
+    root.style.bottom = '0px'
+    root.style.width = '100%'
+    root.style.height = '100%'
+  }
+
+  function open(trigger: HTMLElement): void {
     if (isOpen) return
     isOpen = true
+    openedFrom = trigger
+
+    // Sit on the word first, with transitions suppressed so that jump is not
+    // animated, and flush it — otherwise the growth would start from wherever
+    // the window happened to be left, not from the word that was clicked.
+    root.style.transition = 'none'
+    applyBox(boxOf(trigger))
+    void root.offsetWidth
+    root.style.transition = ''
+
     root.classList.add('is-open')
-    root.setAttribute('aria-expanded', 'true')
-    tiltTarget = 0 // the tilt is a closed-state affordance only
-    setCardHover(false) // don't leave the card lifted under a full-screen window
+    root.setAttribute('aria-hidden', 'false')
+    trigger.setAttribute('aria-expanded', 'true')
+    applyFullScreen()
+
     // Hand the view over only when the window is actually full-screen.
     clearTimeout(lookTimer)
     lookTimer = window.setTimeout(() => {
@@ -130,18 +160,33 @@ export function createRevealWindow(card: HTMLElement, parent: HTMLElement): Reve
     if (!isOpen) return
     isOpen = false
     root.classList.remove('is-open')
-    root.setAttribute('aria-expanded', 'false')
+    root.setAttribute('aria-hidden', 'true')
+
+    // Back into the word it came out of, re-measured in case the layout moved.
+    if (openedFrom) {
+      openedFrom.setAttribute('aria-expanded', 'false')
+      applyBox(boxOf(openedFrom))
+      // Don't strand the focus ring on a button inside a window that is going.
+      if (root.contains(document.activeElement)) openedFrom.focus()
+    }
+
     // Stop rendering at once. The scene recentres its camera and leaves one
-    // still frame on the canvas, which is what the small card goes back to
-    // showing.
+    // still frame on the canvas, ready for the next open.
     clearTimeout(lookTimer)
     isLookLive = false
     scene.setActive(false)
   }
 
-  root.addEventListener('click', () => {
-    if (!isOpen) open()
-  })
+  function bindTrigger(trigger: HTMLElement): void {
+    trigger.setAttribute('aria-expanded', 'false')
+    trigger.addEventListener('click', (e) => {
+      // The click-away listener below would otherwise see this click land
+      // outside the window and close what it just opened — the trigger is no
+      // longer inside the window, as it was when the card carried it.
+      e.stopPropagation()
+      open(trigger)
+    })
+  }
 
   close.addEventListener('click', (e) => {
     e.stopPropagation() // don't let it read as a click on the window itself
@@ -149,8 +194,7 @@ export function createRevealWindow(card: HTMLElement, parent: HTMLElement): Reve
   })
 
   // Click-away and Escape, the two patterns expected of an expanded preview.
-  // One permanent listener each: the opening click's target is inside the
-  // window, so it can never close what it just opened.
+  // One permanent listener each.
   document.addEventListener('click', (e) => {
     if (isOpen && !root.contains(e.target as Node)) closeWindow()
   })
@@ -158,67 +202,15 @@ export function createRevealWindow(card: HTMLElement, parent: HTMLElement): Reve
     if (e.key === 'Escape') closeWindow()
   })
 
-  // Keyboard equivalent of the click, since the window is a focusable control.
-  root.addEventListener('keydown', (e) => {
-    if (isOpen || (e.key !== 'Enter' && e.key !== ' ')) return
-    e.preventDefault() // Space would otherwise scroll the page
-    open()
-  })
-
-  root.addEventListener(
-    'mousemove',
-    (e) => {
-      if (isOpen) return
-      const rect = root.getBoundingClientRect()
-      const nx = ((e.clientX - rect.left) / rect.width) * 2 - 1 // -1 left .. 1 right
-      tiltTarget = clamp(nx, -1, 1) * TILT_MAX
-    },
-    { passive: true },
-  )
-
-  root.addEventListener('mouseenter', () => {
-    if (!isOpen) setCardHover(true)
-  })
-  root.addEventListener('mouseleave', () => {
-    tiltTarget = 0
-    setCardHover(false)
-  })
-
-  /**
-   * Damp the closed-state tilt and write it out.
-   *
-   * A pure CSS rotation of the canvas about its own centre, so it cannot
-   * disturb the slice of the 3D view the small card is showing. It settles to
-   * exact zero, at which point the inline transform is dropped so nothing is
-   * left applied.
-   *
-   * The open state's motion is not here at all: it is the reveal scene's
-   * camera, turning in real 3D (see `three/reveal.ts`).
-   */
-  function updateTilt(): void {
-    tilt += (tiltTarget - tilt) * TILT_LERP
-    if (tiltTarget === 0 && Math.abs(tilt) < 0.005) tilt = 0
-    if (Math.abs(tilt - tiltWritten) < 0.005) return // skip redundant style writes
-    tiltWritten = tilt
-    canvas.style.transform =
-      tilt === 0 ? '' : `perspective(1400px) rotateY(${tilt.toFixed(2)}deg)`
-  }
-
   function update(state: InputState): void {
-    updateTilt()
     // Only while the window is open and full-screen; the scene draws nothing at
     // all otherwise, and skips the draw even then if the view has not moved.
     if (isLookLive) scene.update(state)
   }
 
-  function setOpacity(opacity: number): void {
-    root.style.opacity = String(opacity)
-  }
-
   function setInteractive(active: boolean): void {
-    root.style.pointerEvents = active ? 'auto' : 'none'
     if (!active) closeWindow()
   }
 
-  return { setOpacity, setInteractive, update, resize: scene.resize }
+  return { bindTrigger, setInteractive, update, resize: scene.resize }
 }
