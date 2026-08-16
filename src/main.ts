@@ -302,11 +302,43 @@ function updateScene2Cards(progress: number): void {
   if (!active && isRevealOpen) closeReveal()
 }
 
-// --- Reveal window: click to open, mouse tilt while closed ---
+// --- Reveal window: click to open, mouse tilt while closed, parallax while open ---
 let isRevealOpen = false
 let tilt = 0
 let tiltTarget = 0
 let tiltWritten = 0
+
+/**
+ * One parallax layer. `x`/`y` are its current offset in px, `wx`/`wy` the last
+ * pair written to the DOM. The backdrop also carries the closed-state tilt, so
+ * its transform has to be composed rather than just set.
+ */
+interface ParallaxLayer {
+  el: HTMLElement
+  depth: number
+  isBackdrop: boolean
+  x: number
+  y: number
+  wx: number
+  wy: number
+}
+
+const parallaxLayers: ParallaxLayer[] = [
+  { el: reveal.image, depth: REVEAL_BACKDROP_DEPTH, isBackdrop: true, x: 0, y: 0, wx: 0, wy: 0 },
+  ...reveal.planets.map((el, i) => ({
+    el,
+    depth: REVEAL_PLANETS[i].depth,
+    isBackdrop: false,
+    x: 0,
+    y: 0,
+    wx: 0,
+    wy: 0,
+  })),
+]
+
+/** True only once the window has finished growing; the mouse is ignored until then. */
+let isParallaxLive = false
+let parallaxTimer = 0
 
 function openReveal(): void {
   if (isRevealOpen) return
@@ -314,6 +346,11 @@ function openReveal(): void {
   reveal.root.classList.add('is-open')
   reveal.root.setAttribute('aria-expanded', 'true')
   tiltTarget = 0 // the tilt is a closed-state affordance only
+  // Hand over to the parallax only when the window is actually full-screen.
+  clearTimeout(parallaxTimer)
+  parallaxTimer = window.setTimeout(() => {
+    isParallaxLive = true
+  }, REVEAL_OPEN_MS)
 }
 
 function closeReveal(): void {
@@ -321,6 +358,10 @@ function closeReveal(): void {
   isRevealOpen = false
   reveal.root.classList.remove('is-open')
   reveal.root.setAttribute('aria-expanded', 'false')
+  // Stop reading the mouse at once; the layers damp back to rest from wherever
+  // they are and their transforms are dropped entirely once they get there.
+  clearTimeout(parallaxTimer)
+  isParallaxLive = false
 }
 
 reveal.root.addEventListener('click', () => {
@@ -364,15 +405,54 @@ reveal.root.addEventListener('mouseleave', () => {
 })
 
 /**
- * Damp the image's tilt toward its target. Pure rotation about a fixed pivot —
- * the image never translates or scales, so this cannot disturb the crop the
- * mask is showing.
+ * Damp both of the window's motions and write them out.
+ *
+ * - the closed-state tilt: a pure rotation of the backdrop about a fixed pivot,
+ *   so it can never disturb the crop the mask is showing.
+ * - the open-state parallax: every layer counter-moves against the mouse, by
+ *   its own `depth`. Opposite, because the camera is fixed and only its facing
+ *   changes — turn your head right and the world slides left — and per-layer,
+ *   so the near planets outrun the far ones and the backdrop barely stirs.
+ *
+ * Both settle to exact zero, at which point the inline transform is dropped so
+ * nothing is left applied to a closed window.
  */
-function updateRevealTilt(): void {
+function updateRevealMotion(): void {
   tilt += (tiltTarget - tilt) * REVEAL_TILT_LERP
-  if (Math.abs(tilt - tiltWritten) < 0.01) return // skip redundant style writes
-  tiltWritten = tilt
-  reveal.image.style.transform = `perspective(1400px) rotateY(${tilt.toFixed(2)}deg)`
+  if (tiltTarget === 0 && Math.abs(tilt) < 0.005) tilt = 0
+  const tiltChanged = Math.abs(tilt - tiltWritten) >= 0.005
+  if (tiltChanged) tiltWritten = tilt
+
+  // Zeroed while closed, so a mouse move outside the open state moves nothing.
+  const mx = isParallaxLive ? state.mouseX : 0
+  const my = isParallaxLive ? state.mouseY : 0
+
+  for (const layer of parallaxLayers) {
+    layer.x += (-mx * layer.depth - layer.x) * REVEAL_PARALLAX_LERP
+    layer.y += (-my * layer.depth * REVEAL_PARALLAX_Y - layer.y) * REVEAL_PARALLAX_LERP
+    if (!isParallaxLive && Math.abs(layer.x) < 0.05 && Math.abs(layer.y) < 0.05) {
+      layer.x = 0
+      layer.y = 0
+    }
+
+    const moved = Math.abs(layer.x - layer.wx) >= 0.05 || Math.abs(layer.y - layer.wy) >= 0.05
+    if (!moved && !(layer.isBackdrop && tiltChanged)) continue // skip redundant writes
+    layer.wx = layer.x
+    layer.wy = layer.y
+
+    const still = layer.x === 0 && layer.y === 0
+    if (layer.isBackdrop) {
+      layer.el.style.transform =
+        still && tilt === 0
+          ? ''
+          : `translate3d(${layer.x.toFixed(2)}px, ${layer.y.toFixed(2)}px, 0)` +
+            ` perspective(1400px) rotateY(${tilt.toFixed(2)}deg)`
+    } else {
+      layer.el.style.transform = still
+        ? ''
+        : `translate3d(${layer.x.toFixed(2)}px, ${layer.y.toFixed(2)}px, 0)`
+    }
+  }
 }
 
 // --- Single RAF loop: the only one in the app; hook new per-frame work in here
@@ -380,7 +460,7 @@ function raf(time: number) {
   const progress = scene.update(time, state)
   updateIntro(progress)
   updateScene2Cards(progress)
-  updateRevealTilt()
+  updateRevealMotion()
   requestAnimationFrame(raf)
 }
 
