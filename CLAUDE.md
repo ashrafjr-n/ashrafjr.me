@@ -20,8 +20,8 @@ At the start of every session, and after every /clear, read vibe.md first before
   is deliberately flat (no gradient) to preserve that. Do not add a gradient,
   lighten the background, or put a ground/backdrop mesh behind the model.
 - Fonts loaded: **Space Grotesk** (`--font-display`, still not applied to any
-  element) and **JetBrains Mono** (`--font-code`, applied to body text and
-  the GitHub badge).
+  element) and **JetBrains Mono** (`--font-code`, applied to body text, the
+  GitHub badge and the intro line).
 
 ## Current state
 Scene 1 is the static opening composition: the `space_boi` diorama seen from a
