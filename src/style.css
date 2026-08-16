@@ -133,10 +133,11 @@ body {
 /* ===========================================================
    Scene 2 reveal window (sits on the right card)
 
-   This is a MASK, not an image container. The image inside is 300% of the
-   closed window and never scales, moves or animates — opening the card only
-   grows the mask, so the crop that was already visible stays at the exact same
-   spot inside it and the extra size uncovers more of the same image.
+   This is a MASK, not an image container. The image inside is many times the
+   closed window and never scales — opening the card only grows the mask to
+   fill the screen, so the crop that was already visible stays put, at the same
+   size, and the extra area uncovers more of the same image. Never scale or
+   pan the image to open it; that would read as a zoom.
 
    It is a separate fixed element rather than the card itself, because the card
    is a flex item in the row and could not fly out to the corner. Its closed
@@ -150,19 +151,17 @@ body {
 .reveal-window {
   --closed-w: calc((var(--card-row-w) - 3px) / 2);
   --closed-h: calc(var(--card-row-h) - 2px);
-  /* 300% of the closed window: big enough that the open window is still a crop
-     of it, so the mask never runs off the edge of the image. */
-  --img-w: calc(var(--closed-w) * 3);
+  /* The image is held by one anchor point, at 0.68/0.50 of itself — the large
+     ringed planet — pinned to the centre of the mask. That point stays put in
+     both states, so the closed card is deliberately composed on the planet and
+     opening uncovers the field around it evenly, at the same scale.
+     Sizing follows from the anchor: at full screen the mask needs 0.32 of the
+     image to the right of the anchor to cover 50vw, and half its height to
+     cover 50vh. max() satisfies whichever of the two binds on this aspect. */
+  --img-w: max(160vw, 210vh);
   --img-h: calc(var(--img-w) / 2.0246); /* projects-background.png is 2470x1220 */
-  /* Where the closed window sits inside the image, as a fraction of it. Chosen
-     so the small ringed planet anchors the closed crop, and so growing right
-     and down from there uncovers the large ringed planet. */
-  --crop-x: calc(var(--img-w) * 0.12);
-  --crop-y: calc(var(--img-h) * 0.16);
-  /* Open size, expressed against the image so the crop maths holds on every
-     viewport: 0.12 + 0.68 and 0.16 + 0.78 both stay inside the image. */
-  --open-w: calc(var(--img-w) * 0.68);
-  --open-h: calc(var(--img-h) * 0.78);
+  --anchor-x: calc(var(--img-w) * 0.68);
+  --anchor-y: calc(var(--img-h) * 0.5);
 
   position: fixed;
   left: calc(50% + 0.5px);
@@ -183,34 +182,31 @@ body {
     height var(--reveal-duration) var(--reveal-ease);
 }
 
-/* Grown into a large preview in the top-right corner. Percentages resolve
-   against the viewport minus any scrollbar, unlike vw — which matters here
-   because the page is 300vh tall and always scrollable. */
+/* Grown to fill the viewport. Percentages, not vw/vh, so a classic scrollbar
+   cannot push it wider than the visible area — the page is 300vh tall and
+   always scrollable. No frame at this size: the edges are the screen's own. */
 .reveal-window.is-open {
-  left: calc(100% - 4vw - var(--open-w));
-  bottom: calc(100% - 5vh - var(--open-h));
-  width: var(--open-w);
-  height: var(--open-h);
+  left: 0;
+  bottom: 0;
+  width: 100%;
+  height: 100%;
   cursor: default;
-  /* Outline, not border: it is painted outside the box, so gaining the frame
-     costs no layout and the image underneath cannot shift by a pixel. */
-  outline: 1px solid #ffffff;
 }
 
 /* Never resized, never repositioned. The only thing written to it is the
    rotateY tilt, and only while the window is closed. */
 .reveal-image {
   position: absolute;
-  left: calc(var(--crop-x) * -1);
-  top: calc(var(--crop-y) * -1);
+  /* The anchor point held at the centre of the mask, whatever size it is. */
+  left: calc(50% - var(--anchor-x));
+  top: calc(50% - var(--anchor-y));
   width: var(--img-w);
   height: auto;
   max-width: none;
-  /* Pivot: the centre of the closed crop, so the tilt reads as the view turning
-     about what is actually on screen. perspective() lives in the transform, so
-     this is the vanishing point too. */
-  transform-origin: calc(var(--crop-x) + var(--closed-w) / 2)
-    calc(var(--crop-y) + var(--closed-h) / 2);
+  /* Pivot: the same anchor, so the tilt turns the view about the subject that
+     is actually on screen. perspective() lives in the transform, so this is
+     the vanishing point too. */
+  transform-origin: var(--anchor-x) var(--anchor-y);
   transform: perspective(1400px) rotateY(0deg);
   will-change: transform;
   user-select: none;
