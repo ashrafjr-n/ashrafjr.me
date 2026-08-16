@@ -15,6 +15,7 @@ import {
   AmbientLight,
   Box3,
   DirectionalLight,
+  Group,
   Object3D,
   PerspectiveCamera,
   Scene,
@@ -38,6 +39,11 @@ const MODEL_SPAN = 3.1
 /**
  * Normalize the GLB: uniform-scale it to MODEL_SPAN, center it on x/z and drop
  * it so its lowest point rests on y = 0.
+ *
+ * The resulting offset is a translation on the model itself, which is why the
+ * model is parented to a pivot `Group` rather than spun directly — rotating it
+ * in place would swing it around the GLB's own origin (Three applies
+ * translation *after* rotation), making it orbit instead of spin.
  */
 function fitModel(model: Object3D): void {
   const box = new Box3().setFromObject(model)
@@ -69,13 +75,18 @@ export function createWorld(aspect: number): WorldLayer {
   fill.position.set(-5, 3, -4)
   scene.add(new AmbientLight(0xffffff, 1.1), key, fill)
 
+  // Rotation pivot: sits at the origin, which fitModel() lines the model's own
+  // centre up with. Spinning this Group keeps the model exactly in place.
+  const pivot = new Group()
+  scene.add(pivot)
+
   // Async — the starfield renders immediately, the model pops in when it has
-  // loaded. No animation is driven off it yet.
+  // loaded.
   new GLTFLoader().load(
     MODEL_URL,
     (gltf) => {
       fitModel(gltf.scene)
-      scene.add(gltf.scene)
+      pivot.add(gltf.scene)
     },
     undefined,
     (err) => console.error(`[world] failed to load ${MODEL_URL}`, err),
