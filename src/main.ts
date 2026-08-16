@@ -63,13 +63,16 @@ function buildRowWord(text: string): HTMLButtonElement {
  */
 function buildScene2Row(): {
   row: HTMLDivElement
-  contact: HTMLButtonElement
   projects: HTMLButtonElement
   mark: Mark
 } {
   const row = document.createElement('div')
   row.className = 'scene2-row'
 
+  // CONTACT is deliberately inert: it is built and styled exactly like
+  // PROJECTS but nothing is bound to it, and it is not returned, so nothing
+  // can. It gets its own behaviour later; until then it must not borrow the
+  // projects window.
   const contact = buildRowWord('CONTACT')
   const projects = buildRowWord('PROJECTS')
   // The portrait draws and wipes itself; it is advanced from the RAF loop below
@@ -77,7 +80,7 @@ function buildScene2Row(): {
   const mark = createMark('ASCII-art portrait of Ashraf')
 
   row.append(contact, mark.el, projects)
-  return { row, contact, projects, mark }
+  return { row, projects, mark }
 }
 
 // --- Mount ---
@@ -88,19 +91,17 @@ const canvas = document.createElement('canvas')
 canvas.id = 'scene'
 
 const intro = buildIntro()
-const { row: scene2Row, contact, projects, mark } = buildScene2Row()
+const { row: scene2Row, projects, mark } = buildScene2Row()
 app.append(canvas, intro, scene2Row)
 
 // --- Starfield + model, and the input they read ---
 const scene = initScene(canvas)
 
 // The reveal window mounts itself here and brings its own 3D layer with it. It
-// has no resting box on screen: it grows out of whichever word opened it.
-// CONTACT is wired to the same window as a placeholder — there is no contact
-// content of its own yet.
+// has no resting box on screen: it grows out of the word that opened it, and
+// PROJECTS is the only word that opens it.
 const revealWindow = createRevealWindow(app)
 revealWindow.bindTrigger(projects)
-revealWindow.bindTrigger(contact)
 app.append(buildSocialBadges())
 
 window.addEventListener('resize', () => {
