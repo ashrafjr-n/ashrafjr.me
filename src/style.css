@@ -32,6 +32,11 @@
   --card-line: rgba(255, 255, 255, 0.16);
   /* The same line, deepened, while a card is hovered and lifted. */
   --card-line-hover: rgba(255, 255, 255, 0.34);
+  /* How far a hovered card grows. The reveal window scales by the same factor
+     about the same centre, so the star crop stays filling the right card. */
+  --card-hover-scale: 1.09;
+  /* Shared by the card and the window so the two grow as one. */
+  --card-hover-duration: 420ms;
   /* A faint bloom off the outer edge, so the line sits in the scene rather
      than on top of it. Deliberately almost invisible. */
   --card-line-glow: 0 0 26px rgba(255, 255, 255, 0.03);
@@ -130,7 +135,8 @@ body {
   /* Flex items honour z-index without being positioned, which is what lets a
      hovered card lift above its neighbour instead of being overlapped by it. */
   z-index: 0;
-  transition: transform 420ms var(--reveal-ease), border-color 420ms ease;
+  transition: transform var(--card-hover-duration) var(--reveal-ease),
+    border-color var(--card-hover-duration) ease;
 }
 
 /* Pull the second card 1px onto the first so their adjacent borders collapse
@@ -144,7 +150,7 @@ body {
    while it is up. Transform only, so the other card never moves or resizes. */
 .scene2-card:hover,
 .scene2-card.is-hovered {
-  transform: scale(1.035);
+  transform: scale(var(--card-hover-scale));
   border-color: var(--card-line-hover);
   z-index: 2;
 }
@@ -200,7 +206,17 @@ body {
   transition: left var(--reveal-duration) var(--reveal-ease),
     bottom var(--reveal-duration) var(--reveal-ease),
     width var(--reveal-duration) var(--reveal-ease),
-    height var(--reveal-duration) var(--reveal-ease);
+    height var(--reveal-duration) var(--reveal-ease),
+    transform var(--card-hover-duration) var(--reveal-ease);
+}
+
+/* Hover on the right card grows the window by the same factor, about the same
+   centre — the window is that card's box inset 1px all round, so one scale
+   keeps them concentric and the star crop goes on filling the card. This is
+   the only time the window itself is transformed; opening must never scale it,
+   which would scale the image and read as a zoom. */
+.reveal-window.is-hovered:not(.is-open) {
+  transform: scale(var(--card-hover-scale));
 }
 
 /* Grown to fill the viewport. Percentages, not vw/vh, so a classic scrollbar
