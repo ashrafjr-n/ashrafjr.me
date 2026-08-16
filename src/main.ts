@@ -133,6 +133,48 @@ const SCENE2_CARD_COUNT = 2
 
 /** The starfield the right card is a window onto. Planets are separate layers. */
 const REVEAL_IMAGE_SRC = '/assets/projects/projects-background.png'
+/**
+ * The planets scattered over the open window, back to front.
+ *
+ * `x`/`y` are the planet's centre as a percentage of the window and `w` its
+ * width in vw — both deliberately uneven, so the field reads as a composition
+ * rather than a grid, and clear of the badges (top-left) and close button
+ * (top-right). `depth` is how far it counter-moves at full mouse deflection,
+ * in px: every planet has its own, and the bigger/nearer ones move most. The
+ * backdrop's REVEAL_BACKDROP_DEPTH is below all of them, so it reads farthest.
+ */
+interface PlanetSpec {
+  src: string
+  x: number
+  y: number
+  w: number
+  depth: number
+}
+const REVEAL_PLANETS: PlanetSpec[] = [
+  { src: 'three.png', x: 86, y: 52, w: 6, depth: 22 },
+  { src: 'two.png', x: 60, y: 72, w: 8, depth: 28 },
+  { src: 'one.png', x: 44, y: 30, w: 11, depth: 35 },
+  { src: 'four.png', x: 30, y: 84, w: 14, depth: 43 },
+  { src: 'black.png', x: 72, y: 26, w: 20, depth: 52 },
+  { src: 'white.png', x: 18, y: 62, w: 26, depth: 64 },
+]
+
+/**
+ * The backdrop's own counter-movement, in px. Smallest of all the layers — it
+ * is the farthest thing in the frame — and it has to stay inside the few
+ * percent of overhang --img-w leaves past the viewport, or the edge shows.
+ */
+const REVEAL_BACKDROP_DEPTH = 12
+/** Vertical counter-movement as a fraction of the horizontal, kept subtler. */
+const REVEAL_PARALLAX_Y = 0.55
+/** Per-frame approach rate of every parallax layer toward its target. */
+const REVEAL_PARALLAX_LERP = 0.07
+/**
+ * How long after opening the parallax starts, in ms. Matches --reveal-duration
+ * in style.css: the field only responds once the window has finished growing.
+ */
+const REVEAL_OPEN_MS = 620
+
 /** Widest tilt of the image under the mouse, in degrees, either side of centre. */
 const REVEAL_TILT_MAX = 5
 /** Per-frame approach rate of the tilt toward its target — damped, not jumpy. */
@@ -150,7 +192,12 @@ const REVEAL_ACTIVE_AT = 0.9
  * card is a flex item and could not fly out to the corner; the CSS derives its
  * closed geometry from the row's tokens so the two line up.
  */
-function buildRevealWindow(): { root: HTMLDivElement; image: HTMLImageElement; close: HTMLButtonElement } {
+function buildRevealWindow(): {
+  root: HTMLDivElement
+  image: HTMLImageElement
+  planets: HTMLImageElement[]
+  close: HTMLButtonElement
+} {
   const root = document.createElement('div')
   root.className = 'reveal-window'
   root.setAttribute('role', 'button')
@@ -164,14 +211,28 @@ function buildRevealWindow(): { root: HTMLDivElement; image: HTMLImageElement; c
   image.alt = ''
   image.draggable = false
 
+  // Scattered over the backdrop, in the array's order so the listed depth order
+  // is also the paint order. Only shown once the window is open.
+  const planets = REVEAL_PLANETS.map((spec) => {
+    const planet = document.createElement('img')
+    planet.className = 'reveal-planet'
+    planet.src = `/assets/projects/${spec.src}`
+    planet.alt = ''
+    planet.draggable = false
+    planet.style.left = `${spec.x}%`
+    planet.style.top = `${spec.y}%`
+    planet.style.width = `${spec.w}vw`
+    return planet
+  })
+
   const close = document.createElement('button')
   close.className = 'reveal-close'
   close.type = 'button'
   close.setAttribute('aria-label', 'Close project preview')
   close.textContent = '×'
 
-  root.append(image, close)
-  return { root, image, close }
+  root.append(image, ...planets, close)
+  return { root, image, planets, close }
 }
 
 /**

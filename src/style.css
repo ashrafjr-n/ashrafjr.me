@@ -214,6 +214,29 @@ body {
   pointer-events: none;
 }
 
+/* The scattered planets. Positioned from main.ts (centre as a % of the window,
+   width in vw); centring uses the standalone `translate` property so the
+   per-frame parallax can own `transform` outright and clear it at rest.
+   They belong to the open state only — invisible while the card is closed,
+   where they would just be crammed into a small window. */
+.reveal-planet {
+  position: absolute;
+  translate: -50% -50%;
+  height: auto;
+  opacity: 0;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-drag: none;
+  will-change: transform;
+  transition: opacity 420ms ease;
+}
+
+.reveal-window.is-open .reveal-planet {
+  opacity: 1;
+  /* Arrives as the growth lands, so they settle into the full-screen field. */
+  transition-delay: 380ms;
+}
+
 /* Close affordance, only while open. Fades in after the growth has landed. */
 .reveal-close {
   position: absolute;
