@@ -75,9 +75,14 @@ The model spins slowly clockwise about its own vertical axis, forever.
 - `MODEL_SPIN_RATE` is **exported** and the starfield's speed tiers are
   multiples of it, so changing it re-paces the site's stars too. That coupling
   is deliberate — see **Starfield**.
-- During the scroll transition the rate is multiplied by
-  `1 + SPIN_BOOST * sin(pi * progress)` — idle at both ends, fastest half-way,
-  so Scene 2 returns to idle with no extra state or timer.
+- During the scroll transition the model makes `TRANSITION_TURNS` extra
+  revolutions **on top of** the idle spin: `rotation.y = idleAngle -
+  TURNS * 2pi * progress`. The idle part is time-accumulated, the transition
+  part is a pure function of progress — that split is what lands it on a whole
+  number of turns however fast the page is scrolled. A time-integrated speed
+  boost was tried first and cannot do this, since the total then depends on how
+  long the user took to scroll. The term is negative to match `SPIN_SPEED`, so
+  the scroll turn continues in the idle direction rather than fighting it.
 - It advances by `delta` seconds, not per frame, so the speed is frame-rate
   independent. `delta` is clamped to 0.1s in `scene.ts`, so a throttled
   background tab animates slower than wall-clock — expected, same as the
@@ -127,6 +132,11 @@ sit and how big the dots draw:
   3px, median peak brightness 60); re-measure if either changes.
 - The mouse tilt is applied to the **wide cloud only**. Tilting the band would
   break its full-loop visibility (5° is enough to push its near side off frame).
+- Per-layer appearance goes through `createStarLayer`'s `look` argument
+  (brightness range + opacity), not hard-coded values. The band is deliberately
+  brighter and whiter than the ambient field — `BAND_BRIGHT_*` / `BAND_OPACITY`
+  vs `STAR_BRIGHT_*` / `STAR_OPACITY`, about 1.3x the ambient. Still pure
+  grayscale, so the white/black/silver palette holds.
 - Three sizes points as `size * 0.5 * drawingBufferHeight / distance` — **fov
   plays no part**. Any change to the cloud's scale needs `size` rescaled by the
   same factor or the dots change apparent size.
@@ -172,8 +182,8 @@ progress 1 is simply the end state.
 | --- | --- | --- |
 | band scatters outward | `BAND_SCATTER_*` in `scene.ts` | orbit radius 2.7 → ~11–29 |
 | ambient stars fly past camera | `FLY_DISTANCE_*` in `scene.ts` | all past the camera, gone |
-| camera dollies in and drops | `SCENE2_CAMERA_*` in `world.ts` | dist 10.2 → 5.0, +63° → −3° |
-| model spin boosts | `SPIN_BOOST` in `world.ts` | back to idle (peaks mid-scroll) |
+| camera dollies in and levels off | `SCENE2_CAMERA_*` in `world.ts` | dist 10.2 → 4.3, +63° → 0° |
+| model turns one extra revolution | `TRANSITION_TURNS` in `world.ts` | exactly 360°, idle direction |
 
 - Displacements are computed **from** `progress`, never accumulated frame to
   frame, so scrubbing back up rewinds exactly. It is also why the fly-past needs
@@ -190,6 +200,10 @@ progress 1 is simply the end state.
   with culling on, whole layers pop out of view mid-scroll.
 - The fly direction is converted into each layer's local space before use,
   because the mouse tilt rotates the wide cloud's buffer.
+- `SCENE2_CAMERA_POS.y` and `SCENE2_CAMERA_TARGET.y` are **equal**, which is what
+  makes the end view exactly level. Keep them equal, and keep them above `y = 0`:
+  the model's slab sits at 0 with all its detail on top, so a camera below that
+  plane looks at the underside and hides the rings, planets and figure.
 
 ## Render passes
 `renderer.autoClear` is **false**. Every frame, `scene.ts` does:
