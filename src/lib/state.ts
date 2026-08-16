@@ -6,6 +6,8 @@
  *            1 once the page is scrolled to the bottom. Every part of the
  *            transition is driven off this single value.
  */
+import { clamp } from './math'
+
 export interface InputState {
   mouseX: number
   mouseY: number
@@ -19,12 +21,12 @@ export const state: InputState = {
 }
 
 /** Attach a pointer listener that feeds normalized mouse coords into state. */
-export function initPointer(target: InputState = state): void {
+export function initPointer(): void {
   window.addEventListener(
     'mousemove',
     (e) => {
-      target.mouseX = (e.clientX / window.innerWidth) * 2 - 1
-      target.mouseY = (e.clientY / window.innerHeight) * 2 - 1
+      state.mouseX = (e.clientX / window.innerWidth) * 2 - 1
+      state.mouseY = (e.clientY / window.innerHeight) * 2 - 1
     },
     { passive: true },
   )
@@ -38,10 +40,10 @@ export function initPointer(target: InputState = state): void {
  * scroll. Also fires once on init so a reload part-way down the page starts at
  * the right progress rather than snapping from 0.
  */
-export function initScroll(target: InputState = state): void {
+export function initScroll(): void {
   const read = (): void => {
     const range = document.body.scrollHeight - window.innerHeight
-    target.scroll = range > 0 ? Math.min(Math.max(window.scrollY / range, 0), 1) : 0
+    state.scroll = range > 0 ? clamp(window.scrollY / range, 0, 1) : 0
   }
   window.addEventListener('scroll', read, { passive: true })
   window.addEventListener('resize', read, { passive: true })

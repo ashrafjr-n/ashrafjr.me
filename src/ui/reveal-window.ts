@@ -11,6 +11,7 @@
  * rendered frame. Nothing here may scale or resize that canvas — see the
  * .reveal-window rules in style.css.
  */
+import { clamp } from '../lib/math'
 import type { InputState } from '../lib/state'
 import { createRevealScene } from '../three/reveal'
 
@@ -170,7 +171,7 @@ export function createRevealWindow(card: HTMLElement, parent: HTMLElement): Reve
       if (isOpen) return
       const rect = root.getBoundingClientRect()
       const nx = ((e.clientX - rect.left) / rect.width) * 2 - 1 // -1 left .. 1 right
-      tiltTarget = Math.min(Math.max(nx, -1), 1) * TILT_MAX
+      tiltTarget = clamp(nx, -1, 1) * TILT_MAX
     },
     { passive: true },
   )

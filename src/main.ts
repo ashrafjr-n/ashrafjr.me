@@ -8,6 +8,7 @@
  * the spin or the stars. Never read `state.scroll` directly for animation.
  */
 import './style.css'
+import { clamp } from './lib/math'
 import { initScene } from './three/scene'
 import { state, initPointer, initScroll } from './lib/state'
 import { buildSocialBadges } from './ui/social'
@@ -109,7 +110,7 @@ function updateIntro(progress: number): void {
  * be faded and gated by hand rather than inheriting the row's opacity.
  */
 function updateScene2Cards(progress: number): void {
-  const t = Math.min(Math.max((progress - CARDS_FADE_START) / (1 - CARDS_FADE_START), 0), 1)
+  const t = clamp((progress - CARDS_FADE_START) / (1 - CARDS_FADE_START), 0, 1)
   if (Math.abs(t - cardsShown) < 0.002) return // skip redundant style writes
   cardsShown = t
   scene2Cards.style.opacity = String(t)
