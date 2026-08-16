@@ -299,6 +299,7 @@ function updateScene2Cards(progress: number): void {
 
   const active = t > REVEAL_ACTIVE_AT
   reveal.root.style.pointerEvents = active ? 'auto' : 'none'
+  scene2Cards.classList.toggle('is-live', active) // lets the cards take hover
   // Scrolling back toward Scene 1 puts it away rather than leaving an open
   // preview fading over the transition.
   if (!active && isRevealOpen) closeReveal()
@@ -348,7 +349,7 @@ function openReveal(): void {
   reveal.root.classList.add('is-open')
   reveal.root.setAttribute('aria-expanded', 'true')
   tiltTarget = 0 // the tilt is a closed-state affordance only
-  revealCard.classList.remove('is-hovered') // don't leave the card lifted under it
+  setRevealCardHover(false) // don't leave the card lifted under a full-screen window
   // Hand over to the parallax only when the window is actually full-screen.
   clearTimeout(parallaxTimer)
   parallaxTimer = window.setTimeout(() => {
@@ -405,14 +406,21 @@ reveal.root.addEventListener(
 )
 reveal.root.addEventListener('mouseleave', () => {
   tiltTarget = 0
-  revealCard.classList.remove('is-hovered')
+  setRevealCardHover(false)
 })
 
-// The window covers the right card's interior, so a pointer over the star crop
-// never reaches the card itself — mirror it, or that card would only respond to
-// a hover on its 1px border.
+/**
+ * The right card and the window over it grow together, but they are separate
+ * subtrees. The card is left inert (see the pointer-events rule in style.css),
+ * so the window's own hover is the single source for both.
+ */
+function setRevealCardHover(on: boolean): void {
+  revealCard.classList.toggle('is-hovered', on)
+  reveal.root.classList.toggle('is-hovered', on)
+}
+
 reveal.root.addEventListener('mouseenter', () => {
-  if (!isRevealOpen) revealCard.classList.add('is-hovered')
+  if (!isRevealOpen) setRevealCardHover(true)
 })
 
 /**

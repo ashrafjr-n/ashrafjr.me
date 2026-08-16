@@ -139,6 +139,16 @@ body {
     border-color var(--card-hover-duration) ease;
 }
 
+/* The row itself stays transparent to the pointer; the cards opt back in, but
+   only once Scene 2 has landed (main.ts adds .is-live) — an opacity-0 element
+   is still a hit target. The card under the reveal window is deliberately left
+   out: the window covers it and owns its clicks and tilt, and the row sits
+   above the closed window, so an interactive card there would swallow them.
+   That card's hover is mirrored from the window instead. */
+.scene2-cards.is-live .scene2-card:not(:last-child) {
+  pointer-events: auto;
+}
+
 /* Pull the second card 1px onto the first so their adjacent borders collapse
    into one divider — same single hairline as before, but now each card is a
    whole rectangle that can grow on its own. */
