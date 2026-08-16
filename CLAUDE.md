@@ -93,7 +93,7 @@ because it clashed with the model's rotating stars. Do not reintroduce it.
 - Speeds come from `SPEED_TIERS`: ~78% slow, ~18% medium, ~4% fast, randomised
   within each tier so the motion is not uniform.
 - The cloud is a **flattened ball** (`CLOUD_RADIUS`, `CLOUD_FLATTEN`), not a
-  thin disc. The camera pitches ~50° down, so its frustum passes through a thin
+  thin disc. The camera pitches ~63° down, so its frustum passes through a thin
   disc and out the underside within ~25 units, leaving the frame empty. This
   was tried and rejected — keep the ball flattened, not flat.
 - `PARTICLE_COUNT` is high (~5.8k) because only a narrow cone of the cloud is

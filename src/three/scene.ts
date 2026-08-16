@@ -38,11 +38,11 @@ export interface SceneController {
 const PARTICLE_COUNT = 5800
 
 // --- Orbital cloud ---
-// Distances are in the world layer's units, where the model spans ~3.1, so the
+// Distances are in the world layer's units, where the model spans ~3.5, so the
 // stars sit in the same space as the model's own embedded stars.
 //
 // The shape is a flattened ball centred on the model, not a thin disc. The
-// camera pitches ~50° down, so its frustum dives straight through a thin disc
+// camera pitches ~63° down, so its frustum dives straight through a thin disc
 // and out the underside within ~25 units — which leaves the frame empty. A
 // squashed ball keeps stars all around the frustum while FLATTEN still biases
 // them toward the model's own plane. Every star orbits the same Y axis either
