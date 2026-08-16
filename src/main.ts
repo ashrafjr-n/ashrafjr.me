@@ -178,8 +178,21 @@ const REVEAL_PLANETS: PlanetSpec[] = [
 const REVEAL_BACKDROP_DEPTH = 18
 /** Vertical counter-movement as a fraction of the horizontal, kept subtler. */
 const REVEAL_PARALLAX_Y = 0.55
-/** Per-frame approach rate of every parallax layer toward its target. */
-const REVEAL_PARALLAX_LERP = 0.07
+/**
+ * The layers are on a spring rather than a lerp, which is what makes the field
+ * feel like mass being carried rather than a surface glued to the cursor: it
+ * lags well behind a fast pointer, keeps going for a moment after it stops,
+ * and settles over roughly a second.
+ *
+ * STIFFNESS is the pull toward the target per frame and DAMPING the share of
+ * velocity kept. Together they land a touch under critical damping, so there
+ * is a soft overshoot on the way in but no visible bounce. Raising DAMPING (or
+ * lowering STIFFNESS) makes it heavier and slower still; a lerp is the
+ * degenerate case with DAMPING at 0. Per-frame, like the site's other
+ * smoothing, so a 120Hz display settles quicker than a 60Hz one.
+ */
+const REVEAL_SPRING_STIFFNESS = 0.018
+const REVEAL_SPRING_DAMPING = 0.82
 /**
  * How long after opening the parallax starts, in ms. Matches --reveal-duration
  * in style.css: the field only responds once the window has finished growing.
@@ -333,21 +346,20 @@ interface ParallaxLayer {
   isBackdrop: boolean
   x: number
   y: number
+  /** Spring velocity, in px per frame. */
+  vx: number
+  vy: number
   wx: number
   wy: number
 }
 
+function makeLayer(el: HTMLElement, depth: number, isBackdrop = false): ParallaxLayer {
+  return { el, depth, isBackdrop, x: 0, y: 0, vx: 0, vy: 0, wx: 0, wy: 0 }
+}
+
 const parallaxLayers: ParallaxLayer[] = [
-  { el: reveal.image, depth: REVEAL_BACKDROP_DEPTH, isBackdrop: true, x: 0, y: 0, wx: 0, wy: 0 },
-  ...reveal.planets.map((el, i) => ({
-    el,
-    depth: REVEAL_PLANETS[i].depth,
-    isBackdrop: false,
-    x: 0,
-    y: 0,
-    wx: 0,
-    wy: 0,
-  })),
+  makeLayer(reveal.image, REVEAL_BACKDROP_DEPTH, true),
+  ...reveal.planets.map((el, i) => makeLayer(el, REVEAL_PLANETS[i].depth)),
 ]
 
 /** True only once the window has finished growing; the mouse is ignored until then. */
@@ -440,9 +452,11 @@ reveal.root.addEventListener('mouseenter', () => {
  * - the closed-state tilt: a pure rotation of the backdrop about a fixed pivot,
  *   so it can never disturb the crop the mask is showing.
  * - the open-state parallax: every layer counter-moves against the mouse, by
- *   its own `depth`. Opposite, because the camera is fixed and only its facing
- *   changes — turn your head right and the world slides left — and per-layer,
- *   so the near planets outrun the far ones and the backdrop barely stirs.
+ *   its own `depth`, on a spring. Opposite, because the camera is fixed and
+ *   only its facing changes — turn your head right and the world slides left —
+ *   and per-plane, so the near planets outrun the far ones and the backdrop
+ *   barely stirs. The lag is the effect: it should read as looking around
+ *   inside a space, not as a surface stuck to the cursor.
  *
  * Both settle to exact zero, at which point the inline transform is dropped so
  * nothing is left applied to a closed window.
@@ -458,11 +472,22 @@ function updateRevealMotion(): void {
   const my = isParallaxLive ? state.mouseY : 0
 
   for (const layer of parallaxLayers) {
-    layer.x += (-mx * layer.depth - layer.x) * REVEAL_PARALLAX_LERP
-    layer.y += (-my * layer.depth * REVEAL_PARALLAX_Y - layer.y) * REVEAL_PARALLAX_LERP
-    if (!isParallaxLive && Math.abs(layer.x) < 0.05 && Math.abs(layer.y) < 0.05) {
+    // Spring toward the target rather than chasing it: the layer carries its
+    // own velocity, so it trails the pointer and coasts to a stop.
+    layer.vx =
+      (layer.vx + (-mx * layer.depth - layer.x) * REVEAL_SPRING_STIFFNESS) * REVEAL_SPRING_DAMPING
+    layer.vy =
+      (layer.vy + (-my * layer.depth * REVEAL_PARALLAX_Y - layer.y) * REVEAL_SPRING_STIFFNESS) *
+      REVEAL_SPRING_DAMPING
+    layer.x += layer.vx
+    layer.y += layer.vy
+
+    const settled = Math.abs(layer.x) < 0.05 && Math.abs(layer.y) < 0.05
+    if (!isParallaxLive && settled && Math.abs(layer.vx) < 0.01 && Math.abs(layer.vy) < 0.01) {
       layer.x = 0
       layer.y = 0
+      layer.vx = 0
+      layer.vy = 0
     }
 
     const moved = Math.abs(layer.x - layer.wx) >= 0.05 || Math.abs(layer.y - layer.wy) >= 0.05
