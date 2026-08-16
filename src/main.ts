@@ -36,7 +36,7 @@ function buildGithubBadge(): HTMLAnchorElement {
 function buildIntro(): HTMLParagraphElement {
   const intro = document.createElement('p')
   intro.className = 'intro'
-  intro.textContent = 'Hello! I am ASHRAF.'
+  intro.textContent = 'Hi! I am ASHRAF.'
   return intro
 }
 
