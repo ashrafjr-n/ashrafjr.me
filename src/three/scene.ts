@@ -139,7 +139,10 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
   geometry.setAttribute('color', new Float32BufferAttribute(colors, 3))
 
   const material = new PointsMaterial({
-    size: 3.2,
+    // The disc lives in world-layer units, ~40x closer than the old deep
+    // volume, so the point size is scaled down to match — with the narrower
+    // camera fov this lands the dots at the same on-screen size as before.
+    size: 0.03,
     sizeAttenuation: true,
     map: createCircleTexture(),
     vertexColors: true,
