@@ -10,6 +10,13 @@ const INTRO_FADE_END = 0.28
 /** How far the line drifts upward as it goes, in px. */
 const INTRO_DRIFT = 70
 
+/**
+ * Scroll progress at which the Scene 2 cards start appearing. They belong to
+ * Scene 2 only, so they stay fully invisible through Scene 1 and the bulk of
+ * the transition and are only there once the camera has settled.
+ */
+const CARDS_FADE_START = 0.82
+
 /* ---------------------------------------------------------------------------
  * Social icons
  *
@@ -160,6 +167,7 @@ initPointer()
 initScroll()
 
 let introShown = -1
+let cardsShown = -1
 
 /** Fade and lift the intro line, driven by the same progress as the scene. */
 function updateIntro(progress: number): void {
@@ -170,10 +178,19 @@ function updateIntro(progress: number): void {
   intro.style.transform = `translate(-50%, ${-t * INTRO_DRIFT}px)`
 }
 
+/** Fade the Scene 2 cards in, off the same progress as everything else. */
+function updateScene2Cards(progress: number): void {
+  const t = Math.max((progress - CARDS_FADE_START) / (1 - CARDS_FADE_START), 0)
+  if (Math.abs(t - cardsShown) < 0.002) return // skip redundant style writes
+  cardsShown = t
+  scene2Cards.style.opacity = String(Math.min(t, 1))
+}
+
 // --- Single RAF loop: the only one in the app; hook new per-frame work in here
 function raf(time: number) {
   const progress = scene.update(time, state)
   updateIntro(progress)
+  updateScene2Cards(progress)
   requestAnimationFrame(raf)
 }
 
