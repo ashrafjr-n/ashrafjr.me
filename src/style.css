@@ -25,8 +25,8 @@
      the portrait reads as the focal point with the words balancing it either
      side. */
   --row-bottom: 9vh;
-  --row-gap: clamp(1.5rem, 5vw, 4.5rem);
-  --row-mark-h: clamp(190px, 32vh, 350px);
+  --row-gap: clamp(2.5rem, 9vw, 9rem);
+  --row-mark-h: clamp(235px, 40vh, 440px);
   --row-word-size: clamp(1.4rem, 3.4vw, 3rem);
 
   /* Open/close easing for the reveal window: a long expo-out tail. */
@@ -116,18 +116,20 @@ body {
   will-change: opacity;
 }
 
-/* The centrepiece: an ASCII-art portrait, sized by height so its own aspect
-   decides the width. */
+/* The centrepiece: an ASCII-art portrait, inlined as an <svg> so its draw/wipe
+   cycle can be driven from the RAF loop (see ui/mark.ts). Sized by height; the
+   artwork's own viewBox decides the width. */
 .scene2-mark {
   display: block;
   flex-shrink: 0;
   height: var(--row-mark-h);
-  width: auto;
-  /* The artwork ships both schemes and the page is black-only, so pin it to
-     the dark one — on a light-mode system its greys would otherwise flip to
-     near-black and vanish into the background. */
-  color-scheme: dark;
   user-select: none;
+}
+
+.scene2-mark svg {
+  display: block;
+  height: 100%;
+  width: auto;
 }
 
 /* The flanking words. A <button> reset back to plain type: the affordance is
@@ -144,9 +146,9 @@ body {
   line-height: 1;
   white-space: nowrap;
   color: var(--accent);
-  text-shadow: 0 0 18px rgba(255, 255, 255, 0.28);
+  /* No glow: the words are flat type. Don't add a text-shadow back. */
   cursor: pointer;
-  transition: color 0.25s ease, text-shadow 0.25s ease, transform 0.25s ease;
+  transition: color 0.25s ease;
 }
 
 /* The row stays transparent to the pointer; the words opt back in, but only
@@ -156,12 +158,11 @@ body {
   pointer-events: auto;
 }
 
-/* Hover lifts the type itself — brighter and a touch higher. No box appears. */
+/* Hover is brightness and nothing else: the word goes to pure white and stays
+   exactly where it is. No lift, no glow, no box. */
 .scene2-word:hover,
 .scene2-word:focus-visible {
   color: #ffffff;
-  text-shadow: 0 0 30px rgba(255, 255, 255, 0.5);
-  transform: translateY(-2px);
 }
 
 /* Keyboard focus only: the pointer never sees this. */

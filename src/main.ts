@@ -12,6 +12,7 @@ import { clamp } from './lib/math'
 import { initScene } from './three/scene'
 import { state, initPointer, initScroll } from './lib/state'
 import { buildSocialBadges } from './ui/social'
+import { createMark, type Mark } from './ui/mark'
 import { createRevealWindow } from './ui/reveal-window'
 
 /**
@@ -35,9 +36,6 @@ const ROW_FADE_START = 0.82
  * effectively landed.
  */
 const ROW_ACTIVE_AT = 0.9
-
-/** The ASCII-art portrait at the centre of the Scene 2 row. */
-const MARK_SRC = '/assets/svg/me.svg'
 
 /** Scene 1 intro line, centred near the top of the viewport above the model. */
 function buildIntro(): HTMLParagraphElement {
@@ -63,21 +61,23 @@ function buildRowWord(text: string): HTMLButtonElement {
  * bordered cards that used to be here were removed deliberately, so nothing in
  * this row may grow a background, border or rectangle of its own.
  */
-function buildScene2Row(): { row: HTMLDivElement; contact: HTMLButtonElement; projects: HTMLButtonElement } {
+function buildScene2Row(): {
+  row: HTMLDivElement
+  contact: HTMLButtonElement
+  projects: HTMLButtonElement
+  mark: Mark
+} {
   const row = document.createElement('div')
   row.className = 'scene2-row'
 
   const contact = buildRowWord('CONTACT')
   const projects = buildRowWord('PROJECTS')
+  // The portrait draws and wipes itself; it is advanced from the RAF loop below
+  // and only runs while the row is on screen.
+  const mark = createMark('ASCII-art portrait of Ashraf')
 
-  const mark = document.createElement('img')
-  mark.className = 'scene2-mark'
-  mark.src = MARK_SRC
-  mark.alt = 'ASCII-art portrait of Ashraf'
-  mark.draggable = false
-
-  row.append(contact, mark, projects)
-  return { row, contact, projects }
+  row.append(contact, mark.el, projects)
+  return { row, contact, projects, mark }
 }
 
 // --- Mount ---
@@ -88,7 +88,7 @@ const canvas = document.createElement('canvas')
 canvas.id = 'scene'
 
 const intro = buildIntro()
-const { row: scene2Row, contact, projects } = buildScene2Row()
+const { row: scene2Row, contact, projects, mark } = buildScene2Row()
 app.append(canvas, intro, scene2Row)
 
 // --- Starfield + model, and the input they read ---
@@ -146,6 +146,9 @@ function raf(time: number) {
   const progress = scene.update(time, state)
   updateIntro(progress)
   updateScene2Row(progress)
+  // `rowShown` is the row's own fade, so the portrait animates exactly while
+  // Scene 2 is on screen and rewinds whenever it is scrolled away.
+  mark.update(time, rowShown > 0)
   revealWindow.update(state)
   requestAnimationFrame(raf)
 }
