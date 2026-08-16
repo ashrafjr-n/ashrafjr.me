@@ -56,11 +56,26 @@ function buildLinkedinBadge(): HTMLAnchorElement {
   return link
 }
 
+/** Icon-only email link, sharing the GitHub badge's hover style. */
+function buildEmailBadge(): HTMLAnchorElement {
+  const link = document.createElement('a')
+  link.className = 'github-badge'
+  link.href = 'mailto:aannaelj@gmail.com'
+  link.setAttribute('aria-label', 'Email')
+  link.innerHTML = `
+    <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" aria-hidden="true">
+      <path d="M1.5 8.67v8.58a3 3 0 0 0 3 3h15a3 3 0 0 0 3-3V8.67l-8.928 5.493a3 3 0 0 1-3.144 0L1.5 8.67Z"/>
+      <path d="M22.5 6.908V6.75a3 3 0 0 0-3-3h-15a3 3 0 0 0-3 3v.158l9.714 5.978a1.5 1.5 0 0 0 1.572 0L22.5 6.908Z"/>
+    </svg>
+  `
+  return link
+}
+
 /** Top-left social icon row — GitHub, LinkedIn, email. */
 function buildSocialBadges(): HTMLDivElement {
   const wrap = document.createElement('div')
   wrap.className = 'social-badges'
-  wrap.append(buildGithubBadge(), buildLinkedinBadge())
+  wrap.append(buildGithubBadge(), buildLinkedinBadge(), buildEmailBadge())
   return wrap
 }
 
