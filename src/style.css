@@ -191,9 +191,14 @@ body {
      it evenly, at the same scale. The anchor is the image's own centre: the
      backdrop is a uniform starfield with no subject to compose on (the planets
      are separate layers), and centring is what makes the image smallest for
-     full-screen coverage — half of it has to cover 50vw and 50vh, and the few
-     extra percent are the headroom the parallax shift moves within. */
-  --img-w: max(104vw, 222vh);
+     full-screen coverage — half of it has to cover 50vw and 50vh.
+     It is then held at ~180% of the frame in both axes (max() picks whichever
+     of the two binds on this aspect), far more than the shift itself needs —
+     that headroom is the point. The look-around is meant to feel like a view
+     into a real space, which it cannot if an edge of the image can ever come
+     into frame. The cost is that the 2664px PNG upscales on large monitors;
+     acceptable on a soft starfield. */
+  --img-w: max(180vw, 384vh);
   --img-h: calc(var(--img-w) / 2.1312); /* projects-background.png is 2664x1250 */
   --anchor-x: calc(var(--img-w) * 0.5);
   --anchor-y: calc(var(--img-h) * 0.5);
