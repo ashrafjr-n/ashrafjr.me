@@ -39,8 +39,8 @@ back. What exists today:
   **Render passes**). There is no scroll input wired up anywhere in the app
   right now — `state.mouseX`/`state.mouseY` are the only live input values.
 - `src/three/world.ts` — the Scene 1 world layer: its own `Scene` +
-  bird's-eye `PerspectiveCamera` (fov 35, at `(0, 8, 6.5)` looking at
-  `(0, 0.25, 0)`, ~47° above the horizon), white key/fill/ambient lights, the
+  bird's-eye `PerspectiveCamera` (fov 35, at `(0, 9.3, 4.6)` looking at
+  `(0, 0.25, 0)`, ~63° above the horizon), white key/fill/ambient lights, the
   GLB load, and the spin (`update(delta)`). **There is no platform/pedestal
   mesh** — one existed briefly and was deliberately removed; the model's own
   black base is the ground.
@@ -48,8 +48,10 @@ back. What exists today:
   `three/examples/jsm/loaders/GLTFLoader.js` inside the installed `three`
   package — no extra dependency, no Draco). It is a wide, shallow diorama with
   its own black base slab, so `fitModel()` scales it by its **horizontal
-  footprint** (`MODEL_SPAN`), not its height — fitting by height overflows the
-  viewport. It is then centered on x/z and dropped so it rests on `y = 0`.
+  footprint** (`MODEL_SPAN`, currently 3.5), not its height — fitting by height
+  overflows the viewport. It is then centered on x/z and dropped so it rests on
+  `y = 0`. The camera target's `y` is the model's mid-height, so a large change
+  to `MODEL_SPAN` wants `CAMERA_TARGET` nudged to keep the framing centred.
 - `src/lib/state.ts` — shared `InputState` (`mouseX`, `mouseY` only) written
   by a `mousemove` listener, read every frame by the scene.
 - GitHub badge — fixed top-left, links to `github.com/ashrafjr-n`.
