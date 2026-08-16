@@ -188,9 +188,7 @@ function createCircleTexture(): CanvasTexture {
   g.addColorStop(1, 'rgba(255,255,255,0)')
   ctx.fillStyle = g
   ctx.fillRect(0, 0, size, size)
-  const tex = new CanvasTexture(canvas)
-  tex.needsUpdate = true
-  return tex
+  return new CanvasTexture(canvas) // its constructor already flags needsUpdate
 }
 
 function rand(min: number, max: number): number {
@@ -287,7 +285,9 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
   renderer.setClearColor(0x000000, 0) // transparent: the CSS black shows through
   renderer.autoClear = false // two passes per frame, cleared manually below
 
-  const scene = new Scene()
+  // Named for what it holds: the star layers only. The model lives in the
+  // world layer's own scene, which is rendered separately below.
+  const starfield = new Scene()
 
   const sprite = createCircleTexture()
 
@@ -369,7 +369,7 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
     // let it test against stale bounds and pop the whole layer out of view
     // mid-scroll. These layers always fill the frame, so culling buys nothing.
     points.frustumCulled = false
-    scene.add(points)
+    starfield.add(points)
 
     return {
       points,
@@ -424,6 +424,9 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
   // --- Scene 1 world layer (the model), drawn over the starfield ---
   const world = createWorld(window.innerWidth / window.innerHeight)
 
+  /** Both layers, in one array so the frame loop allocates nothing per frame. */
+  const layers = [cloud, band]
+
   // --- Animation: orbits, smoothed mouse parallax, scroll transition ---
   let prevTime = performance.now()
   /** Smoothed scroll position. The single driver for the whole transition. */
@@ -463,7 +466,7 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
     // tilt then rotates, so the world-space direction is converted into that
     // layer's local space first — otherwise the stars fly a few degrees wide
     // of the camera instead of straight past it.
-    for (const layer of [cloud, band]) {
+    for (const layer of layers) {
       layerFly.copy(flyDir).applyQuaternion(invRotation.copy(layer.points.quaternion).invert())
       advance(layer, delta, progress, layerFly.x, layerFly.y, layerFly.z)
     }
@@ -471,7 +474,7 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
     world.update(delta, progress)
 
     renderer.clear()
-    renderer.render(scene, world.camera) // same vantage -> same orbital plane
+    renderer.render(starfield, world.camera) // same vantage -> same orbital plane
     renderer.clearDepth() // world layer sits in front of the starfield
     renderer.render(world.scene, world.camera)
 
