@@ -59,11 +59,20 @@ back. What exists today:
   `github.com/ashrafjr-n`), and two icon-only links (no label span) for
   LinkedIn and email (`mailto:aannaelj@gmail.com`). All three share one hover
   style off the `.github-badge` class; the icon-only two just omit the
-  `<span>`. The GitHub icon's path is hand-embedded (not pulled from an
-  installed package); the LinkedIn and email icons were sourced from Simple
-  Icons and Heroicons (solid) respectively to match its `viewBox="0 0 24 24"`,
-  `fill="currentColor"` convention — don't hand-draw new icon paths, pull from
-  a recognized icon set the same way.
+  `<span>`. **The three icons are circular in the artwork, not in CSS.** Each
+  one is a filled disc with its mark knocked out of the disc, taken from a
+  recognized icon set that ships a circular variant: GitHub and LinkedIn are
+  Entypo Social's `github-with-circle` / `linkedin-with-circle`, email is
+  Framework7's `at-circle-fill` (an `@` in a disc — no icon set ships a
+  circular *envelope* badge in this style). Each `viewBox` is cropped to the
+  disc's own bounds (`0.4 0.4 19.2 19.2` for the two Entypo icons, `4 4 48 48`
+  for the Framework7 one) so all three discs draw full-bleed at the same
+  26px `.social-icon` box. `.social-icon` only sizes them — it deliberately
+  carries no `border-radius`, `background`, `border`, `clip-path` or mask, and
+  none should be added back: a CSS ring around a square glyph was tried and
+  rejected. Paths are hand-embedded (no icon package is installed); don't
+  hand-draw new ones, pull the circular variant from a recognized set the same
+  way. Colour is `currentColor` only, so the grayscale palette holds.
 - Intro line — fixed top-centre, "Hi! I am ASHRAF." (`.intro`, built in
   `main.ts`). Scene 1 only: `main.ts` fades and lifts it away over the first
   `INTRO_FADE_END` of the scroll. It uses `--font-code`, the same face as the
