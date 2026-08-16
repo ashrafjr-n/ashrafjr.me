@@ -168,11 +168,11 @@ body {
 /* ===========================================================
    Scene 2 reveal window (sits on the right card)
 
-   This is a MASK, not an image container. The image inside is many times the
-   closed window and never scales — opening the card only grows the mask to
-   fill the screen, so the crop that was already visible stays put, at the same
-   size, and the extra area uncovers more of the same image. Never scale or
-   pan the image to open it; that would read as a zoom.
+   This is a MASK, not a viewport of its own. The 3D canvas inside is always
+   viewport-sized — opening the card only grows the mask, so what was already
+   on screen stays put, at the same size, and the extra area uncovers more of
+   the same rendered frame. Never scale the canvas to open it; that would read
+   as a zoom rather than a window opening.
 
    It is a separate fixed element rather than the card itself, because the card
    is a flex item in the row and could not fly out to the corner. Its closed
@@ -186,22 +186,6 @@ body {
 .reveal-window {
   --closed-w: calc((var(--card-row-w) - 3px) / 2);
   --closed-h: calc(var(--card-row-h) - 2px);
-  /* The backdrop is held by one anchor point pinned to the centre of the mask.
-     That point stays put in both states, so opening uncovers the field around
-     it evenly, at the same scale. The anchor is the image's own centre: the
-     backdrop is a uniform starfield with no subject to compose on (the planets
-     are separate layers), and centring is what makes the image smallest for
-     full-screen coverage — half of it has to cover 50vw and 50vh.
-     It is then held at ~180% of the frame in both axes (max() picks whichever
-     of the two binds on this aspect), far more than the shift itself needs —
-     that headroom is the point. The look-around is meant to feel like a view
-     into a real space, which it cannot if an edge of the image can ever come
-     into frame. The cost is that the 2664px PNG upscales on large monitors;
-     acceptable on a soft starfield. */
-  --img-w: max(180vw, 384vh);
-  --img-h: calc(var(--img-w) / 2.1312); /* projects-background.png is 2664x1250 */
-  --anchor-x: calc(var(--img-w) * 0.5);
-  --anchor-y: calc(var(--img-h) * 0.5);
 
   position: fixed;
   left: calc(50% + 0.5px);
@@ -227,9 +211,8 @@ body {
 
 /* Hover on the right card grows the window by the same factor, about the same
    centre — the window is that card's box inset 1px all round, so one scale
-   keeps them concentric and the star crop goes on filling the card. This is
-   the only time the window itself is transformed; opening must never scale it,
-   which would scale the image and read as a zoom. */
+   keeps them concentric and the view goes on filling the card. This is the
+   only time the window itself is transformed; opening must never scale it. */
 .reveal-window.is-hovered:not(.is-open) {
   transform: scale(var(--card-hover-scale));
 }
@@ -247,48 +230,23 @@ body {
   cursor: default;
 }
 
-/* Never resized, never repositioned. The only thing written to it is the
-   rotateY tilt, and only while the window is closed. */
-.reveal-image {
+/* The 3D layer (three/reveal.ts). Always the size of the viewport and centred
+   on the window, never resized: opening the window uncovers more of the same
+   drawing buffer instead of re-rendering at a new size, and the closed card is
+   simply a small slice of that same view. Centring uses the standalone
+   `translate` property so the closed-state tilt can own `transform` outright
+   and clear it at rest. */
+.reveal-canvas {
   position: absolute;
-  /* The anchor point held at the centre of the mask, whatever size it is. */
-  left: calc(50% - var(--anchor-x));
-  top: calc(50% - var(--anchor-y));
-  width: var(--img-w);
-  height: auto;
-  max-width: none;
-  /* Pivot: the same anchor, so the tilt turns the view about the subject that
-     is actually on screen. perspective() lives in the transform, so this is
-     the vanishing point too. */
-  transform-origin: var(--anchor-x) var(--anchor-y);
-  transform: perspective(1400px) rotateY(0deg);
-  will-change: transform;
-  user-select: none;
-  -webkit-user-drag: none;
-  pointer-events: none;
-}
-
-/* The scattered planets. Positioned from main.ts (centre as a % of the window,
-   width in vw); centring uses the standalone `translate` property so the
-   per-frame parallax can own `transform` outright and clear it at rest.
-   They belong to the open state only — invisible while the card is closed,
-   where they would just be crammed into a small window. */
-.reveal-planet {
-  position: absolute;
+  left: 50%;
+  top: 50%;
   translate: -50% -50%;
-  height: auto;
-  opacity: 0;
-  pointer-events: none;
-  user-select: none;
-  -webkit-user-drag: none;
+  width: 100vw;
+  height: 100vh;
+  display: block;
+  transform-origin: 50% 50%;
   will-change: transform;
-  transition: opacity 420ms ease;
-}
-
-.reveal-window.is-open .reveal-planet {
-  opacity: 1;
-  /* Arrives as the growth lands, so they settle into the full-screen field. */
-  transition-delay: 380ms;
+  pointer-events: none;
 }
 
 /* Close affordance, only while open. Fades in after the growth has landed. */

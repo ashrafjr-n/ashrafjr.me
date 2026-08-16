@@ -1,5 +1,6 @@
 import './style.css'
 import { initScene } from './three/scene'
+import { createRevealScene } from './three/reveal'
 import { state, initPointer, initScroll } from './lib/state'
 
 /**
@@ -131,75 +132,14 @@ function buildIntro(): HTMLParagraphElement {
 /** How many cards sit in the Scene 2 row. They share one outer boundary. */
 const SCENE2_CARD_COUNT = 2
 
-/** The starfield the right card is a window onto. Planets are separate layers. */
-const REVEAL_IMAGE_SRC = '/assets/projects/projects-background.png'
 /**
- * The planets scattered over the open window, back to front.
- *
- * `x`/`y` are the planet's centre as a percentage of the window and `w` its
- * width in vw — both deliberately uneven, so the field reads as a composition
- * rather than a grid, and clear of the badges (top-left) and close button
- * (top-right). `depth` is how far it counter-moves at full mouse deflection,
- * in px, and comes from REVEAL_TIER.
- */
-interface PlanetSpec {
-  src: string
-  x: number
-  y: number
-  w: number
-  depth: number
-}
-
-/**
- * Three depth planes, in px of travel at full mouse deflection.
- *
- * The planets are grouped rather than each given its own rate: six distinct
- * rates read as six stickers sliding over one another, where a few shared
- * planes read as one space seen through a window. Inside a plane the planets
- * differ by a couple of px only — enough that the plane is not a flat cutout.
- * Keep the gap between planes well above the spread inside one.
- */
-const REVEAL_TIER = { far: 34, mid: 52, near: 76 }
-
-const REVEAL_PLANETS: PlanetSpec[] = [
-  { src: 'three.png', x: 86, y: 52, w: 6, depth: REVEAL_TIER.far - 2 },
-  { src: 'two.png', x: 60, y: 72, w: 8, depth: REVEAL_TIER.far + 2 },
-  { src: 'one.png', x: 44, y: 30, w: 11, depth: REVEAL_TIER.mid - 3 },
-  { src: 'four.png', x: 30, y: 84, w: 14, depth: REVEAL_TIER.mid + 3 },
-  { src: 'black.png', x: 72, y: 26, w: 20, depth: REVEAL_TIER.near - 3 },
-  { src: 'white.png', x: 18, y: 62, w: 26, depth: REVEAL_TIER.near + 3 },
-]
-
-/**
- * The backdrop's own counter-movement, in px. Well below every planet plane —
- * it is the farthest thing in the frame — and far inside the overhang --img-w
- * leaves past the viewport, so no pointer position can pull an edge into view.
- */
-const REVEAL_BACKDROP_DEPTH = 18
-/** Vertical counter-movement as a fraction of the horizontal, kept subtler. */
-const REVEAL_PARALLAX_Y = 0.55
-/**
- * The layers are on a spring rather than a lerp, which is what makes the field
- * feel like mass being carried rather than a surface glued to the cursor: it
- * lags well behind a fast pointer, keeps going for a moment after it stops,
- * and settles over roughly a second.
- *
- * STIFFNESS is the pull toward the target per frame and DAMPING the share of
- * velocity kept. Together they land a touch under critical damping, so there
- * is a soft overshoot on the way in but no visible bounce. Raising DAMPING (or
- * lowering STIFFNESS) makes it heavier and slower still; a lerp is the
- * degenerate case with DAMPING at 0. Per-frame, like the site's other
- * smoothing, so a 120Hz display settles quicker than a 60Hz one.
- */
-const REVEAL_SPRING_STIFFNESS = 0.018
-const REVEAL_SPRING_DAMPING = 0.82
-/**
- * How long after opening the parallax starts, in ms. Matches --reveal-duration
- * in style.css: the field only responds once the window has finished growing.
+ * How long after opening the look-around starts, in ms. Matches
+ * --reveal-duration in style.css: the 3D view only responds once the window
+ * has finished growing.
  */
 const REVEAL_OPEN_MS = 620
 
-/** Widest tilt of the image under the mouse, in degrees, either side of centre. */
+/** Widest tilt of the canvas under the mouse, in degrees, either side of centre. */
 const REVEAL_TILT_MAX = 5
 /** Per-frame approach rate of the tilt toward its target — damped, not jumpy. */
 const REVEAL_TILT_LERP = 0.12
@@ -218,8 +158,7 @@ const REVEAL_ACTIVE_AT = 0.9
  */
 function buildRevealWindow(): {
   root: HTMLDivElement
-  image: HTMLImageElement
-  planets: HTMLImageElement[]
+  canvas: HTMLCanvasElement
   close: HTMLButtonElement
 } {
   const root = document.createElement('div')
@@ -229,25 +168,11 @@ function buildRevealWindow(): {
   root.setAttribute('aria-label', 'Open project preview')
   root.setAttribute('aria-expanded', 'false')
 
-  const image = document.createElement('img')
-  image.className = 'reveal-image'
-  image.src = REVEAL_IMAGE_SRC
-  image.alt = ''
-  image.draggable = false
-
-  // Scattered over the backdrop, in the array's order so the listed depth order
-  // is also the paint order. Only shown once the window is open.
-  const planets = REVEAL_PLANETS.map((spec) => {
-    const planet = document.createElement('img')
-    planet.className = 'reveal-planet'
-    planet.src = `/assets/projects/${spec.src}`
-    planet.alt = ''
-    planet.draggable = false
-    planet.style.left = `${spec.x}%`
-    planet.style.top = `${spec.y}%`
-    planet.style.width = `${spec.w}vw`
-    return planet
-  })
+  // Always the size of the viewport, centred on the window, so the closed card
+  // shows a slice of the same 3D view the open one fills the screen with — and
+  // so opening never has to resize the drawing buffer, only uncover more of it.
+  const canvas = document.createElement('canvas')
+  canvas.className = 'reveal-canvas'
 
   const close = document.createElement('button')
   close.className = 'reveal-close'
@@ -255,8 +180,8 @@ function buildRevealWindow(): {
   close.setAttribute('aria-label', 'Close project preview')
   close.textContent = '×'
 
-  root.append(image, ...planets, close)
-  return { root, image, planets, close }
+  root.append(canvas, close)
+  return { root, canvas, close }
 }
 
 /**
@@ -292,7 +217,16 @@ app.append(canvas, intro, scene2Cards, reveal.root, buildSocialBadges())
 
 // --- Starfield + model, and the input they read ---
 const scene = initScene(canvas)
-window.addEventListener('resize', () => scene.resize())
+
+// The reveal window's own 3D layer: its own renderer, scene and camera, sharing
+// nothing with the Scene 1 starfield above. Built once here and reused for
+// every open, so reopening allocates nothing.
+const revealScene = createRevealScene(reveal.canvas)
+
+window.addEventListener('resize', () => {
+  scene.resize()
+  revealScene.resize()
+})
 
 initPointer()
 initScroll()
@@ -329,42 +263,15 @@ function updateScene2Cards(progress: number): void {
   if (!active && isRevealOpen) closeReveal()
 }
 
-// --- Reveal window: click to open, mouse tilt while closed, parallax while open ---
+// --- Reveal window: click to open, mouse tilt while closed, look-around while open ---
 let isRevealOpen = false
 let tilt = 0
 let tiltTarget = 0
 let tiltWritten = 0
 
-/**
- * One parallax layer. `x`/`y` are its current offset in px, `wx`/`wy` the last
- * pair written to the DOM. The backdrop also carries the closed-state tilt, so
- * its transform has to be composed rather than just set.
- */
-interface ParallaxLayer {
-  el: HTMLElement
-  depth: number
-  isBackdrop: boolean
-  x: number
-  y: number
-  /** Spring velocity, in px per frame. */
-  vx: number
-  vy: number
-  wx: number
-  wy: number
-}
-
-function makeLayer(el: HTMLElement, depth: number, isBackdrop = false): ParallaxLayer {
-  return { el, depth, isBackdrop, x: 0, y: 0, vx: 0, vy: 0, wx: 0, wy: 0 }
-}
-
-const parallaxLayers: ParallaxLayer[] = [
-  makeLayer(reveal.image, REVEAL_BACKDROP_DEPTH, true),
-  ...reveal.planets.map((el, i) => makeLayer(el, REVEAL_PLANETS[i].depth)),
-]
-
 /** True only once the window has finished growing; the mouse is ignored until then. */
-let isParallaxLive = false
-let parallaxTimer = 0
+let isLookLive = false
+let lookTimer = 0
 
 function openReveal(): void {
   if (isRevealOpen) return
@@ -373,10 +280,11 @@ function openReveal(): void {
   reveal.root.setAttribute('aria-expanded', 'true')
   tiltTarget = 0 // the tilt is a closed-state affordance only
   setRevealCardHover(false) // don't leave the card lifted under a full-screen window
-  // Hand over to the parallax only when the window is actually full-screen.
-  clearTimeout(parallaxTimer)
-  parallaxTimer = window.setTimeout(() => {
-    isParallaxLive = true
+  // Hand the view over only when the window is actually full-screen.
+  clearTimeout(lookTimer)
+  lookTimer = window.setTimeout(() => {
+    isLookLive = true
+    revealScene.setActive(true)
   }, REVEAL_OPEN_MS)
 }
 
@@ -385,10 +293,11 @@ function closeReveal(): void {
   isRevealOpen = false
   reveal.root.classList.remove('is-open')
   reveal.root.setAttribute('aria-expanded', 'false')
-  // Stop reading the mouse at once; the layers damp back to rest from wherever
-  // they are and their transforms are dropped entirely once they get there.
-  clearTimeout(parallaxTimer)
-  isParallaxLive = false
+  // Stop rendering at once. The scene recentres its camera and leaves one still
+  // frame on the canvas, which is what the small card goes back to showing.
+  clearTimeout(lookTimer)
+  isLookLive = false
+  revealScene.setActive(false)
 }
 
 reveal.root.addEventListener('click', () => {
@@ -447,67 +356,22 @@ reveal.root.addEventListener('mouseenter', () => {
 })
 
 /**
- * Damp both of the window's motions and write them out.
+ * Damp the closed-state tilt and write it out.
  *
- * - the closed-state tilt: a pure rotation of the backdrop about a fixed pivot,
- *   so it can never disturb the crop the mask is showing.
- * - the open-state parallax: every layer counter-moves against the mouse, by
- *   its own `depth`, on a spring. Opposite, because the camera is fixed and
- *   only its facing changes — turn your head right and the world slides left —
- *   and per-plane, so the near planets outrun the far ones and the backdrop
- *   barely stirs. The lag is the effect: it should read as looking around
- *   inside a space, not as a surface stuck to the cursor.
+ * A pure CSS rotation of the canvas about its own centre, so it cannot disturb
+ * the slice of the 3D view the small card is showing. It settles to exact zero,
+ * at which point the inline transform is dropped so nothing is left applied.
  *
- * Both settle to exact zero, at which point the inline transform is dropped so
- * nothing is left applied to a closed window.
+ * The open state's motion is not here at all: it is the reveal scene's camera,
+ * turning in real 3D (see `three/reveal.ts`).
  */
-function updateRevealMotion(): void {
+function updateRevealTilt(): void {
   tilt += (tiltTarget - tilt) * REVEAL_TILT_LERP
   if (tiltTarget === 0 && Math.abs(tilt) < 0.005) tilt = 0
-  const tiltChanged = Math.abs(tilt - tiltWritten) >= 0.005
-  if (tiltChanged) tiltWritten = tilt
-
-  // Zeroed while closed, so a mouse move outside the open state moves nothing.
-  const mx = isParallaxLive ? state.mouseX : 0
-  const my = isParallaxLive ? state.mouseY : 0
-
-  for (const layer of parallaxLayers) {
-    // Spring toward the target rather than chasing it: the layer carries its
-    // own velocity, so it trails the pointer and coasts to a stop.
-    layer.vx =
-      (layer.vx + (-mx * layer.depth - layer.x) * REVEAL_SPRING_STIFFNESS) * REVEAL_SPRING_DAMPING
-    layer.vy =
-      (layer.vy + (-my * layer.depth * REVEAL_PARALLAX_Y - layer.y) * REVEAL_SPRING_STIFFNESS) *
-      REVEAL_SPRING_DAMPING
-    layer.x += layer.vx
-    layer.y += layer.vy
-
-    const settled = Math.abs(layer.x) < 0.05 && Math.abs(layer.y) < 0.05
-    if (!isParallaxLive && settled && Math.abs(layer.vx) < 0.01 && Math.abs(layer.vy) < 0.01) {
-      layer.x = 0
-      layer.y = 0
-      layer.vx = 0
-      layer.vy = 0
-    }
-
-    const moved = Math.abs(layer.x - layer.wx) >= 0.05 || Math.abs(layer.y - layer.wy) >= 0.05
-    if (!moved && !(layer.isBackdrop && tiltChanged)) continue // skip redundant writes
-    layer.wx = layer.x
-    layer.wy = layer.y
-
-    const still = layer.x === 0 && layer.y === 0
-    if (layer.isBackdrop) {
-      layer.el.style.transform =
-        still && tilt === 0
-          ? ''
-          : `translate3d(${layer.x.toFixed(2)}px, ${layer.y.toFixed(2)}px, 0)` +
-            ` perspective(1400px) rotateY(${tilt.toFixed(2)}deg)`
-    } else {
-      layer.el.style.transform = still
-        ? ''
-        : `translate3d(${layer.x.toFixed(2)}px, ${layer.y.toFixed(2)}px, 0)`
-    }
-  }
+  if (Math.abs(tilt - tiltWritten) < 0.005) return // skip redundant style writes
+  tiltWritten = tilt
+  reveal.canvas.style.transform =
+    tilt === 0 ? '' : `perspective(1400px) rotateY(${tilt.toFixed(2)}deg)`
 }
 
 // --- Single RAF loop: the only one in the app; hook new per-frame work in here
@@ -515,7 +379,10 @@ function raf(time: number) {
   const progress = scene.update(time, state)
   updateIntro(progress)
   updateScene2Cards(progress)
-  updateRevealMotion()
+  updateRevealTilt()
+  // Only while the window is open and full-screen; the scene draws nothing at
+  // all otherwise, and skips the draw even then if the view has not moved.
+  if (isLookLive) revealScene.update(state)
   requestAnimationFrame(raf)
 }
 
