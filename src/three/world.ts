@@ -9,14 +9,18 @@
  */
 import {
   AmbientLight,
+  Box3,
   DirectionalLight,
   DoubleSide,
   Mesh,
   MeshBasicMaterial,
+  Object3D,
   PerspectiveCamera,
   PlaneGeometry,
   Scene,
+  Vector3,
 } from 'three'
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 
 /** Must stay identical to `--silver` in src/style.css. */
 export const SILVER = 0xa9aeb3
@@ -27,6 +31,23 @@ const CAMERA_POS = { x: 0, y: 8, z: 6.5 } // ~47° above the horizon: bird's-eye
 const CAMERA_TARGET = { x: 0, y: 1, z: 0 }
 
 const PLATFORM_SIZE = 5.5 // world units, square
+
+const MODEL_URL = '/models/space_boi.glb'
+const MODEL_HEIGHT = 2.6 // target world height; leaves clear space left/right
+
+/**
+ * Normalize an arbitrary GLB: uniform-scale it to MODEL_HEIGHT, center it on
+ * x/z and drop it so its lowest point sits on the platform at y = 0.
+ */
+function fitToPlatform(model: Object3D): void {
+  const box = new Box3().setFromObject(model)
+  const size = box.getSize(new Vector3())
+  model.scale.setScalar(MODEL_HEIGHT / (size.y || 1))
+
+  const fitted = new Box3().setFromObject(model)
+  const center = fitted.getCenter(new Vector3())
+  model.position.set(-center.x, -fitted.min.y, -center.z)
+}
 
 /**
  * Flat square pedestal at y = 0.
@@ -66,6 +87,18 @@ export function createWorld(aspect: number): WorldLayer {
   scene.add(new AmbientLight(0xffffff, 1.1), key, fill)
 
   scene.add(createPlatform())
+
+  // Async — the starfield and platform render immediately, the model pops in
+  // when it has loaded. No animation is driven off it yet.
+  new GLTFLoader().load(
+    MODEL_URL,
+    (gltf) => {
+      fitToPlatform(gltf.scene)
+      scene.add(gltf.scene)
+    },
+    undefined,
+    (err) => console.error(`[world] failed to load ${MODEL_URL}`, err),
+  )
 
   function resize(nextAspect: number): void {
     camera.aspect = nextAspect
