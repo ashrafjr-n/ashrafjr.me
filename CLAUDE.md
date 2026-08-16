@@ -197,6 +197,13 @@ sit and how big the dots draw:
 - Three sizes points as `size * 0.5 * drawingBufferHeight / distance` — **fov
   plays no part**. Any change to the cloud's scale needs `size` rescaled by the
   same factor or the dots change apparent size.
+- **`Float32BufferAttribute` copies the array you hand it** (`super(new
+  Float32Array(array), ...)`). Each layer's `positions` is therefore read back
+  off the attribute (`posAttr.array`) and never kept from the array that filled
+  it. Holding the pre-fill array writes to an orphan copy while flagging the
+  real one, and every layer freezes — obviously for the band, silently for the
+  cloud, whose mouse tilt is a rotation on the `Points` object and keeps moving
+  either way. This has been shipped broken once; don't reintroduce it.
 
 ### Why the wide field only shows arcs (this is not a bug)
 Stars in the wide cloud sweep a partial arc on screen, not a visible full loop.
