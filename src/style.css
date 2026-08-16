@@ -59,7 +59,7 @@ body {
    =========================================================== */
 .intro {
   position: fixed;
-  top: 14vh;
+  top: 10vh;
   left: 50%;
   z-index: 20;
   /* translateX centres it; the Y offset is driven from the RAF loop as the
