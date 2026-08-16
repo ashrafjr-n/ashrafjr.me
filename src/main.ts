@@ -131,8 +131,8 @@ function buildIntro(): HTMLParagraphElement {
 /** How many cards sit in the Scene 2 row. They share one outer boundary. */
 const SCENE2_CARD_COUNT = 2
 
-/** The large preview the right card is a window onto. */
-const REVEAL_IMAGE_SRC = '/assets/projects-background.png'
+/** The starfield the right card is a window onto. Planets are separate layers. */
+const REVEAL_IMAGE_SRC = '/assets/projects/projects-background.png'
 /** Widest tilt of the image under the mouse, in degrees, either side of centre. */
 const REVEAL_TILT_MAX = 5
 /** Per-frame approach rate of the tilt toward its target — damped, not jumpy. */

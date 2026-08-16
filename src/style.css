@@ -151,16 +151,16 @@ body {
 .reveal-window {
   --closed-w: calc((var(--card-row-w) - 3px) / 2);
   --closed-h: calc(var(--card-row-h) - 2px);
-  /* The image is held by one anchor point, at 0.68/0.50 of itself — the large
-     ringed planet — pinned to the centre of the mask. That point stays put in
-     both states, so the closed card is deliberately composed on the planet and
-     opening uncovers the field around it evenly, at the same scale.
-     Sizing follows from the anchor: at full screen the mask needs 0.32 of the
-     image to the right of the anchor to cover 50vw, and half its height to
-     cover 50vh. max() satisfies whichever of the two binds on this aspect. */
-  --img-w: max(160vw, 210vh);
-  --img-h: calc(var(--img-w) / 2.0246); /* projects-background.png is 2470x1220 */
-  --anchor-x: calc(var(--img-w) * 0.68);
+  /* The backdrop is held by one anchor point pinned to the centre of the mask.
+     That point stays put in both states, so opening uncovers the field around
+     it evenly, at the same scale. The anchor is the image's own centre: the
+     backdrop is a uniform starfield with no subject to compose on (the planets
+     are separate layers), and centring is what makes the image smallest for
+     full-screen coverage — half of it has to cover 50vw and 50vh, and the few
+     extra percent are the headroom the parallax shift moves within. */
+  --img-w: max(104vw, 222vh);
+  --img-h: calc(var(--img-w) / 2.1312); /* projects-background.png is 2664x1250 */
+  --anchor-x: calc(var(--img-w) * 0.5);
   --anchor-y: calc(var(--img-h) * 0.5);
 
   position: fixed;
