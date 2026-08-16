@@ -103,10 +103,13 @@ back. What exists today:
   divs built in `main.ts` from `SCENE2_CARD_COUNT`, sitting below the model in
   the levelled Scene 2 view. **Both are empty** — shape only, no content yet.
   They read as one wide rectangle split by a single line: the row carries the
-  1px white outer border and `.scene2-card + .scene2-card` carries the 1px
-  white `border-left`, so the divider is never double-thick and the two cards
-  stay flush (no gap). Sharp corners on purpose — no `border-radius`, and the
-  line style is plain white, matching the outer boundary. **DOM overlay, not
+  1px outer border and `.scene2-card + .scene2-card` carries the 1px
+  `border-left`, so the divider is never double-thick and the two cards stay
+  flush (no gap). Sharp corners on purpose — no `border-radius`. **Both lines
+  are one token, `--card-line`** (white at 0.3), plus a near-invisible
+  `--card-line-glow` bloom on the row; a solid `#fff` line was tried and read
+  too harsh against the black. Keep the boundary and the divider on that same
+  token so they never diverge. **DOM overlay, not
   3D** — nothing was added to the Three.js layers, so Scene 1 and the
   transition are untouched. `opacity` starts at 0 in CSS and `main.ts` fades it
   in over the last `1 - CARDS_FADE_START` of the scroll off the same
@@ -124,11 +127,11 @@ the wide starfield only. Everything else moves only under scroll.
 ## Reveal window (right Scene 2 card)
 `public/assets/projects-background.png` (2470x1220, the same black/white
 starfield-with-planets language as the model) shown through the right card.
-**The card is a mask, not an image container.** The image is 300% of the closed
-window and its size and offset inside the window never change — opening only
-grows the mask, so the crop already on screen stays at the identical spot
-inside it and the new area uncovers more of the same image. Never scale,
-translate or animate the image to open it; that would read as a zoom.
+**The card is a mask, not an image container.** The image is many times the
+size of the closed window and never scales — opening grows the mask to fill
+the whole viewport, so what was already on screen stays put at the same size
+and the new area uncovers more of the same image. Never scale or pan the image
+to open it; that would read as a zoom.
 
 - It is a **separate `position: fixed` element**, not the card itself: the card
   is a flex item in the row and could not fly out to the corner. Its closed
@@ -137,19 +140,30 @@ translate or animate the image to open it; that would read as a zoom.
   exactly on the right card's inner box — `left: calc(50% + 0.5px)` works
   whatever the row's width because the divider is always centred. Change the
   row's size only through those tokens or the two will drift apart.
-- Every size derives from `--img-w`, so the crop maths holds at any viewport:
-  the closed crop starts at 0.12/0.16 of the image and the open size is
-  0.68/0.78 of it, both comfortably inside 1. The open card is ~50vw wide on a
-  laptop, pinned 4vw/5vh off the top-right corner. `--img-h` hard-codes the
-  PNG's 2470/1220 aspect — **replacing the image means updating that ratio**.
-- Open/close animates `left/bottom/width/height` (620ms expo-out). It cannot use
-  a transform: scaling the mask would scale the image with it.
-- The open state's frame is an **`outline`, not a `border`** — an outline is
-  painted outside the box, so gaining the frame costs no layout and the image
-  underneath cannot shift by a pixel.
+- **One anchor point holds the image**: 0.68/0.50 of itself — the large ringed
+  planet — pinned to the centre of the mask in every state
+  (`left: calc(50% - var(--anchor-x))`). So the closed card is deliberately
+  composed on that planet, and opening uncovers the field around it evenly.
+  Anchoring the image to the mask's top-left corner instead was what the
+  smaller pop-out version did; at full screen it forces the crop into the
+  image's top-left corner and needs a far bigger image, so don't go back to it.
+- `--img-w: max(160vw, 210vh)` follows from that anchor: at full screen the
+  mask needs 0.32 of the image to the right of the anchor to cover 50vw, and
+  half its height to cover 50vh; `max()` covers whichever binds on the current
+  aspect. Undersizing it shows black at the screen edge. The cost is that the
+  2470px-wide PNG upscales on large monitors (~1.7x at 2560 wide) — acceptable
+  on a soft starfield. `--img-h` hard-codes the PNG's 2470/1220 aspect —
+  **replacing the image means updating that ratio and re-picking the anchor**.
+- Open/close animates `left/bottom/width/height` (620ms expo-out) to a
+  **full-screen** `0/0/100%/100%`. It cannot use a transform: scaling the mask
+  would scale the image with it. Percentages, not `vw`/`vh`, so a classic
+  scrollbar cannot push it past the visible area. There is no frame at that
+  size — the edges are the screen's.
+- The social badges sit at `z-index: 60`, above the window's 40, so the links
+  stay visible and clickable over the takeover. Keep them above it.
 - Closed only, the image tilts with the mouse: `rotateY` up to
   `REVEAL_TILT_MAX` degrees, damped by `REVEAL_TILT_LERP` in the single RAF
-  loop, about a **fixed** `transform-origin` at the centre of the closed crop
+  loop, about a **fixed** `transform-origin` at the anchor point
   (`perspective()` lives in the transform, so that point is the vanishing point
   too). It is a rotation, never a pan — the crop must not slide.
 - Opened by click/Enter/Space, closed by the `.reveal-close` button, a click
