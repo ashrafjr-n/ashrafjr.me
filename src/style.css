@@ -39,6 +39,9 @@ body {
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
   overflow-x: hidden;
+  /* Small ringed-planet cursor for the default state; interactive elements
+     (e.g. .github-badge) set their own `cursor: pointer` which wins over this. */
+  cursor: url('/cursor-saturn.svg') 14 15, auto;
 }
 
 /* ===========================================================
