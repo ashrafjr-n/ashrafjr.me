@@ -35,7 +35,7 @@ export interface SceneController {
 // The camera sits inside the disc and only a narrow cone of it is ever on
 // screen, so the count is high to keep the on-screen star density looking the
 // way it did before. Points are cheap; only the angle is recomputed per frame.
-const PARTICLE_COUNT = 5800
+const PARTICLE_COUNT = 20000
 
 // --- Orbital cloud ---
 // Distances are in the world layer's units, where the model spans ~3.5, so the
@@ -47,9 +47,18 @@ const PARTICLE_COUNT = 5800
 // squashed ball keeps stars all around the frustum while FLATTEN still biases
 // them toward the model's own plane. Every star orbits the same Y axis either
 // way, so the motion reads as one system regardless of the thickness.
-const CLOUD_RADIUS = 48
+const CLOUD_RADIUS = 62
 const CLOUD_INNER = 3 // keeps stars off the camera's lens
 const CLOUD_FLATTEN = 0.7 // y squash: < 1 favours the model's orbital plane
+/**
+ * Caps how close to the poles a star may sit, as |cos(polar angle)|. A star
+ * near the rotation axis has a near-zero orbit radius, so it turns on the spot
+ * and reads as frozen no matter how fast it spins — which is what made the
+ * orbiting hard to see. Capping this gives every star a real orbit radius
+ * (>= 0.6 x its distance) and flattens the cloud a little further toward the
+ * model's own plane.
+ */
+const POLAR_LIMIT = 0.8
 
 // Angular speeds, all in the model's own direction of spin, expressed as
 // multiples of MODEL_SPIN_RATE — the rate the model's own embedded stars travel
@@ -129,7 +138,7 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
     // distance (volume grows with r^3) and an even direction on the sphere,
     // then squash y. Without cbrt the centre reads as a dense blob.
     const dist = CLOUD_INNER + Math.cbrt(Math.random()) * (CLOUD_RADIUS - CLOUD_INNER)
-    const cosPolar = rand(-1, 1)
+    const cosPolar = rand(-POLAR_LIMIT, POLAR_LIMIT)
     const sinPolar = Math.sqrt(1 - cosPolar * cosPolar)
     const phi = Math.random() * Math.PI * 2
 
