@@ -32,17 +32,24 @@ export interface SceneController {
   resize(): void
 }
 
-const PARTICLE_COUNT = 1500
+// The camera sits inside the disc and only a narrow cone of it is ever on
+// screen, so the count is high to keep the on-screen star density looking the
+// way it did before. Points are cheap; only the angle is recomputed per frame.
+const PARTICLE_COUNT = 9000
 
-// --- Orbital disc ---
+// --- Orbital cloud ---
 // Distances are in the world layer's units, where the model spans ~3.1, so the
 // stars sit in the same space as the model's own embedded stars.
-const ORBIT_MIN_RADIUS = 5
-const ORBIT_MAX_RADIUS = 60
-/** Vertical spread as a fraction of orbit radius — flares the disc outward. */
-const DISC_FLARE = 0.22
-/** Vertical spread floor, so inner stars are not pinned flat to the plane. */
-const DISC_CORE_HEIGHT = 1.5
+//
+// The shape is a flattened ball centred on the model, not a thin disc. The
+// camera pitches ~50° down, so its frustum dives straight through a thin disc
+// and out the underside within ~25 units — which leaves the frame empty. A
+// squashed ball keeps stars all around the frustum while FLATTEN still biases
+// them toward the model's own plane. Every star orbits the same Y axis either
+// way, so the motion reads as one system regardless of the thickness.
+const CLOUD_RADIUS = 70
+const CLOUD_INNER = 3 // keeps stars off the camera's lens
+const CLOUD_FLATTEN = 0.7 // y squash: < 1 favours the model's orbital plane
 
 // Angular speeds in rad/s, all in the model's own direction of spin. Tiered so
 // most stars are slow, a few are quick, and each one is randomised within its
@@ -110,19 +117,26 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
 
   for (let i = 0; i < PARTICLE_COUNT; i++) {
     const i3 = i * 3
-    // sqrt keeps the disc from bunching up in the middle, since area grows
-    // with r^2 — without it the centre reads as a dense blob.
-    const t = Math.sqrt(Math.random())
-    const radius = ORBIT_MIN_RADIUS + t * (ORBIT_MAX_RADIUS - ORBIT_MIN_RADIUS)
-    const angle = Math.random() * Math.PI * 2
-    const spread = DISC_CORE_HEIGHT + radius * DISC_FLARE
+
+    // A point spread evenly through the volume of a ball: cbrt for the
+    // distance (volume grows with r^3) and an even direction on the sphere,
+    // then squash y. Without cbrt the centre reads as a dense blob.
+    const dist = CLOUD_INNER + Math.cbrt(Math.random()) * (CLOUD_RADIUS - CLOUD_INNER)
+    const cosPolar = rand(-1, 1)
+    const sinPolar = Math.sqrt(1 - cosPolar * cosPolar)
+    const phi = Math.random() * Math.PI * 2
+
+    // Orbit radius is the distance from the model's *vertical axis*, so height
+    // drops out of it — that is what keeps each star on a level circle.
+    const radius = dist * sinPolar
+    const angle = phi
 
     radii[i] = radius
     angles[i] = angle
     speeds[i] = randomOrbitSpeed()
 
     positions[i3] = Math.cos(angle) * radius
-    positions[i3 + 1] = rand(-spread, spread) // fixed height: orbits stay level
+    positions[i3 + 1] = dist * cosPolar * CLOUD_FLATTEN // fixed: orbits stay level
     positions[i3 + 2] = Math.sin(angle) * radius
 
     // White/silver only — grayscale brightness from pure white down to
@@ -139,10 +153,11 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
   geometry.setAttribute('color', new Float32BufferAttribute(colors, 3))
 
   const material = new PointsMaterial({
-    // The disc lives in world-layer units, ~40x closer than the old deep
-    // volume, so the point size is scaled down to match — with the narrower
-    // camera fov this lands the dots at the same on-screen size as before.
-    size: 0.03,
+    // The cloud lives in world-layer units, far closer than the old deep
+    // volume, so the point size scales down to match. Three sizes points as
+    // `size * 0.5 * drawingBufferHeight / distance` (fov plays no part), so
+    // this is set from the old size/distance ratio to keep dots the same size.
+    size: 0.1,
     sizeAttenuation: true,
     map: createCircleTexture(),
     vertexColors: true,
