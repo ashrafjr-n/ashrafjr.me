@@ -23,8 +23,16 @@
   /* Scene 2 card row geometry. Shared, because the reveal window (a separate
      fixed element) has to land exactly on the right card's inner box. */
   --card-row-w: min(760px, 82vw);
-  --card-row-h: clamp(150px, 24vh, 260px);
-  --card-row-bottom: 10vh;
+  --card-row-h: clamp(190px, 30vh, 320px);
+  --card-row-bottom: 13vh;
+
+  /* The card row's line: one soft hairline used for both the outer boundary
+     and the divider, so the two never read differently. Held well under pure
+     white — a solid #fff line was harsh against the black. */
+  --card-line: rgba(255, 255, 255, 0.3);
+  /* A faint bloom off the outer edge, so the line sits in the scene rather
+     than on top of it. Deliberately almost invisible. */
+  --card-line-glow: 0 0 26px rgba(255, 255, 255, 0.05);
 
   /* Open/close easing for the reveal window: a long expo-out tail. */
   --reveal-ease: cubic-bezier(0.16, 1, 0.3, 1);
@@ -103,10 +111,9 @@ body {
   transform: translateX(-50%);
   display: flex;
   width: var(--card-row-w);
-  /* Top of the row lands around 66vh with the 10vh bottom offset, which keeps
-     it clear of the model in the levelled Scene 2 view. */
   height: var(--card-row-h);
-  border: 1px solid #ffffff;
+  border: 1px solid var(--card-line);
+  box-shadow: var(--card-line-glow);
   opacity: 0;
   pointer-events: none;
   will-change: opacity;
@@ -117,10 +124,10 @@ body {
   min-width: 0;
 }
 
-/* The divider: the same 1px white line as the outer boundary, drawn once
+/* The divider: the same soft hairline as the outer boundary, drawn once
    between the two cards so the pair stays flush with no double-thick edge. */
 .scene2-card + .scene2-card {
-  border-left: 1px solid #ffffff;
+  border-left: 1px solid var(--card-line);
 }
 
 /* ===========================================================
