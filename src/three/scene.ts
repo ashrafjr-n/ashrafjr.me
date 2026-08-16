@@ -147,6 +147,8 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
     }
     posAttr.needsUpdate = true
 
+    world.update(delta)
+
     renderer.clear()
     renderer.render(scene, camera)
     renderer.clearDepth() // world layer sits in front of the starfield
