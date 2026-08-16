@@ -1,14 +1,16 @@
 /**
- * Base Three.js scene — a slow drifting starfield, plus the Scene 1 world
- * layer (the model) composited on top of it.
+ * Base Three.js scene — an orbiting starfield, plus the Scene 1 world layer
+ * (the model) composited on top of it.
  *
- * A constant forward drift in z (with wrap-around) gives an infinite "flying
- * through space" base. Mouse parallax is layered on top via shared input
- * state, lerped for smooth, cinematic motion.
+ * The stars orbit the model's centre on roughly the model's own orbital plane,
+ * each at its own randomised speed, so they read as one system with the stars
+ * embedded in the model rather than as a separate dolly-ing backdrop. Mouse
+ * parallax is layered on top via shared input state, lerped for smooth motion.
  *
- * Two render passes share one renderer: the starfield keeps its own camera
- * fixed at the origin (so its motion is untouched), then depth is cleared and
- * the world layer is drawn over it from a bird's-eye camera.
+ * Two render passes share one renderer, both drawn through the world layer's
+ * bird's-eye camera — sharing the vantage is what makes the star orbits line up
+ * with the model's. Depth is cleared between them so the model always sits in
+ * front of the stars.
  * Palette: white/silver/gray only — no color pops.
  */
 import {
@@ -17,7 +19,6 @@ import {
   CanvasTexture,
   Color,
   Float32BufferAttribute,
-  PerspectiveCamera,
   Points,
   PointsMaterial,
   Scene,
@@ -96,14 +97,6 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
   renderer.autoClear = false // two passes per frame, cleared manually below
 
   const scene = new Scene()
-
-  const camera = new PerspectiveCamera(
-    70,
-    window.innerWidth / window.innerHeight,
-    0.1,
-    DEPTH * 2,
-  )
-  camera.position.set(0, 0, 0)
 
   // --- Particle geometry: a flared disc orbiting the model's centre ---
   // Each star keeps its own radius / height / angle / angular speed; only the
@@ -194,7 +187,7 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
     world.update(delta)
 
     renderer.clear()
-    renderer.render(scene, camera)
+    renderer.render(scene, world.camera) // same vantage -> same orbital plane
     renderer.clearDepth() // world layer sits in front of the starfield
     renderer.render(world.scene, world.camera)
   }
@@ -202,9 +195,7 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
   function resize(): void {
     const w = window.innerWidth
     const h = window.innerHeight
-    camera.aspect = w / h
-    camera.updateProjectionMatrix()
-    world.resize(w / h)
+    world.resize(w / h) // one camera now drives both passes
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
     renderer.setSize(w, h, false)
   }
