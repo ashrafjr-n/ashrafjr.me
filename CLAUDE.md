@@ -57,12 +57,15 @@ back. What exists today:
   to `MODEL_SPAN` wants `CAMERA_TARGET` nudged to keep the framing centred.
 - `src/lib/state.ts` — shared `InputState` (`mouseX`, `mouseY`, `scroll`)
   written by `initPointer()` and `initScroll()`, read every frame by the scene.
-- Social icon row (`.social-badges`, top-left) — three `.github-badge`-class
+- Social icon row (`.social-badges`, top-left) — three `.social-badge`-class
   links built in `main.ts`: GitHub (icon + "ashrafjr-n" label, links to
   `github.com/ashrafjr-n`), and two icon-only links (no label span) for
-  LinkedIn and email (`mailto:aannaelj@gmail.com`). All three share one hover
-  style off the `.github-badge` class; the icon-only two just omit the
-  `<span>`. **The three icons are circular in the artwork, not in CSS.** Each
+  LinkedIn and email (`mailto:aannaelj@gmail.com`). They are **data, not three
+  functions**: the `SOCIAL_LINKS` array feeds one `buildSocialLink()` factory,
+  so adding a link means adding an entry. A `mailto:` href is what suppresses
+  `target="_blank"`; the caption is whatever `text` is set, omitted on the
+  icon-only two. All three share one hover style off the `.social-badge`
+  class. **The three icons are circular in the artwork, not in CSS.** Each
   is a full-bleed disc whose `viewBox` is cropped to the disc's own bounds, so
   all three paint an identical 26px circle inside the 26px `.social-icon` box
   (verified: box *and* `getBBox()` artwork both measure 26x26 for all three).
@@ -93,10 +96,10 @@ back. What exists today:
   `INTRO_FADE_END` of the scroll. It uses `--font-code`, the same face as the
   badge; `--font-display` (Space Grotesk) is loaded but still unused anywhere.
   No `text-transform` — the copy is rendered exactly as written.
-- Custom cursor — `public/cursor-saturn.svg` (small ringed-planet graphic, set
-  via `body { cursor: url(...) }` in `style.css`). Elements with their own
-  `cursor: pointer` (currently `.github-badge` and its two reuses) override it
-  with the standard pointer, so interactive elements still read as clickable.
+- Cursor — the default system cursor everywhere. A custom Saturn cursor and
+  then a custom arrow both existed and were reverted; `public/cursor-saturn.svg`
+  is gone and no `cursor: url(...)` rule remains. The only cursor rule left is
+  `cursor: pointer` on `.social-badge`.
 
 At rest (scroll 0) the world camera does not move; the mouse parallax affects
 the wide starfield only. Everything else moves only under scroll.
