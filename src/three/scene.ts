@@ -128,8 +128,8 @@ const BAND_OPACITY = 1.0
  * as a brighter, whiter star. It stays grayscale, so the palette holds.
  */
 const BAND_BOOST_CHANCE = 0.3
-const BAND_BOOST_MIN = 1.7
-const BAND_BOOST_MAX = 2.4
+const BAND_BOOST_MIN = 2.4
+const BAND_BOOST_MAX = 3.6
 
 // Default star shading — grayscale brightness from pure white down to a
 // slightly dimmer silver-white, no color tint. Used by the ambient field.
