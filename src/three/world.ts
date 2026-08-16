@@ -1,9 +1,11 @@
 /**
  * Scene 1 world layer — the model, lit and framed from a bird's-eye camera.
  *
- * Kept as its own scene + camera so the starfield can keep its original
- * fixed-at-origin camera and behave exactly as before. `scene.ts` renders the
- * starfield first, clears depth, then renders this layer on top.
+ * Kept as its own scene so the depth clear between the two passes can put the
+ * model in front of the stars whatever their real depth. `scene.ts` renders
+ * the starfield first, clears depth, then renders this layer on top — both
+ * passes through this camera, which is what lines the star orbits up with the
+ * model's own plane. The starfield has no camera of its own.
  *
  * There is deliberately no ground/platform mesh: the model's own base is pure
  * black and the page background is the same black, so it reads as one

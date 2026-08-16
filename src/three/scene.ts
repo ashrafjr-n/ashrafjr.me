@@ -36,7 +36,7 @@ export interface SceneController {
   resize(): void
 }
 
-// The camera sits inside the disc and only a narrow cone of it is ever on
+// The camera sits inside the cloud and only a narrow cone of it is ever on
 // screen, so the count is high to keep the on-screen star density looking the
 // way it did before. Points are cheap; only the angle is recomputed per frame.
 const PARTICLE_COUNT = 20000
@@ -364,10 +364,11 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
 
     const points = new Points(geometry, material)
     // The scroll transition moves stars far outside the bounds they were built
-    // with (scattered to ~73, flown ~190 toward the camera). Three only
-    // computes a geometry's bounding sphere once, so leaving culling on would
-    // let it test against stale bounds and pop the whole layer out of view
-    // mid-scroll. These layers always fill the frame, so culling buys nothing.
+    // with (the band scatters out to ~29, the cloud flies up to 75 toward the
+    // camera). Three only computes a geometry's bounding sphere once, so
+    // leaving culling on would let it test against stale bounds and pop the
+    // whole layer out of view mid-scroll. These layers always fill the frame,
+    // so culling buys nothing.
     points.frustumCulled = false
     starfield.add(points)
 
