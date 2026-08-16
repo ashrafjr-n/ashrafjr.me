@@ -49,6 +49,12 @@ const PARTICLE_COUNT = 20000
 // way, so the motion reads as one system regardless of the thickness.
 const CLOUD_RADIUS = 62
 const CLOUD_INNER = 3 // keeps stars off the camera's lens
+/**
+ * Three scales points as `size * 0.5 * drawingBufferHeight / distance` — fov
+ * plays no part — so this is set from the old deep field's size/distance ratio
+ * to keep dots the same size on screen.
+ */
+const CLOUD_POINT_SIZE = 0.11
 const CLOUD_FLATTEN = 0.7 // y squash: < 1 favours the model's orbital plane
 /**
  * Caps how close to the poles a star may sit, as |cos(polar angle)|. A star
@@ -72,6 +78,31 @@ const SPEED_TIERS = [
   { chance: 0.18, min: 1.4, max: 2.6 }, // some: clearly quicker
   { chance: 0.04, min: 2.6, max: 5.0 }, // few: streak past
 ]
+
+// --- Close-in orbit band ---
+// The wide cloud can never show a full loop: the camera sits *inside* it
+// (10.4 units from the centre, radii out to 62), so most of any orbit passes
+// beside or behind the camera and the visible part is only a ~40° arc. This
+// band is the set of orbits that *do* stay on screen for a whole revolution.
+//
+// The window is tight and was solved against the camera frustum — do not widen
+// it without re-deriving:
+//   inner bound: the model's slab is square, so its corners reach
+//     MODEL_SPAN * sqrt(2)/2 = 2.47. Inside that the model draws over the band
+//     (the world layer renders after a depth clear) and the loop breaks.
+//   outer bound: beyond ~2.85 at y=0 the orbit's near side leaves the frame.
+//   height: below y=-0.5 and above y=+1.5 the window closes completely.
+const BAND_COUNT = 600
+const BAND_RADIUS_MIN = 2.6
+const BAND_RADIUS_MAX = 2.8
+const BAND_Y_MIN = 0.0
+const BAND_Y_MAX = 1.0
+/**
+ * The band sits ~10 units from the camera against the wide field's ~45, and
+ * Three scales points by `size * 0.5 * height / distance`, so it needs its own
+ * smaller size to draw dots the same size on screen.
+ */
+const BAND_POINT_SIZE = 0.025
 
 // --- Interaction tuning (mouse parallax; gentle / clamped) ---
 const MAX_TILT = 0.09 // max parallax tilt from the mouse (~5°), radians
@@ -98,6 +129,34 @@ function rand(min: number, max: number): number {
   return min + Math.random() * (max - min)
 }
 
+/** A set of stars orbiting the model's vertical axis, drawn as one Points. */
+interface StarLayer {
+  points: Points
+  count: number
+  radii: Float32Array
+  angles: Float32Array
+  speeds: Float32Array
+  posAttr: Float32BufferAttribute
+}
+
+/**
+ * Advance every star in a layer along its own circle.
+ *
+ * The angle is unbounded and only ever increases, so this is a true endless
+ * 360° revolution — there is no clamp, wrap or easing here by design.
+ */
+function advance(layer: StarLayer, delta: number): void {
+  const arr = layer.posAttr.array as Float32Array
+  for (let i = 0; i < layer.count; i++) {
+    const angle = layer.angles[i] + layer.speeds[i] * delta
+    layer.angles[i] = angle
+    const i3 = i * 3
+    arr[i3] = Math.cos(angle) * layer.radii[i]
+    arr[i3 + 2] = Math.sin(angle) * layer.radii[i]
+  }
+  layer.posAttr.needsUpdate = true
+}
+
 /**
  * Pick an orbital speed from the weighted tiers, randomised within the tier.
  * Tier bounds are multiples of the model's own spin rate.
@@ -121,72 +180,94 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
 
   const scene = new Scene()
 
-  // --- Particle geometry: a flared disc orbiting the model's centre ---
-  // Each star keeps its own radius / height / angle / angular speed; only the
-  // angle changes per frame, so a star can never drift off its own orbit.
-  const positions = new Float32Array(PARTICLE_COUNT * 3)
-  const colors = new Float32Array(PARTICLE_COUNT * 3)
-  const radii = new Float32Array(PARTICLE_COUNT)
-  const angles = new Float32Array(PARTICLE_COUNT)
-  const speeds = new Float32Array(PARTICLE_COUNT)
-  const c = new Color()
+  const sprite = createCircleTexture()
 
-  for (let i = 0; i < PARTICLE_COUNT; i++) {
-    const i3 = i * 3
+  /**
+   * Build a layer of orbiting stars. `place` supplies each star's orbit radius
+   * and its fixed height; angle and speed are assigned here, so every layer
+   * shares one motion style regardless of where its stars sit.
+   */
+  function createStarLayer(
+    count: number,
+    pointSize: number,
+    place: () => { radius: number; y: number },
+  ): StarLayer {
+    const positions = new Float32Array(count * 3)
+    const colors = new Float32Array(count * 3)
+    const radii = new Float32Array(count)
+    const angles = new Float32Array(count)
+    const speeds = new Float32Array(count)
+    const c = new Color()
 
+    for (let i = 0; i < count; i++) {
+      const i3 = i * 3
+      const { radius, y } = place()
+      const angle = Math.random() * Math.PI * 2
+
+      radii[i] = radius
+      angles[i] = angle
+      speeds[i] = randomOrbitSpeed()
+
+      positions[i3] = Math.cos(angle) * radius
+      positions[i3 + 1] = y // fixed height: orbits stay level
+      positions[i3 + 2] = Math.sin(angle) * radius
+
+      // White/silver only — grayscale brightness from pure white down to
+      // a slightly dimmer silver-white, no color tint.
+      const v = rand(0.78, 1.0)
+      c.setRGB(v, v, v)
+      colors[i3] = c.r
+      colors[i3 + 1] = c.g
+      colors[i3 + 2] = c.b
+    }
+
+    const geometry = new BufferGeometry()
+    geometry.setAttribute('position', new Float32BufferAttribute(positions, 3))
+    geometry.setAttribute('color', new Float32BufferAttribute(colors, 3))
+
+    const material = new PointsMaterial({
+      size: pointSize,
+      sizeAttenuation: true,
+      map: sprite,
+      vertexColors: true,
+      transparent: true,
+      depthWrite: false,
+      blending: AdditiveBlending,
+      opacity: 0.85,
+    })
+
+    const points = new Points(geometry, material)
+    scene.add(points)
+
+    return {
+      points,
+      count,
+      radii,
+      angles,
+      speeds,
+      posAttr: geometry.getAttribute('position') as Float32BufferAttribute,
+    }
+  }
+
+  // The wide ambient field — a flattened ball around the model. Its stars each
+  // show only an arc, because the camera sits inside it.
+  const cloud = createStarLayer(PARTICLE_COUNT, CLOUD_POINT_SIZE, () => {
     // A point spread evenly through the volume of a ball: cbrt for the
     // distance (volume grows with r^3) and an even direction on the sphere,
     // then squash y. Without cbrt the centre reads as a dense blob.
     const dist = CLOUD_INNER + Math.cbrt(Math.random()) * (CLOUD_RADIUS - CLOUD_INNER)
     const cosPolar = rand(-POLAR_LIMIT, POLAR_LIMIT)
     const sinPolar = Math.sqrt(1 - cosPolar * cosPolar)
-    const phi = Math.random() * Math.PI * 2
-
     // Orbit radius is the distance from the model's *vertical axis*, so height
     // drops out of it — that is what keeps each star on a level circle.
-    const radius = dist * sinPolar
-    const angle = phi
-
-    radii[i] = radius
-    angles[i] = angle
-    speeds[i] = randomOrbitSpeed()
-
-    positions[i3] = Math.cos(angle) * radius
-    positions[i3 + 1] = dist * cosPolar * CLOUD_FLATTEN // fixed: orbits stay level
-    positions[i3 + 2] = Math.sin(angle) * radius
-
-    // White/silver only — grayscale brightness from pure white down to
-    // a slightly dimmer silver-white, no color tint.
-    const v = rand(0.78, 1.0)
-    c.setRGB(v, v, v)
-    colors[i3] = c.r
-    colors[i3 + 1] = c.g
-    colors[i3 + 2] = c.b
-  }
-
-  const geometry = new BufferGeometry()
-  geometry.setAttribute('position', new Float32BufferAttribute(positions, 3))
-  geometry.setAttribute('color', new Float32BufferAttribute(colors, 3))
-
-  const material = new PointsMaterial({
-    // The cloud lives in world-layer units, far closer than the old deep
-    // volume, so the point size scales down to match. Three sizes points as
-    // `size * 0.5 * drawingBufferHeight / distance` (fov plays no part), so
-    // this is set from the old size/distance ratio to keep dots the same size.
-    size: 0.11,
-    sizeAttenuation: true,
-    map: createCircleTexture(),
-    vertexColors: true,
-    transparent: true,
-    depthWrite: false,
-    blending: AdditiveBlending,
-    opacity: 0.85,
+    return { radius: dist * sinPolar, y: dist * cosPolar * CLOUD_FLATTEN }
   })
 
-  const points = new Points(geometry, material)
-  scene.add(points)
-
-  const posAttr = geometry.getAttribute('position') as Float32BufferAttribute
+  // The close-in band — the orbits that stay on screen for a whole revolution.
+  const band = createStarLayer(BAND_COUNT, BAND_POINT_SIZE, () => ({
+    radius: rand(BAND_RADIUS_MIN, BAND_RADIUS_MAX),
+    y: rand(BAND_Y_MIN, BAND_Y_MAX),
+  }))
 
   // --- Scene 1 world layer (the model), drawn over the starfield ---
   const world = createWorld(window.innerWidth / window.innerHeight)
@@ -198,25 +279,21 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
     const delta = Math.min((time - prevTime) / 1000, 0.1) // clamp big tab-switch gaps
     prevTime = time
 
-    // Mouse parallax — tilt the field a few degrees, lerped.
+    // Mouse parallax — tilt the wide field a few degrees, lerped. The band is
+    // deliberately left untilted: its full-loop visibility was solved for a
+    // level plane and a 5° tilt is enough to push its near side off frame. It
+    // also reads as an extension of the model's own rings, which do not react
+    // to the mouse either.
     const tiltY = state.mouseX * MAX_TILT
     const tiltX = -state.mouseY * MAX_TILT
-    points.rotation.y += (tiltY - points.rotation.y) * TILT_LERP
-    points.rotation.x += (tiltX - points.rotation.x) * TILT_LERP
+    cloud.points.rotation.y += (tiltY - cloud.points.rotation.y) * TILT_LERP
+    cloud.points.rotation.x += (tiltX - cloud.points.rotation.x) * TILT_LERP
 
-    // Advance each star along its own orbit. Increasing the angle with
-    // x = cos, z = sin turns the disc clockwise from the bird's-eye camera —
-    // the same direction the model spins. Height is never rewritten, so every
-    // star stays on its own level circle around the model's centre.
-    const arr = posAttr.array as Float32Array
-    for (let i = 0; i < PARTICLE_COUNT; i++) {
-      const angle = angles[i] + speeds[i] * delta
-      angles[i] = angle
-      const i3 = i * 3
-      arr[i3] = Math.cos(angle) * radii[i]
-      arr[i3 + 2] = Math.sin(angle) * radii[i]
-    }
-    posAttr.needsUpdate = true
+    // Advance both layers along their orbits. Increasing the angle with
+    // x = cos, z = sin turns them clockwise from the bird's-eye camera — the
+    // same direction the model spins.
+    advance(cloud, delta)
+    advance(band, delta)
 
     world.update(delta)
 
