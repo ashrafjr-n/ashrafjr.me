@@ -78,6 +78,40 @@ body {
 }
 
 /* ===========================================================
+   Scene 2 cards (bottom-centre, below the model)
+
+   Two flush cards: one white line around the pair and one white line between
+   them, so the row reads as a single wide rectangle split in two. Sharp
+   corners on purpose — no border-radius here. Hidden through Scene 1 and only
+   faded in near the end of the scroll, from the RAF loop.
+   =========================================================== */
+.scene2-cards {
+  position: fixed;
+  bottom: 6vh;
+  left: 50%;
+  z-index: 20;
+  transform: translateX(-50%);
+  display: flex;
+  width: min(760px, 82vw);
+  height: clamp(110px, 18vh, 190px);
+  border: 1px solid #ffffff;
+  opacity: 0;
+  pointer-events: none;
+  will-change: opacity;
+}
+
+.scene2-card {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+/* The divider: the same 1px white line as the outer boundary, drawn once
+   between the two cards so the pair stays flush with no double-thick edge. */
+.scene2-card + .scene2-card {
+  border-left: 1px solid #ffffff;
+}
+
+/* ===========================================================
    Social badges (top-left corner): GitHub (icon + label), then
    icon-only LinkedIn and email links sharing the same hover style.
    =========================================================== */
