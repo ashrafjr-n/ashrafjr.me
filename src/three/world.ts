@@ -18,11 +18,11 @@ import {
   Box3,
   DirectionalLight,
   Group,
-  Object3D,
   PerspectiveCamera,
   Scene,
   Vector3,
 } from 'three'
+import type { Object3D } from 'three'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 
 // --- Framing ---
