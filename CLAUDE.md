@@ -1,64 +1,58 @@
+At the start of every session, and after every /clear, read vibe.md first before doing anything else.
+
 # Personal Portfolio — Project Guide
 
 ## Stack
 - **Vite** — build tool / dev server
 - **TypeScript** — vanilla, no framework
 - **Three.js** — 3D scene work (`src/three/`)
-- **GSAP** — animation / motion
-- **Lenis** — smooth scrolling
 - **Plain CSS** — no Tailwind, no CSS framework (`src/style.css`)
 
 ## Theme
 - Dark, cinematic.
-- Accent palette: **red + wine** only.
-- **NO purple anywhere** — not in colors, gradients, shadows, or 3D materials.
+- Palette is **white / black / silver-gray only** — no other colors anywhere
+  (CSS, 3D materials, gradients, shadows). Enforce this on every visual change.
 - Design tokens live in the `:root` block of `src/style.css`.
-- Display font: **Syncopate**. Code/mono font: **JetBrains Mono**.
+- Fonts loaded: **Space Grotesk** (`--font-display`, not yet applied to any
+  element) and **JetBrains Mono** (`--font-code`, applied to body text and
+  the GitHub badge).
 
-## Architecture — Depth-Based Camera Navigation
-This is NOT a normal scrolling page. There is no real document scroll of
-content. Instead:
+## Current state
+This is currently a minimal starting point, not the full depth-navigation
+portfolio the project name implies — most of the original scroll/section
+system was intentionally stripped out. What exists today:
 
-- A tall invisible `scroll-proxy` element generates scroll distance for Lenis
-  to read. The viewport is fixed full-screen.
-- Sections are NOT stacked in normal document flow. They are registered as
-  **depth items** in `src/lib/depth.ts`, each with a `baseZ` position along the
-  Z axis (Hero at `baseZ 0`, each following section further back).
-- Scrolling moves a virtual `cameraZ` forward. Each depth item's visible
-  position, scale, and opacity are computed from its distance to the camera
-  (`relZ = baseZ + cameraZ`) every frame.
-- The effect: the camera flies FORWARD through depth. The next section emerges
-  from the distance and grows as the camera approaches it, then fades out as
-  the camera passes through it. Sections must NEVER slide up from below like a
-  normal page — that breaks the entire concept.
-- One single RAF loop drives everything: `lenis.raf(time)` → read scroll/
-  velocity into shared state (`src/lib/state.ts`) → `scene.update()` (Three.js
-  particle field) → `updateDepth(scroll)` (depth engine). Do not create a
-  second animation loop.
-- The HUD overlay (fps/coord/scroll hints) is fixed on screen and is NOT a
-  depth item — it stays independent of camera movement.
+- `src/main.ts` — mounts the full-screen `#scene` canvas, initializes the
+  Three.js starfield (`src/three/scene.ts`), starts mouse-pointer tracking
+  (`src/lib/state.ts`), builds and appends the GitHub badge, and runs the
+  single RAF loop.
+- `src/three/scene.ts` — a drifting particle starfield (white/silver dots
+  only). The camera is fixed at the origin; only the particle field tilts
+  in response to mouse position. There is no scroll input wired up anywhere
+  in the app right now — `state.mouseX`/`state.mouseY` are the only live
+  input values.
+- `src/lib/state.ts` — shared `InputState` (`mouseX`, `mouseY` only) written
+  by a `mousemove` listener, read every frame by the scene.
+- GitHub badge — fixed top-left, links to `github.com/ashrafjr-n`.
+- `public/models/space_boi.glb` — a 3D model asset present in the repo but
+  **not yet loaded or used anywhere in code**. No `GLTFLoader` is set up yet
+  (it ships inside the installed `three` package at
+  `three/examples/jsm/loaders/GLTFLoader.js` and can be imported directly
+  when needed — no new dependency required for this file, since it has no
+  Draco compression).
 
-**Before changing anything scroll- or navigation-related, re-read this section.
-Any change that would reintroduce normal stacked-section scrolling is a
-regression, not a feature.**
+## Animation loop
+One single `requestAnimationFrame` loop lives in `src/main.ts`:
+`scene.update(time, state)` runs every frame, reading `state` (mouse
+position) and rendering. Do not create a second animation loop — any new
+per-frame logic (camera motion, model animation, etc.) should hook into this
+same loop, ideally inside `scene.ts`'s `update()` alongside the existing
+render call.
 
-## Visual Language — Project Cards ("Polaroid" style)
-Project preview cards must read as physical photographs floating in space, not
-UI panels:
-- **Thick white border** on all sides, like a printed photo/Polaroid frame —
-  substantial, not a thin 1–2px line.
-- **Tall portrait rectangle**, not square or landscape.
-- **Smaller scale** overall — a photo floating in space, not a dominating panel.
-- **Slight rightward rotation** (roughly 3–8°), with mild per-card randomness
-  so cards don't look mechanically identical.
-- **Soft realistic drop shadow** underneath to sell the "physical object"
-  feeling.
-- Text content (title, description, tags) lives outside/below the photo area,
-  never overlaid on top of it — the image itself stays clean.
-
-## Data
-- `src/lib/projects.ts` — typed `Project[]` array, single source of truth for
-  Selected Work content (title, subtitle, description, tags, preview image,
-  url). Add/edit projects here, not inline in section markup.
-
-## Project structure
+## Removed (do not assume these exist)
+The following existed in an earlier version of this project and were
+deliberately deleted; do not reference them or recreate them without being
+asked: `src/lib/depth.ts` (depth-item/camera-Z navigation engine),
+`src/lib/projects.ts` (project data), `src/sections/` (hero/transition/work
+sections), Lenis smooth-scroll, GSAP, the HUD (fps/coord/scroll-hint
+overlay), and the red+wine accent palette / Polaroid-style project cards.
