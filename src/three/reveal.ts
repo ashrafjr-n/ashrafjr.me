@@ -239,8 +239,8 @@ export function createRevealScene(canvas: HTMLCanvasElement): RevealScene {
   function setActive(next: boolean): void {
     active = next
     if (next) return
-    // Closed: recentre and leave one still frame behind, which is what the
-    // small card shows until it is opened again.
+    // Closed: recentre and leave one still frame behind, ready for the next
+    // open — the window is invisible until then.
     yaw = 0
     pitch = 0
     yawVel = 0
@@ -256,6 +256,6 @@ export function createRevealScene(canvas: HTMLCanvasElement): RevealScene {
     render()
   }
 
-  render() // the still frame the closed card shows before it is ever opened
+  render() // the frame the window opens onto the first time
   return { update, setActive, resize }
 }
