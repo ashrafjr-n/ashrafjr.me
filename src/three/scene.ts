@@ -22,6 +22,7 @@ import {
   Points,
   PointsMaterial,
   Scene,
+  Vector3,
   WebGLRenderer,
 } from 'three'
 import type { InputState } from '../lib/state'
@@ -104,6 +105,27 @@ const BAND_Y_MAX = 1.0
  */
 const BAND_POINT_SIZE = 0.025
 
+// --- Scene 1 -> Scene 2 scroll transition ---
+/**
+ * How fast the transition value chases raw scroll. Scroll events arrive in
+ * coarse jumps; every part of the transition reads this one smoothed value, so
+ * the camera, the spin, the scatter and the fly-past stay locked together.
+ */
+const SCROLL_LERP = 0.08
+
+/** Extra orbit radius each band star gains by full scroll — it flies apart. */
+const BAND_SCATTER_MIN = 25
+const BAND_SCATTER_MAX = 70
+
+/**
+ * How far each ambient star travels toward the camera by full scroll. The
+ * spread means they stream past rather than arriving as a wall. The minimum
+ * comfortably exceeds the far side of the cloud (radius 62 plus the camera's
+ * ~10 unit offset), so every star does clear the camera by the end.
+ */
+const FLY_DISTANCE_MIN = 80
+const FLY_DISTANCE_MAX = 170
+
 // --- Interaction tuning (mouse parallax; gentle / clamped) ---
 const MAX_TILT = 0.09 // max parallax tilt from the mouse (~5°), radians
 const TILT_LERP = 0.05 // how fast tilt eases toward the target
@@ -134,25 +156,61 @@ interface StarLayer {
   points: Points
   count: number
   radii: Float32Array
+  heights: Float32Array
   angles: Float32Array
   speeds: Float32Array
+  /** Per-star extra orbit radius at full scroll — the band flying apart. */
+  scatter: Float32Array | null
+  /** Per-star travel toward the camera at full scroll — the ambient fly-past. */
+  fly: Float32Array | null
   posAttr: Float32BufferAttribute
 }
 
 /**
- * Advance every star in a layer along its own circle.
+ * Advance every star in a layer along its own circle, then apply whichever
+ * scroll-driven displacement that layer carries.
  *
- * The angle is unbounded and only ever increases, so this is a true endless
- * 360° revolution — there is no clamp, wrap or easing here by design.
+ * The orbit angle is unbounded and only ever increases, so the underlying
+ * motion stays a true endless 360° revolution — there is no clamp, wrap or
+ * easing here by design.
+ *
+ * Both displacements are computed *from* `progress` rather than accumulated
+ * frame to frame. That makes the whole transition a pure function of scroll
+ * position, so scrubbing back up rewinds it exactly instead of drifting — and
+ * it is why the fly-past needs no wrap-around: a star that has passed the
+ * camera simply keeps going, and nothing brings it back into view.
+ *
+ * `flyX/Y/Z` is the unit vector from the model toward the camera.
  */
-function advance(layer: StarLayer, delta: number): void {
+function advance(
+  layer: StarLayer,
+  delta: number,
+  progress: number,
+  flyX: number,
+  flyY: number,
+  flyZ: number,
+): void {
   const arr = layer.posAttr.array as Float32Array
   for (let i = 0; i < layer.count; i++) {
     const angle = layer.angles[i] + layer.speeds[i] * delta
     layer.angles[i] = angle
+
+    const radius = layer.scatter ? layer.radii[i] + layer.scatter[i] * progress : layer.radii[i]
+    let x = Math.cos(angle) * radius
+    let y = layer.heights[i]
+    let z = Math.sin(angle) * radius
+
+    if (layer.fly) {
+      const travelled = layer.fly[i] * progress
+      x += flyX * travelled
+      y += flyY * travelled
+      z += flyZ * travelled
+    }
+
     const i3 = i * 3
-    arr[i3] = Math.cos(angle) * layer.radii[i]
-    arr[i3 + 2] = Math.sin(angle) * layer.radii[i]
+    arr[i3] = x
+    arr[i3 + 1] = y
+    arr[i3 + 2] = z
   }
   layer.posAttr.needsUpdate = true
 }
@@ -191,12 +249,16 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
     count: number,
     pointSize: number,
     place: () => { radius: number; y: number },
+    transition: { scatter?: () => number; fly?: () => number } = {},
   ): StarLayer {
     const positions = new Float32Array(count * 3)
     const colors = new Float32Array(count * 3)
     const radii = new Float32Array(count)
+    const heights = new Float32Array(count)
     const angles = new Float32Array(count)
     const speeds = new Float32Array(count)
+    const scatter = transition.scatter ? new Float32Array(count) : null
+    const fly = transition.fly ? new Float32Array(count) : null
     const c = new Color()
 
     for (let i = 0; i < count; i++) {
@@ -205,8 +267,11 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
       const angle = Math.random() * Math.PI * 2
 
       radii[i] = radius
+      heights[i] = y
       angles[i] = angle
       speeds[i] = randomOrbitSpeed()
+      if (scatter) scatter[i] = transition.scatter!()
+      if (fly) fly[i] = transition.fly!()
 
       positions[i3] = Math.cos(angle) * radius
       positions[i3 + 1] = y // fixed height: orbits stay level
@@ -243,8 +308,11 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
       points,
       count,
       radii,
+      heights,
       angles,
       speeds,
+      scatter,
+      fly,
       posAttr: geometry.getAttribute('position') as Float32BufferAttribute,
     }
   }
@@ -261,23 +329,37 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
     // Orbit radius is the distance from the model's *vertical axis*, so height
     // drops out of it — that is what keeps each star on a level circle.
     return { radius: dist * sinPolar, y: dist * cosPolar * CLOUD_FLATTEN }
+  }, {
+    // On scroll these fly toward and past the camera, and are never wrapped
+    // back around — the field thins out as Scene 1 is left behind.
+    fly: () => rand(FLY_DISTANCE_MIN, FLY_DISTANCE_MAX),
   })
 
   // The close-in band — the orbits that stay on screen for a whole revolution.
   const band = createStarLayer(BAND_COUNT, BAND_POINT_SIZE, () => ({
     radius: rand(BAND_RADIUS_MIN, BAND_RADIUS_MAX),
     y: rand(BAND_Y_MIN, BAND_Y_MAX),
-  }))
+  }), {
+    // On scroll these widen out of their tight orbit and scatter away.
+    scatter: () => rand(BAND_SCATTER_MIN, BAND_SCATTER_MAX),
+  })
 
   // --- Scene 1 world layer (the model), drawn over the starfield ---
   const world = createWorld(window.innerWidth / window.innerHeight)
 
-  // --- Animation: constant drift + smoothed mouse parallax ---
+  // --- Animation: orbits, smoothed mouse parallax, scroll transition ---
   let prevTime = performance.now()
+  /** Smoothed scroll position. The single driver for the whole transition. */
+  let progress = 0
+  const flyDir = new Vector3()
 
   function update(time: number, state: InputState): void {
     const delta = Math.min((time - prevTime) / 1000, 0.1) // clamp big tab-switch gaps
     prevTime = time
+
+    // One value, advanced once per frame, read by all four moving parts below
+    // — that is what keeps them simultaneous rather than sequential.
+    progress += (state.scroll - progress) * SCROLL_LERP
 
     // Mouse parallax — tilt the wide field a few degrees, lerped. The band is
     // deliberately left untilted: its full-loop visibility was solved for a
@@ -289,13 +371,18 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
     cloud.points.rotation.y += (tiltY - cloud.points.rotation.y) * TILT_LERP
     cloud.points.rotation.x += (tiltX - cloud.points.rotation.x) * TILT_LERP
 
-    // Advance both layers along their orbits. Increasing the angle with
-    // x = cos, z = sin turns them clockwise from the bird's-eye camera — the
-    // same direction the model spins.
-    advance(cloud, delta)
-    advance(band, delta)
+    // The camera moves during the transition, so the fly-past direction is
+    // re-read each frame: model -> camera, normalised.
+    flyDir.copy(world.camera.position).normalize()
 
-    world.update(delta)
+    // Advance both layers along their orbits, and apply their scroll
+    // displacement in the same pass. Increasing the angle with x = cos,
+    // z = sin turns them clockwise from the camera — the same direction the
+    // model spins.
+    advance(cloud, delta, progress, flyDir.x, flyDir.y, flyDir.z)
+    advance(band, delta, progress, flyDir.x, flyDir.y, flyDir.z)
+
+    world.update(delta, progress)
 
     renderer.clear()
     renderer.render(scene, world.camera) // same vantage -> same orbital plane

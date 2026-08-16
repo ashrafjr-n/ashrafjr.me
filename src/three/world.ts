@@ -30,6 +30,20 @@ const CAMERA_FOV = 35
 const CAMERA_POS = { x: 0, y: 9.3, z: 4.6 }
 const CAMERA_TARGET = { x: 0, y: 0.25, z: 0 } // model's own mid-height: centers it on screen
 
+// --- Scene 2 framing, reached at scroll progress 1 ---
+// Closer in (distance ~10.2 -> ~5.0) and dropped from ~63° above the horizon to
+// ~3° *below* it, so the model is viewed near-level and very slightly from
+// underneath rather than from overhead.
+const SCENE2_CAMERA_POS = { x: 0, y: 0.09, z: 4.99 }
+const SCENE2_CAMERA_TARGET = { x: 0, y: 0.35, z: 0 }
+
+/**
+ * Peak multiplier added to the model's spin during the transition. The boost
+ * follows sin(pi * progress): idle at both ends, fastest half-way through, so
+ * Scene 2 settles back to the normal idle rate on its own.
+ */
+const SPIN_BOOST = 7
+
 const MODEL_URL = '/models/space_boi.glb'
 /**
  * Target world size of the model's widest horizontal dimension. The GLB is a
@@ -73,11 +87,19 @@ function fitModel(model: Object3D): void {
   model.position.set(-center.x, -fitted.min.y, -center.z)
 }
 
+/** Linear blend, used to walk the camera from its Scene 1 rig to its Scene 2 one. */
+function mix(a: number, b: number, t: number): number {
+  return a + (b - a) * t
+}
+
 export interface WorldLayer {
   scene: Scene
   camera: PerspectiveCamera
-  /** Advance the spin. Driven by the single RAF loop; `delta` is in seconds. */
-  update(delta: number): void
+  /**
+   * Advance the spin and the camera. Driven by the single RAF loop; `delta` is
+   * in seconds and `progress` is the 0..1 Scene 1 -> Scene 2 scroll position.
+   */
+  update(delta: number, progress: number): void
   resize(aspect: number): void
 }
 
@@ -113,8 +135,25 @@ export function createWorld(aspect: number): WorldLayer {
   )
 
   // Frame-rate independent: the angle advances by elapsed time, not per frame.
-  function update(delta: number): void {
-    pivot.rotation.y += SPIN_SPEED * delta
+  function update(delta: number, progress: number): void {
+    // Spin, boosted mid-transition. sin(pi * progress) is 0 at both ends, so
+    // Scene 1 and Scene 2 both sit at the plain idle rate and the ramp in and
+    // out is smooth without any separate state or timer.
+    const boost = 1 + SPIN_BOOST * Math.sin(Math.PI * progress)
+    pivot.rotation.y += SPIN_SPEED * boost * delta
+
+    // Dolly in and drop the angle. Both the eye and the look-at point blend, so
+    // the camera arcs down and forward together instead of just pitching.
+    camera.position.set(
+      mix(CAMERA_POS.x, SCENE2_CAMERA_POS.x, progress),
+      mix(CAMERA_POS.y, SCENE2_CAMERA_POS.y, progress),
+      mix(CAMERA_POS.z, SCENE2_CAMERA_POS.z, progress),
+    )
+    camera.lookAt(
+      mix(CAMERA_TARGET.x, SCENE2_CAMERA_TARGET.x, progress),
+      mix(CAMERA_TARGET.y, SCENE2_CAMERA_TARGET.y, progress),
+      mix(CAMERA_TARGET.z, SCENE2_CAMERA_TARGET.z, progress),
+    )
   }
 
   function resize(nextAspect: number): void {
