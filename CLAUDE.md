@@ -358,9 +358,17 @@ card *is* (the `PROJECTS` list and the DOM), `three/reveal.ts` owns where it
 - **It is an arc, not a row, and each card is placed by three numbers.** A card
   `i` gets `t` running -1 (left end) to +1 (right end); from that:
   - `angle = t * (n - 1) / 2 * CARD_ARC_STEP` — spacing is angular, not an x
-    offset, and the position is `(sin a * d, CARD_Y, -cos a * d)`.
-  - `d = CARD_DIST - CARD_ARC_PULL * t²` — the **ends sit nearer the camera**
-    than the middle, so the arc curves toward the viewer rather than away.
+    offset, and the position is `(sin a * radius, y, -depth)`.
+  - `radius = CARD_DIST - CARD_ARC_PULL * t²`, and `depth = radius * cos a` —
+    the **ends sit nearer the camera** than the middle, so the arc curves toward
+    the viewer rather than away.
+  - `y = CARD_RISE * depth`. **Not a constant height.** `CARD_RISE` is a screen
+    quantity — the tangent of the angle above the view axis — so scaling `y` by
+    each card's own depth lands every card's centre on the same horizontal line
+    on screen. One shared world `y` puts them on a level plane in 3D, but the
+    projection divides by depth, so the nearer end cards rode visibly higher and
+    the row read as a smile. Only a card's *apparent height* should vary along
+    the arc; its centre should not.
   - `rotation.y = -angle * CARD_FACE`, with `CARD_FACE` at **1** — a genuine 3D
     yaw about the card's own centre, carried through the object's matrix into
     the CSS `matrix3d`. Never a 2D `skew()` or `scale()`; those give a
@@ -376,9 +384,11 @@ card *is* (the `PROJECTS` list and the DOM), `three/reveal.ts` owns where it
   the maximum. Don't lower it "to add tilt".
 - Measured on the rendered page (probe a 1px full-height strip at each of a
   card's edges and read `getBoundingClientRect().height`): the end cards draw
-  **143.7px on the near edge against 101.6px on the far one — a 1.414 ratio**,
-  the next pair 1.132, and the middle card exactly **1.000**. That gradient,
-  nothing at the centre rising to an obvious trapezoid at the ends, is the
+  about **155px on the near edge against 110px on the far one — a ~1.42
+  ratio**, the next pair ~1.14, and the middle card **1.00**. The five cards'
+  centres sit within ~12px of one line, all of that the trapezoid's own
+  asymmetry rather than a baseline offset. That gradient — nothing at the
+  centre rising to an obvious trapezoid at the ends, on one level row — is the
   thing to re-check after touching any of these constants.
 - The arc is sized against the resting frustum: horizontal half-angle is
   `atan(tan(fov / 2) * aspect)`. Three numbers pull against each other — the
