@@ -376,10 +376,16 @@ card *is* (the `PROJECTS` list and the DOM), `three/reveal.ts` owns where it
   document order and `z-index` does not apply. CSS3DRenderer re-appends an
   element only when it is not already a child of its camera element, so it will
   not shuffle them back.
-- At rest a card shows **only its name**. The stack line is collapsed
-  (`max-height: 0`) rather than removed, and the VIEW button is `opacity: 0`
-  *and* `pointer-events: none`, so neither is reachable until the card is
-  entered or focused.
+- At rest a card shows **only its name**, large (44px in the card's own box).
+  The stack line is collapsed (`max-height: 0`) rather than removed, and the
+  VIEW button is `opacity: 0` *and* `pointer-events: none`, so neither is
+  reachable until the card is entered or focused. The stack's font size is
+  picked so the longest one stays on **one line** — two lines run into the VIEW
+  button — and `.pcard`'s padding is deeper at the foot than the head for the
+  same reason.
+- The card face is a **soft off-white** (`--pcard-surface`), deliberately not
+  pure `#ffffff`, with a 2px edge: at this shrink into world units a 1px border
+  lands under a screen pixel and vanishes.
 - **VIEW is a real `<a target="_blank">`**, bottom-right, black on the white
   face. Its mark says where it lands: GitHub's Invertocat for a repo (REJOX),
   Material's `open_in_new` for the four live sites, both flattened to one white
