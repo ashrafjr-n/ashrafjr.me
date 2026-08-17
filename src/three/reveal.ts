@@ -374,6 +374,12 @@ export function createRevealScene(
     // vertical edges furthest apart in depth and gives the real trapezoid.
     object.rotation.y = -angle * CARD_FACE
     object.scale.setScalar(CARD_SCALE)
+    // The two ends stand near the frame's edges and already draw largest, so
+    // growing them about their own centre pushes them out through the window's
+    // frame. Marked here — where the arc position is known — and anchored away
+    // from that edge in style.css.
+    if (i === 0) el.dataset.arcEnd = 'left'
+    else if (i === cards.length - 1) el.dataset.arcEnd = 'right'
     // CSS3DObject stamps `pointer-events: auto` on the element, which would
     // outrank any stylesheet rule and leave the cards clickable through a
     // closed (opacity-0) window. Cleared, so style.css alone decides.

@@ -48,9 +48,11 @@
   --pcard-ink: #0b0b0d;
   --pcard-ink-dim: rgba(11, 11, 13, 0.6);
   --pcard-line: rgba(0, 0, 0, 0.3);
-  /* How much a hovered card grows. It scales about its own centre, so no card
-     ever moves its neighbours. */
-  --pcard-hover: 1.4;
+  /* How much a hovered card grows. Nothing else in the arc moves or resizes
+     with it — each card is its own object out in the world. Kept a little under
+     the old 1.4 because the arc's near end cards already draw largest, and at
+     1.4 an enlarged one swallowed its neighbour whole. */
+  --pcard-hover: 1.32;
 }
 
 /* ===========================================================
@@ -369,11 +371,27 @@ body {
 }
 
 /* Grown. The hovered card is also moved to the end of its parent from
-   ui/project-cards.ts — the cards are coplanar inside a preserve-3d container,
-   where paint order follows document order and z-index does not apply. */
+   ui/project-cards.ts, which is what puts it over every neighbour whatever its
+   depth on the arc: inside a preserve-3d container paint order follows document
+   order, and z-index does not apply. */
 .pcard:hover,
 .pcard:focus-within {
   transform: scale(var(--pcard-hover));
+}
+
+/* The arc's two end cards grow inward instead of about their centres. They sit
+   nearest the camera, so they already draw largest and reach nearest the
+   window's frame — scaled about the middle they push out through it and lose
+   their outer edge and the VIEW button. Anchoring the outer edge pins it where
+   it already is and spends all the growth on the inward side, which is where
+   the room is. The three inner cards keep the centred 50% 50% above. Marked
+   from three/reveal.ts, which is what knows the arc order. */
+.pcard-slot[data-arc-end="left"] .pcard {
+  transform-origin: 0% 50%;
+}
+
+.pcard-slot[data-arc-end="right"] .pcard {
+  transform-origin: 100% 50%;
 }
 
 /* The one thing a resting card shows, so it carries the card. Sized against
