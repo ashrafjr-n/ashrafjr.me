@@ -350,20 +350,36 @@ card *is* (the `PROJECTS` list and the DOM), `three/reveal.ts` owns where it
     offset, and the position is `(sin a * d, CARD_Y, -cos a * d)`.
   - `d = CARD_DIST - CARD_ARC_PULL * t²` — the **ends sit nearer the camera**
     than the middle, so the arc curves toward the viewer rather than away.
-  - `rotation.y = -angle * CARD_FACE` — `-angle` alone would aim a card straight
-    at the viewpoint and flatten it; `CARD_FACE` (0.5) turns it only half way,
-    leaving every card a real angle to the view with one side edge nearer and
-    larger. Don't raise it to 1 "to face the camera"; the tilt is the point.
-- **`CARD_ARC_PULL` compounds with the projection and must stay modest.** A
-  perspective projection onto a flat screen already stretches whatever sits
-  off-axis — at these angles the end cards draw ~1.5x the middle one's width
-  from that alone, before any pull. 4.2 was tried and read as two different
-  sizes of card rather than one arc; 2.6 is the value.
+  - `rotation.y = -angle * CARD_FACE`, with `CARD_FACE` at **1** — a genuine 3D
+    yaw about the card's own centre, carried through the object's matrix into
+    the CSS `matrix3d`. Never a 2D `skew()` or `scale()`; those give a
+    parallelogram or a plain rectangle, not a trapezoid.
+- **Facing the camera is what foreshortens a card, not what flattens it**, and
+  believing the opposite is what once made the arc read as five rotated
+  rectangles. The projection is onto a *plane*, so a card's on-screen size comes
+  from its depth (its `-z`), not its distance from the camera. Turning a card to
+  face the viewpoint equalises its two edges' *distances* while pushing them to
+  very different *depths*: the spread is `w * sin(angle * CARD_FACE)`. So
+  `CARD_FACE` 0 lays the card parallel to the image plane, both edges share one
+  depth, and it draws as a perfect rectangle however far off-axis it sits; 1 is
+  the maximum. Don't lower it "to add tilt".
+- Measured on the rendered page (probe a 1px full-height strip at each of a
+  card's edges and read `getBoundingClientRect().height`): the end cards draw
+  **143.7px on the near edge against 101.6px on the far one — a 1.414 ratio**,
+  the next pair 1.132, and the middle card exactly **1.000**. That gradient,
+  nothing at the centre rising to an obvious trapezoid at the ends, is the
+  thing to re-check after touching any of these constants.
 - The arc is sized against the resting frustum: horizontal half-angle is
-  `atan(tan(fov / 2) * aspect)`, ~47° at 16:9, and the end cards reach ~45°.
-  Widening a card or spreading the arc further runs into either that or the
-  neighbouring card, which clear each other by only a couple of degrees —
-  check both before retuning `CARD_SCALE`, `CARD_ARC_STEP` or `CARD_ARC_PULL`.
+  `atan(tan(fov / 2) * aspect)`. Three numbers pull against each other — the
+  edge ratio, the ~28px gap between neighbours, and the 1.371 outer reach
+  against a 1.616 frame half-width at 16:9. A stronger trapezoid wants a wider
+  arc and bigger cards, and both eat the gap and the margin. Re-solve all three
+  before retuning `CARD_SCALE`, `CARD_ARC_STEP` or `CARD_ARC_PULL`. **Known
+  limitation: below about 16:9 the end cards clip.**
+- `CARD_ARC_PULL` sharpens the foreshortening but does not create it — the
+  arc's *angle* does most of that work, and even at 0 the end cards still run a
+  ~1.33 edge ratio. Keep it modest: 3.5 drew the end cards 2.6x the middle
+  one's width, which reads as two sizes of card rather than one arc.
 - `CARD_Y` is **above** eye level (+1.2), which is what lifts the arc into the
   upper half of the frame. Because y is constant while the radius is not, the
   nearer end cards also sit visibly higher on screen than the middle one — that
