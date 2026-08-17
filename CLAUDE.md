@@ -386,20 +386,25 @@ where it *stands*.
   236x117 for the inner pair, 180x98 in the middle. The tiers feed the spacing
   solve too, so changing one re-spaces the row by itself; what they do not
   adjust for is the row's reach (see the frame note below).
-- **The cards hang from their feet, not their centres.**
-  `CARD_FOOT = CARD_RISE * CARD_DIST - (CARD_PX_H / 2) * CARD_SCALE` is one
-  world height the whole row stands on, and each card's `y` is that plus its own
-  half-height. Anchoring the middle of each card instead would spread the row's
-  bottom edge as far as its top now that the five are different sizes; a shared
-  floor keeps a straight line under all of them and spends the whole difference
-  upward, so no card ever sits *lower* than its neighbour — some are simply
-  taller. `CARD_RISE` (0.107) now only positions that floor, and it lands just
-  under the view axis where the projection barely moves with depth, which is why
-  the **bottom edge holds to within ~2px** even though each card's two corners
-  sit at different depths.
-  - The tops necessarily do not line up — they run 260 / 305 / 334px at 1536x849
-    — and that is the size hierarchy being visible, not a regression. Do not
-    "fix" it by levelling the tops; that would undo the tiers.
+- **The cards are centred on one line, not stood on one.** Every card's `y` is
+  `CARD_RISE * CARD_DIST` — one height for all five — and since they also share
+  one depth, all five centres project to **exactly the same screen y** (measured
+  spread 0.000px at 370.38). The size difference from the tiers therefore splits
+  evenly above and below that line rather than piling up in one direction.
+  - They were briefly hung from their feet instead, off a shared
+    `CARD_FOOT` floor, which kept the row's bottom edge dead straight and sent
+    the whole size difference upward. Centring replaced it deliberately; don't
+    reintroduce the floor.
+  - Neither the tops nor the bottoms line up, and they cannot: at 1536x849 the
+    cards run 271→445 at the ends, 302→429 for the inner pair and 321→419 in the
+    middle. That is the hierarchy being visible. **The check is the centre, not
+    the edges** — probe a marker at `left:50%; top:50%` inside each `.pcard` and
+    the five should agree to the pixel.
+  - A card's *bounding box* is still not centred on the line — the trapezoid
+    magnifies its near edge, and the row sits above the view axis, so that edge
+    gains more above than below (the end cards reach ~99px up against ~75px
+    down). The card's centre is on the line; the bbox midpoint drifts. That is
+    the projection, not a placement bug.
 - **Spacing is solved against the projection, not set as an offset.**
   `CARD_GAP_PX` (45) is the gap between neighbours *as it lands on screen*, in
   the card's own authoring pixels, and `solveRowCentres()` walks outward from
@@ -427,10 +432,10 @@ where it *stands*.
   the card's four corners and read their `getBoundingClientRect()`): the end
   cards draw about **173px on the near edge against 119px on the far one — a
   ~1.45 ratio**, the inner pair 127/107 for ~1.19, and the middle card **1.00**.
-  Gaps run an even 26–28px and the five bottoms sit within **1px** of one line.
-  Two things to re-check together after touching any of these constants: the
-  trapezoid gradient (nothing at the centre, obvious at the ends) and the
-  straight line under all five.
+  Gaps run an even 26–28px and the five centres agree to 0.000px. Two things to
+  re-check together after touching any of these constants: the trapezoid
+  gradient (nothing at the centre, obvious at the ends) and the shared centre
+  line.
 - **The row deliberately overruns the frame**, and nothing tries to fit it. The
   window's visible half-width is `tan(fov / 2) * aspect` less the inset, about
   `0.818 * aspect` in tangent units, against the row's fixed reach — so at 16:10
