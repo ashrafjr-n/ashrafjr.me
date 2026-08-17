@@ -166,13 +166,18 @@ const CARD_SCALE = 0.015
  * The row is on one plane precisely so this is free to be an authored
  * hierarchy: with depth equal for all five, nothing in the projection is
  * setting their sizes and this is the whole of it. On screen it works out to
- * about 100px tall in the middle, 119px for the inner pair and 149px at the
- * ends at 1536x849 — each step ~1.2x the last, which is the point.
+ * about 100px tall in the middle, 119px for the inner pair and 165px at the
+ * ends at 1536x849.
  *
  * These feed the spacing solve as well, so changing them re-spaces the row on
- * its own; what they do *not* adjust for is the reach (see `CARD_GAP_PX`).
+ * its own — and note the solve fixes each card's *inner* edge against its
+ * neighbour, so growing the outermost tier spends the growth outward and leaves
+ * the other three exactly where they were. What it does not adjust for is the
+ * reach (see `CARD_GAP_PX`). A bigger card also carries a stronger trapezoid at
+ * the same yaw, since its two edges spread further apart in depth: the ends run
+ * ~1.53 at 1.26 against ~1.47 at the 1.15 they were.
  */
-const CARD_SIZE_TIERS = [0.8, 0.95, 1.15]
+const CARD_SIZE_TIERS = [0.8, 0.95, 1.26]
 /** Depth of the plane every card stands on. */
 const CARD_DIST = 14
 /**
@@ -228,6 +233,19 @@ const CARD_FACE = 1
  * a placement bug.
  */
 const CARD_RISE = 0.107
+/**
+ * How far each rank sits **below** that line, in the same screen (tangent)
+ * terms — index 0 is the middle card and the list runs outward, matching
+ * `CARD_SIZE_TIERS`. The two ends hold the line at 0 and the inner three are
+ * let down ~12px at 1536x849.
+ *
+ * This is the one thing that is deliberately *not* on the shared centre: the
+ * row reads better with the smaller cards sitting a little lower, which also
+ * brings the five bottom edges closer together (455 / 443 / 432 rather than
+ * 446 / 430 / 420) without going back to hanging the whole row off a floor.
+ * Keep the outermost entry at 0 — it is what the rest are measured against.
+ */
+const CARD_DROP_TIERS = [0.024, 0.024, 0]
 
 // --- Look-around ---
 /**
@@ -309,6 +327,12 @@ const CARD_HALF_PX = CARD_PX_W / 2
 /** How big the card `rank` places out from the middle draws. */
 function scaleForRank(rank: number): number {
   return CARD_SCALE * CARD_SIZE_TIERS[Math.min(rank, CARD_SIZE_TIERS.length - 1)]
+}
+
+/** The world height that rank's centre sits at, off the row's centre line. */
+function heightForRank(rank: number): number {
+  const drop = CARD_DROP_TIERS[Math.min(rank, CARD_DROP_TIERS.length - 1)]
+  return (CARD_RISE - drop) * CARD_DIST
 }
 
 /**
@@ -477,10 +501,11 @@ export function createRevealScene(
     const yaw = Math.atan(x / CARD_DIST) * CARD_FACE
 
     const object = new CSS3DObject(el)
-    // One height for all five, so with one depth under them every card's centre
-    // projects to the same line and a bigger card reaches equally far above and
-    // below it.
-    object.position.set(x, CARD_RISE * CARD_DIST, -CARD_DIST)
+    // The ends hold the row's centre line and the inner three are let down off
+    // it; sharing one depth is what makes those heights compare directly on
+    // screen, and a bigger card still reaches equally far above and below its
+    // own centre.
+    object.position.set(x, heightForRank(rank), -CARD_DIST)
     // A genuine 3D yaw about the card's own centre, written into the object's
     // matrix and carried into the CSS matrix3d — never a 2D skew() or scale().
     // `-yaw` aims the card at the camera, which is what spreads its two
