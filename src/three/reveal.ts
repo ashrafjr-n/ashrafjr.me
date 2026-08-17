@@ -302,18 +302,27 @@ export function createRevealScene(
     })
   }
 
-  // The cards: one straight row, centred ahead of the resting view, all at the
-  // same distance so they read as one plane standing in the space. Each card's
-  // CSS box is shrunk by CARD_SCALE, which is what turns its pixels into world
-  // units; the row's pitch is the card's own width plus the gap.
-  const cardW = CARD_PX_W * CARD_SCALE
-  const step = cardW + CARD_GAP
-  const firstX = -((cards.length - 1) / 2) * step
+  // The cards: an arc around the camera, centred on the resting view. Each one
+  // gets its own angle off straight ahead and its own radius — the ends sit
+  // nearer than the middle — so the row curves toward the viewer rather than
+  // lying flat across it. Each card's CSS box is shrunk by CARD_SCALE, which is
+  // what turns its pixels into world units.
+  const half = (cards.length - 1) / 2
   cards.forEach((el, i) => {
     el.style.width = `${CARD_PX_W}px`
     el.style.height = `${CARD_PX_H}px`
+
+    // -1 at the left end, 0 in the middle, +1 at the right end.
+    const t = (i - half) / half
+    const angle = t * half * CARD_ARC_STEP
+    const dist = CARD_DIST - CARD_ARC_PULL * t * t
+
     const object = new CSS3DObject(el)
-    object.position.set(firstX + i * step, CARD_Y, -CARD_DIST)
+    object.position.set(Math.sin(angle) * dist, CARD_Y, -Math.cos(angle) * dist)
+    // A card facing the camera dead-on would need `-angle`; turning it only
+    // CARD_FACE of the way leaves the rest as a real angle to the view, which
+    // is what puts one side edge nearer (and larger) than the other.
+    object.rotation.y = -angle * CARD_FACE
     object.scale.setScalar(CARD_SCALE)
     // CSS3DObject stamps `pointer-events: auto` on the element, which would
     // outrank any stylesheet rule and leave the cards clickable through a
