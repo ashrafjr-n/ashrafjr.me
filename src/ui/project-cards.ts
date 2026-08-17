@@ -80,12 +80,11 @@ const PROJECTS: Project[] = [
 /**
  * One card, as the slot element the 3D layer will drive.
  *
- * The hovered card is moved to the end of its parent, which is the only thing
- * that puts it over its neighbours: the cards are coplanar inside a
- * `preserve-3d` container, where paint order — and with it hit testing —
- * follows document order, not `z-index`. CSS3DRenderer re-appends an element
- * only when it is not already a child of its camera element, so reordering
- * behind its back is safe and it will not shuffle them back.
+ * Nothing here decides what paints over what. Inside the row's `preserve-3d`
+ * container the browser paints by depth, so neither reordering the element nor
+ * `z-index` can lift a hovered card out from behind its neighbour — both were
+ * tried and measured. `three/reveal.ts` moves the hovered card into a second
+ * layer instead, which is a fact about where it stands rather than what it is.
  */
 function buildProjectCard({ name, stack, href, kind }: Project): HTMLDivElement {
   const slot = document.createElement('div')
@@ -112,28 +111,6 @@ function buildProjectCard({ name, stack, href, kind }: Project): HTMLDivElement 
 
   card.append(title, line, view)
   slot.append(card)
-
-  /**
-   * Put this card last among its siblings, which is what paints it over them.
-   *
-   * The guard is load-bearing, not an optimisation. Re-appending detaches and
-   * re-inserts the whole card, and `focusin` fires on mousedown when the VIEW
-   * link takes focus — so an unguarded move happened *between* mousedown and
-   * mouseup and Chrome then fired no `click` at all. The link was reachable and
-   * nothing cancelled it; the click simply never existed, which is why VIEW did
-   * nothing. By the time a mouse reaches the link the card has already been
-   * raised by `pointerenter`, so this now no-ops during a click.
-   */
-  function raise(): void {
-    const parent = slot.parentElement
-    if (parent && parent.lastElementChild !== slot) parent.append(slot)
-  }
-
-  // Raise on the way in, so the growing card is over its neighbours from the
-  // first frame of the scale rather than sliding under one of them.
-  slot.addEventListener('pointerenter', raise)
-  // Keyboard focus lands on the VIEW link, which the same reveal uncovers.
-  slot.addEventListener('focusin', raise)
 
   /**
    * Taking the link hands the page to another tab, so the card has no business

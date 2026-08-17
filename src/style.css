@@ -329,6 +329,14 @@ body {
    canvas, and carries no z-index: document order alone puts it over the stars
    and under the close corner. Keep that order in ui/reveal-window.ts.
    =========================================================== */
+/* Both cards layers share this box: the row, and .reveal-cards-raised holding
+   whichever single card is hovered. Same box and same camera, so a card moved
+   between them does not shift by a pixel — the raised one is a second 3D
+   rendering context, which is the only way to paint it over the row. Inside the
+   row's own context the browser sorts by depth, and a turned card's inner edge
+   sits several units behind the card beside it, so neither document order nor
+   z-index could lift it; both were measured. Document order alone stacks the
+   two, so keep raised after the row in ui/reveal-window.ts. */
 .reveal-cards {
   position: absolute;
   left: 50%;

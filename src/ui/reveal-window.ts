@@ -66,6 +66,7 @@ function buildElements(): {
   root: HTMLDivElement
   canvas: HTMLCanvasElement
   cards: HTMLDivElement
+  raised: HTMLDivElement
   close: HTMLButtonElement
 } {
   const root = document.createElement('div')
@@ -86,14 +87,23 @@ function buildElements(): {
   const cards = document.createElement('div')
   cards.className = 'reveal-cards'
 
+  // The hovered card is drawn here instead of in the row, and this sits after
+  // the row for exactly one reason: the row is a single 3D rendering context,
+  // where the browser paints by depth and neither document order nor z-index
+  // can lift a card out from behind its neighbour. A second layer is a second
+  // context, which simply paints later. See three/reveal.ts.
+  const raised = document.createElement('div')
+  raised.className = 'reveal-cards reveal-cards-raised'
+
   const close = document.createElement('button')
   close.className = 'reveal-close'
   close.type = 'button'
   close.setAttribute('aria-label', 'Close project preview')
   close.textContent = '×'
 
-  root.append(canvas, cards, close)
-  return { root, canvas, cards, close }
+  // Document order is the stacking: stars, the row, the raised card, the ×.
+  root.append(canvas, cards, raised, close)
+  return { root, canvas, cards, raised, close }
 }
 
 /**
@@ -103,7 +113,7 @@ function buildElements(): {
  * already for that frame to reach the screen.
  */
 export function createRevealWindow(parent: HTMLElement): RevealWindow {
-  const { root, canvas, cards, close } = buildElements()
+  const { root, canvas, cards, raised, close } = buildElements()
   parent.append(root)
 
   // The window's own 3D layer: its own renderer, scene and camera, sharing
@@ -111,7 +121,7 @@ export function createRevealWindow(parent: HTMLElement): RevealWindow {
   // so reopening allocates nothing. The cards are built here and placed in the
   // world by the scene — this module owns what they are, the scene owns where
   // they stand.
-  const scene = createRevealScene(canvas, cards, buildProjectCards())
+  const scene = createRevealScene(canvas, cards, raised, buildProjectCards())
 
   let isOpen = false
   /** The word the window is currently out of — where it shrinks back to. */

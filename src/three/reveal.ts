@@ -416,6 +416,7 @@ function solveRowCentres(count: number): number[] {
 export function createRevealScene(
   canvas: HTMLCanvasElement,
   cssLayer: HTMLElement,
+  raisedLayer: HTMLElement,
   cards: HTMLElement[],
 ): RevealScene {
   // Opaque: this canvas covers the whole viewport when the window is open and
@@ -431,10 +432,31 @@ export function createRevealScene(
   const cssRenderer = new CSS3DRenderer({ element: cssLayer })
   cssRenderer.setSize(window.innerWidth, window.innerHeight)
 
+  /**
+   * A second cards layer, holding only the one card that is currently raised.
+   *
+   * **This is the whole of the stacking rule, and it has to be a separate layer.**
+   * CSS3DRenderer puts every card in one `preserve-3d` element, which makes them
+   * a 3D rendering context — and there the browser paints by *depth*, not by
+   * document order and not by `z-index`. Both were measured: reordering the
+   * hovered card last and giving it `z-index: 10` each left it behind its
+   * neighbour, because a turned card's inner edge lies several units further
+   * back than the card beside it. `translateZ` does win, but only at a distance
+   * that draws the card 60% larger.
+   *
+   * A layer of its own is a 3D context of its own, so it cannot be sorted
+   * against the row at all — it simply paints after it, and the card keeps its
+   * exact geometry because this renders off the same camera.
+   */
+  const raisedRenderer = new CSS3DRenderer({ element: raisedLayer })
+  raisedRenderer.setSize(window.innerWidth, window.innerHeight)
+
   const scene = new Scene()
   // A scene of its own: CSS3DObjects carry no geometry and have no business
   // being walked by the WebGL renderer.
   const cssScene = new Scene()
+  /** Holds at most one card — whichever was entered last. */
+  const raisedScene = new Scene()
   const camera = new PerspectiveCamera(
     CAMERA_FOV,
     window.innerWidth / window.innerHeight,
@@ -498,6 +520,7 @@ export function createRevealScene(
   // and every card is centred on CARD_RISE so the row shares one centre line.
   const centres = solveRowCentres(cards.length)
   const middle = (cards.length - 1) / 2
+  const objects: CSS3DObject[] = []
   cards.forEach((el, i) => {
     el.style.width = `${CARD_PX_W}px`
     el.style.height = `${CARD_PX_H}px`
@@ -531,6 +554,14 @@ export function createRevealScene(
     // closed (opacity-0) window. Cleared, so style.css alone decides.
     el.style.pointerEvents = ''
     cssScene.add(object)
+    objects.push(object)
+
+    // Raising is this scene's business, not the card's: which layer a card is
+    // drawn in is a fact about where it stands, and only this module has the
+    // objects to move. `pointerenter` gets there before the pointer can reach
+    // the VIEW link; `focusin` is the keyboard's way in.
+    el.addEventListener('pointerenter', () => raise(object))
+    el.addEventListener('focusin', () => raise(object))
   })
 
   let yaw = 0
@@ -538,10 +569,38 @@ export function createRevealScene(
   let yawVel = 0
   let pitchVel = 0
   let active = false
+  /** The one card currently drawn in the layer above the row, if any. */
+  let raised: CSS3DObject | null = null
+
+  /**
+   * Move a card into the layer that paints above the row.
+   *
+   * The early return is load-bearing and always has been: moving an object
+   * between scenes detaches and re-inserts its element on the next render, and
+   * `focusin` fires on *mousedown* when the VIEW link takes focus. Unguarded,
+   * that moved the anchor between mousedown and mouseup and Chrome then fired
+   * no `click` at all. A mouse has already raised the card on `pointerenter`
+   * long before it reaches the link, so this no-ops exactly when it matters.
+   *
+   * Only one card is ever up there, so the raised layer never has to sort two
+   * cards against each other — the previous one goes back to the row first.
+   */
+  function raise(object: CSS3DObject): void {
+    if (raised === object) return
+    if (raised) cssScene.add(raised)
+    raisedScene.add(object)
+    raised = object
+    // Render-on-demand: without this the move would not reach the DOM until
+    // something else happened to redraw.
+    render()
+  }
 
   function render(): void {
     renderer.render(scene, camera)
     cssRenderer.render(cssScene, camera)
+    // After the row, and off the same camera — so it lands in exactly the place
+    // it would have had in the row, just painted over it.
+    raisedRenderer.render(raisedScene, camera)
   }
 
   function update(state: InputState): void {
@@ -581,6 +640,7 @@ export function createRevealScene(
     camera.updateProjectionMatrix()
     renderer.setSize(window.innerWidth, window.innerHeight, false)
     cssRenderer.setSize(window.innerWidth, window.innerHeight)
+    raisedRenderer.setSize(window.innerWidth, window.innerHeight)
     render()
   }
 
