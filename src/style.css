@@ -354,7 +354,7 @@ body {
   justify-content: center;
   /* Deeper at the foot than the head: the centred name and stack sit clear of
      the VIEW button in the bottom corner rather than running under it. */
-  padding: 22px 22px 40px;
+  padding: 24px 24px 44px;
   background: var(--pcard-surface);
   /* 2px, not 1: the card's CSS box is shrunk hard into world units, so a
      hairline here lands under a screen pixel and disappears. */
@@ -379,7 +379,7 @@ body {
 /* The one thing a resting card shows, so it carries the card. Sized against
    the 420px box and the shrink into the world, not against the screen. */
 .pcard-name {
-  font-size: 44px;
+  font-size: 52px;
   font-weight: 700;
   letter-spacing: 0.04em;
   line-height: 1.2;
@@ -394,7 +394,7 @@ body {
   opacity: 0;
   /* Sized to keep the longest stack on one line inside the card's 420px box —
      two lines run into the VIEW button in the corner. */
-  font-size: 17px;
+  font-size: 20px;
   line-height: 1.45;
   color: var(--pcard-ink-dim);
   transition: max-height 340ms var(--reveal-ease),
@@ -417,10 +417,10 @@ body {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 9px 13px;
+  padding: 9px 14px;
   background: #000000;
   color: #ffffff;
-  font-size: 17px;
+  font-size: 19px;
   font-weight: 700;
   letter-spacing: 0.14em;
   line-height: 1;
@@ -454,8 +454,8 @@ body {
    both flattened to one white to match the site's other logos. */
 .pcard-view-icon {
   display: block;
-  width: 19px;
-  height: 19px;
+  width: 21px;
+  height: 21px;
 }
 
 /* ===========================================================
