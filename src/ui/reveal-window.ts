@@ -17,6 +17,7 @@
  */
 import type { InputState } from '../lib/state'
 import { createRevealScene } from '../three/reveal'
+import { buildProjectCards } from './project-cards'
 
 /**
  * How long after opening the look-around starts, in ms. Matches
@@ -64,6 +65,7 @@ function boxOf(el: HTMLElement): Box {
 function buildElements(): {
   root: HTMLDivElement
   canvas: HTMLCanvasElement
+  cards: HTMLDivElement
   close: HTMLButtonElement
 } {
   const root = document.createElement('div')
@@ -78,14 +80,20 @@ function buildElements(): {
   const canvas = document.createElement('canvas')
   canvas.className = 'reveal-canvas'
 
+  // The project cards' layer: same size and placement as the canvas, driven by
+  // the scene's CSS3D renderer off the same camera. It goes between the canvas
+  // and the close corner so the cards sit over the stars and under the ×.
+  const cards = document.createElement('div')
+  cards.className = 'reveal-cards'
+
   const close = document.createElement('button')
   close.className = 'reveal-close'
   close.type = 'button'
   close.setAttribute('aria-label', 'Close project preview')
   close.textContent = '×'
 
-  root.append(canvas, close)
-  return { root, canvas, close }
+  root.append(canvas, cards, close)
+  return { root, canvas, cards, close }
 }
 
 /**
@@ -95,13 +103,15 @@ function buildElements(): {
  * already for that frame to reach the screen.
  */
 export function createRevealWindow(parent: HTMLElement): RevealWindow {
-  const { root, canvas, close } = buildElements()
+  const { root, canvas, cards, close } = buildElements()
   parent.append(root)
 
   // The window's own 3D layer: its own renderer, scene and camera, sharing
   // nothing with the Scene 1 starfield. Built once and reused for every open,
-  // so reopening allocates nothing.
-  const scene = createRevealScene(canvas)
+  // so reopening allocates nothing. The cards are built here and placed in the
+  // world by the scene — this module owns what they are, the scene owns where
+  // they stand.
+  const scene = createRevealScene(canvas, cards, buildProjectCards())
 
   let isOpen = false
   /** The word the window is currently out of — where it shrinks back to. */
