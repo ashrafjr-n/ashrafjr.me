@@ -387,13 +387,16 @@ body {
   transform: scale(var(--pcard-hover));
 }
 
-/* The arc's two end cards grow inward instead of about their centres. They sit
-   nearest the camera, so they already draw largest and reach nearest the
-   window's frame — scaled about the middle they push out through it and lose
-   their outer edge and the VIEW button. Anchoring the outer edge pins it where
-   it already is and spends all the growth on the inward side, which is where
-   the room is. The three inner cards keep the centred 50% 50% above. Marked
-   from three/reveal.ts, which is what knows the arc order. */
+/* The row's two end cards grow inward instead of about their centres. They are
+   the most turned, so they project widest, and they already run past the
+   window's frame — scaled about the middle they would carry their outer edge,
+   and with it the right-hand card's VIEW button, further out of sight.
+   Anchoring the outer edge pins it where it already is and spends all the
+   growth on the inward side, which is where the room is. This is about keeping
+   the button reachable, not about fitting the cards to the frame — the row is
+   sized to overrun it on purpose. The three inner cards keep the centred
+   50% 50% above. Marked from three/reveal.ts, which is what knows the row
+   order. */
 .pcard-slot[data-arc-end="left"] .pcard {
   transform-origin: 0% 50%;
 }
