@@ -8,6 +8,11 @@
  * distances, so the parallax between them falls out of the projection instead
  * of being authored per layer.
  *
+ * The five project cards are part of that same space. They are DOM, drawn by a
+ * CSS3DRenderer stacked over this canvas and given the same camera, so they
+ * turn with the stars and planets rather than floating over them — real
+ * rectangles standing out in the scene, not an overlay.
+ *
  * It is deliberately its own renderer, scene and camera, separate from the
  * site's Scene 1 starfield (`scene.ts` / `world.ts`) — the two share nothing
  * but the technique. There is still only one RAF loop in the app: `main.ts`
@@ -275,6 +280,26 @@ export function createRevealScene(
       render() // the frame on screen predates this texture
     })
   }
+
+  // The cards: one straight row, centred ahead of the resting view, all at the
+  // same distance so they read as one plane standing in the space. Each card's
+  // CSS box is shrunk by CARD_SCALE, which is what turns its pixels into world
+  // units; the row's pitch is the card's own width plus the gap.
+  const cardW = CARD_PX_W * CARD_SCALE
+  const step = cardW + CARD_GAP
+  const firstX = -((cards.length - 1) / 2) * step
+  cards.forEach((el, i) => {
+    el.style.width = `${CARD_PX_W}px`
+    el.style.height = `${CARD_PX_H}px`
+    const object = new CSS3DObject(el)
+    object.position.set(firstX + i * step, CARD_Y, -CARD_DIST)
+    object.scale.setScalar(CARD_SCALE)
+    // CSS3DObject stamps `pointer-events: auto` on the element, which would
+    // outrank any stylesheet rule and leave the cards clickable through a
+    // closed (opacity-0) window. Cleared, so style.css alone decides.
+    el.style.pointerEvents = ''
+    cssScene.add(object)
+  })
 
   let yaw = 0
   let pitch = 0
