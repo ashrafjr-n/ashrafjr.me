@@ -319,12 +319,13 @@ other module touches it. It shares **nothing** with the Scene 1 starfield in
   while the window is shut (and nothing is visible then either).
 
 ### Project cards (`src/ui/project-cards.ts` + the CSS3D layer)
-Five cards — REJOX, TTU Clinic, Datassert, AGB Media, Naelj — in one straight
-horizontal row **inside** the reveal window's space. They are DOM, drawn by a
-`CSS3DRenderer` stacked over the WebGL canvas and given the **same camera**, so
-they yaw and pitch with the stars and planets instead of sitting on the screen.
-Two modules, split by question: `ui/project-cards.ts` owns what a card *is*
-(the `PROJECTS` list and the DOM), `three/reveal.ts` owns where it *stands*.
+Five cards — REJOX, TTU Clinic, Datassert, AGB Media, Naelj — standing on an
+**arc around the camera** inside the reveal window's space. They are DOM, drawn
+by a `CSS3DRenderer` stacked over the WebGL canvas and given the **same
+camera**, so they yaw and pitch with the stars and planets instead of sitting on
+the screen. Two modules, split by question: `ui/project-cards.ts` owns what a
+card *is* (the `PROJECTS` list and the DOM), `three/reveal.ts` owns where it
+*stands*.
 
 - **Both renderers share one camera and one `render()`.** The CSS3D pass is
   called from the same on-demand `render()` as the WebGL pass in `reveal.ts`;
@@ -339,12 +340,34 @@ Two modules, split by question: `ui/project-cards.ts` owns what a card *is*
 - **Two elements per card, and that is load-bearing.** CSS3DRenderer writes its
   own `transform` onto the element it is given, so `.pcard-slot` can never
   carry one of ours; the inner `.pcard` is what scales on hover.
-- The card row is authored in **CSS pixels and converted** — `CARD_SCALE` in
-  `reveal.ts` turns the `CARD_PX_W`/`CARD_PX_H` box into world units, because
-  CSS3DRenderer maps one CSS pixel to one world unit. Change the CSS box and
-  that constant together or the cards resize on screen. `CARD_DIST` / `CARD_GAP`
-  / `CARD_Y` place the row; at the current values it spans ~15.4 units either
-  side of centre and clears the frame on anything wider than about 4:3.
+- The cards are authored in **CSS pixels and converted** — `CARD_SCALE` in
+  `reveal.ts` turns the `CARD_PX_W`/`CARD_PX_H` box (420x200, a wide rectangle)
+  into world units, because CSS3DRenderer maps one CSS pixel to one world unit.
+  Change the CSS box and that constant together or the cards resize on screen.
+- **It is an arc, not a row, and each card is placed by three numbers.** A card
+  `i` gets `t` running -1 (left end) to +1 (right end); from that:
+  - `angle = t * (n - 1) / 2 * CARD_ARC_STEP` — spacing is angular, not an x
+    offset, and the position is `(sin a * d, CARD_Y, -cos a * d)`.
+  - `d = CARD_DIST - CARD_ARC_PULL * t²` — the **ends sit nearer the camera**
+    than the middle, so the arc curves toward the viewer rather than away.
+  - `rotation.y = -angle * CARD_FACE` — `-angle` alone would aim a card straight
+    at the viewpoint and flatten it; `CARD_FACE` (0.5) turns it only half way,
+    leaving every card a real angle to the view with one side edge nearer and
+    larger. Don't raise it to 1 "to face the camera"; the tilt is the point.
+- **`CARD_ARC_PULL` compounds with the projection and must stay modest.** A
+  perspective projection onto a flat screen already stretches whatever sits
+  off-axis — at these angles the end cards draw ~1.5x the middle one's width
+  from that alone, before any pull. 4.2 was tried and read as two different
+  sizes of card rather than one arc; 2.6 is the value.
+- The arc is sized against the resting frustum: horizontal half-angle is
+  `atan(tan(fov / 2) * aspect)`, ~47° at 16:9, and the end cards reach ~45°.
+  Widening a card or spreading the arc further runs into either that or the
+  neighbouring card, which clear each other by only a couple of degrees —
+  check both before retuning `CARD_SCALE`, `CARD_ARC_STEP` or `CARD_ARC_PULL`.
+- `CARD_Y` is **above** eye level (+1.2), which is what lifts the arc into the
+  upper half of the frame. Because y is constant while the radius is not, the
+  nearer end cards also sit visibly higher on screen than the middle one — that
+  smile is correct for a level arc, not a bug.
 - **Hover grows the card only.** `transform: scale(var(--pcard-hover))` about
   its own centre — each card is its own object out in the row, so no neighbour
   moves or resizes. The hovered card is also **moved to the end of its parent**
