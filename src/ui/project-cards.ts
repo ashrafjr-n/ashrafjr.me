@@ -135,6 +135,27 @@ function buildProjectCard({ name, stack, href, kind }: Project): HTMLDivElement 
   // Keyboard focus lands on the VIEW link, which the same reveal uncovers.
   slot.addEventListener('focusin', raise)
 
+  /**
+   * Taking the link hands the page to another tab, so the card has no business
+   * standing open behind it — but neither state that holds it open lapses on
+   * its own. The cursor is still inside the card, so `:hover` stays true, and
+   * the link keeps focus after the click, so `:focus-within` stays true too.
+   * Dropping the focus and marking the card is what puts it back at rest.
+   *
+   * Keyboard activation is left alone (a click synthesised from Enter or Space
+   * reports `detail` 0). There the focus ring is still on VIEW, and closing the
+   * card would hide the very element holding it.
+   */
+  view.addEventListener('click', (event) => {
+    if (event.detail === 0) return
+    view.blur()
+    card.classList.add('is-dismissed')
+  })
+  // Leaving and coming back is a fresh hover, so the card opens out again.
+  slot.addEventListener('pointerleave', () => {
+    card.classList.remove('is-dismissed')
+  })
+
   return slot
 }
 

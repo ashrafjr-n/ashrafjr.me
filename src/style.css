@@ -402,6 +402,33 @@ body {
   transform-origin: 100% 50%;
 }
 
+/* Put back to rest the moment VIEW is taken, however the pointer is left
+   sitting. Set from ui/project-cards.ts on a real click, cleared when the
+   pointer leaves the card — neither :hover nor :focus-within lapses by itself
+   once the link has been followed into another tab, so this has to outrank
+   both. It carries no delay of its own: the staggered entry lives on the
+   :hover rules, and the three parts should close together. */
+.pcard.is-dismissed,
+.pcard.is-dismissed:hover,
+.pcard.is-dismissed:focus-within {
+  transform: none;
+}
+
+.pcard.is-dismissed .pcard-stack {
+  max-height: 0;
+  margin-top: 0;
+  opacity: 0;
+  transform: translateY(-6px);
+  transition-delay: 0s;
+}
+
+.pcard.is-dismissed .pcard-view {
+  opacity: 0;
+  transform: translateY(8px);
+  pointer-events: none;
+  transition-delay: 0s;
+}
+
 /* The one thing a resting card shows, so it carries the card. Sized against
    the 420x230 box and the shrink into the world, not against the screen. At
    58px the longest name still clears the box's inner width. */
