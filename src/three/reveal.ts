@@ -31,6 +31,10 @@ import {
   TextureLoader,
   WebGLRenderer,
 } from 'three'
+import {
+  CSS3DObject,
+  CSS3DRenderer,
+} from 'three/examples/jsm/renderers/CSS3DRenderer.js'
 import { rand } from '../lib/math'
 import type { InputState } from '../lib/state'
 import { createCircleTexture } from './sprite'
@@ -87,6 +91,32 @@ const PLANETS: PlanetSpec[] = [
   { src: 'two.png', dist: 140, size: 8.5, yaw: 0.66, pitch: -0.2, opacity: 0.6 },
   { src: 'three.png', dist: 170, size: 8, yaw: -0.06, pitch: 0.3, opacity: 0.5 },
 ]
+
+// --- Project cards ---
+/**
+ * The cards are DOM, drawn by a CSS3DRenderer stacked over the WebGL canvas and
+ * fed the *same* camera — so they turn with the stars and the planets instead
+ * of sitting on the screen. They are laid out here in world units, in one
+ * straight row at a single distance.
+ *
+ * CSS3DRenderer maps one CSS pixel to one world unit, which would make a 280px
+ * card 280 units wide. `CARD_SCALE` is the conversion: the card's CSS box is
+ * authored at a comfortable size for type and then scaled down to the world.
+ * Change the CSS box and this together, or the cards change size on screen.
+ *
+ * Sized against the resting frustum: at `CARD_DIST` the view is
+ * `2 * dist * tan(fov / 2)` tall (~22.8) and that times the aspect wide, so the
+ * row below spans ~15.4 units either side of centre and clears the frame edges
+ * on anything wider than about 4:3.
+ */
+const CARD_PX_W = 280
+const CARD_PX_H = 190
+const CARD_SCALE = 0.019
+const CARD_DIST = 19
+/** Edge-to-edge spacing between neighbouring cards, in world units. */
+const CARD_GAP = 1.05
+/** A touch below eye level, so the row sits under the planets rather than in them. */
+const CARD_Y = -0.8
 
 // --- Look-around ---
 /**
