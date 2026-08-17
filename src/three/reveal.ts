@@ -155,12 +155,12 @@ const PLANETS: PlanetSpec[] = [
  * Known limitation: below about 16:9 the end cards start to clip.
  */
 const CARD_PX_W = 420
-const CARD_PX_H = 200
-const CARD_SCALE = 0.01
+const CARD_PX_H = 230
+const CARD_SCALE = 0.0105
 /** Radius at the middle of the arc. The ends come in closer than this. */
 const CARD_DIST = 14
 /** Angle between neighbouring cards along the arc, in radians (~22°). */
-const CARD_ARC_STEP = 0.38
+const CARD_ARC_STEP = 0.39
 /**
  * How much nearer the camera the two end cards sit than the middle one, in
  * world units, falling off as the square of the position along the arc. This is
@@ -172,7 +172,7 @@ const CARD_ARC_STEP = 0.38
  * modest: 3.5 was tried and drew the end cards 2.6x the middle one's width,
  * which reads as two sizes of card rather than one arc.
  */
-const CARD_ARC_PULL = 2.5
+const CARD_ARC_PULL = 1.6
 /**
  * How far each card is turned back toward the camera: 1 aims it straight at the
  * viewpoint, 0 leaves it parallel to the screen.
@@ -190,8 +190,19 @@ const CARD_ARC_PULL = 2.5
  * position along the arc.
  */
 const CARD_FACE = 1
-/** Slightly above eye level, so the arc sits up in the frame. */
-const CARD_Y = 1.5
+/**
+ * How high the cards ride, **in screen terms** rather than world units: it is
+ * the tangent of the angle above the view axis, so every card's centre lands on
+ * the same horizontal line on screen.
+ *
+ * That is why each card's world `y` is solved from its own depth
+ * (`CARD_RISE * depth`) instead of every card sharing one height. A single
+ * world `y` puts them all on a level plane in 3D, but the projection divides by
+ * depth, so the nearer end cards rode visibly higher than the middle ones — the
+ * row read as a smile. Only the *apparent height* of a card should vary along
+ * the arc; its centre should not.
+ */
+const CARD_RISE = 0.107
 
 // --- Look-around ---
 /**
@@ -364,10 +375,14 @@ export function createRevealScene(
     // -1 at the left end, 0 in the middle, +1 at the right end.
     const t = (i - half) / half
     const angle = t * half * CARD_ARC_STEP
-    const dist = CARD_DIST - CARD_ARC_PULL * t * t
+    const radius = CARD_DIST - CARD_ARC_PULL * t * t
+    // Depth along the view axis — what the projection divides by, and so what
+    // the card's height on screen is set by. Its `y` is scaled by it, which is
+    // what lands every card's centre on one line however near it stands.
+    const depth = radius * Math.cos(angle)
 
     const object = new CSS3DObject(el)
-    object.position.set(Math.sin(angle) * dist, CARD_Y, -Math.cos(angle) * dist)
+    object.position.set(Math.sin(angle) * radius, CARD_RISE * depth, -depth)
     // A genuine 3D yaw about the card's own centre, written into the object's
     // matrix and carried into the CSS matrix3d — never a 2D skew() or scale().
     // `-angle` aims the card at the camera, which is what spreads its two
