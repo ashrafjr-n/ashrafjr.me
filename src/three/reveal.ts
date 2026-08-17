@@ -464,9 +464,9 @@ export function createRevealScene(
 
   // The cards: one plane at CARD_DIST, centred on the resting view, with each
   // card turned to face the viewpoint — harder the further out it stands, so
-  // the row reads as a curve wrapping around the viewer while every card keeps
-  // the same apparent size. Each card's CSS box is shrunk by CARD_SCALE, which
-  // is what turns its pixels into world units.
+  // the row reads as a curve wrapping around the viewer. Size is not left to
+  // the projection: CARD_SIZE_TIERS steps it down from the ends to the middle,
+  // and every card rests its feet on CARD_FOOT so the row keeps one baseline.
   const centres = solveRowCentres(cards.length)
   const middle = (cards.length - 1) / 2
   cards.forEach((el, i) => {

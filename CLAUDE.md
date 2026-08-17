@@ -360,41 +360,60 @@ where it *stands*.
   how far each one is turned.** A card at world x gets
   `rotation.y = -atan(x / CARD_DIST) * CARD_FACE`, so the middle card faces
   straight down the view axis and each card out from it is yawed harder to face
-  the viewpoint. That reads as a row wrapping around the viewer while every card
-  keeps the same apparent size.
+  the viewpoint. That reads as a row wrapping around the viewer.
   - **The single depth is load-bearing, and this replaced a real arc.** The
     earlier version curved in depth (`radius = CARD_DIST - CARD_ARC_PULL * t²`,
     angular spacing), which drew the end cards 165px tall against the middle
     card's 86 — their tops rode 52px above it and their feet 29px below, and the
     row had no consistent band. A card's on-screen size comes from its depth, so
-    equal depth is the only thing that puts all five in one band.
+    one depth is what takes size out of the geometry's hands, and it is what
+    lets `CARD_SIZE_TIERS` state the sizes outright instead.
   - It costs no foreshortening, because that comes from a card's *yaw*, not from
     where it stands. Curving the row in depth and scaling each card by its own
     depth to compensate is, by construction, **the same picture as this one** —
     a radial scaling about the camera survives the projection, and survives the
     look-around too, since the camera only ever rotates about that same point.
-    `CARD_ARC_STEP` and `CARD_ARC_PULL` are gone: under equal apparent size the
-    pull provably does nothing at all.
-  - `y = CARD_RISE * CARD_DIST`, one height for all five. `CARD_RISE` is still a
-    screen quantity — the tangent of the angle above the view axis — but with
-    one depth it no longer has to be solved per card. At 0.107 the cards' feet
-    land almost exactly on the view axis, where the projection barely moves with
-    depth, which is why the row's **bottom edge comes out dead level (within
-    2px)** and the trapezoid's extra height all goes upward.
+    `CARD_ARC_STEP` and `CARD_ARC_PULL` are gone: under a depth-independent size
+    the pull provably does nothing at all.
   - `CARD_FACE` is **1** — a genuine 3D yaw about the card's own centre, carried
     through the object's matrix into the CSS `matrix3d`. Never a 2D `skew()` or
     `scale()`; those give a parallelogram or a plain rectangle, not a trapezoid.
+- **Card sizes are authored, not inherited.** `CARD_SIZE_TIERS`
+  (`[0.8, 0.95, 1.15]`, indexed from the middle card outward, last entry
+  covering anything further out) multiplies `CARD_SCALE` per card, so the row is
+  a deliberate hierarchy — **ends largest, inner pair medium, middle smallest**,
+  each step about 1.2x the last. Measured at 1536x849: 392x146px at the ends,
+  236x117 for the inner pair, 180x98 in the middle. The tiers feed the spacing
+  solve too, so changing one re-spaces the row by itself; what they do not
+  adjust for is the row's reach (see the frame note below).
+- **The cards hang from their feet, not their centres.**
+  `CARD_FOOT = CARD_RISE * CARD_DIST - (CARD_PX_H / 2) * CARD_SCALE` is one
+  world height the whole row stands on, and each card's `y` is that plus its own
+  half-height. Anchoring the middle of each card instead would spread the row's
+  bottom edge as far as its top now that the five are different sizes; a shared
+  floor keeps a straight line under all of them and spends the whole difference
+  upward, so no card ever sits *lower* than its neighbour — some are simply
+  taller. `CARD_RISE` (0.107) now only positions that floor, and it lands just
+  under the view axis where the projection barely moves with depth, which is why
+  the **bottom edge holds to within ~2px** even though each card's two corners
+  sit at different depths.
+  - The tops necessarily do not line up — they run 260 / 305 / 334px at 1536x849
+    — and that is the size hierarchy being visible, not a regression. Do not
+    "fix" it by levelling the tops; that would undo the tiers.
 - **Spacing is solved against the projection, not set as an offset.**
   `CARD_GAP_PX` (45) is the gap between neighbours *as it lands on screen*, in
   the card's own authoring pixels, and `solveRowCentres()` walks outward from
   the middle bisecting for each next centre until the gap comes out right.
   A closed form is not worth writing — the yaw depends on the position being
-  solved for — and it runs five times at startup and never again.
+  solved for — and it runs a handful of times at startup and never again.
   - This is the only way to get an even row here: a card projects wider the
-    further off-axis it stands (the end pair covers ~330px against the middle
-    card's ~212px), so spacing evenly in **angle** spread the outer gaps to
-    ~2.3x the inner ones and spacing evenly in **x** did the same the other way.
-    Neither is an even row. Don't replace the solve with a constant step.
+    further off-axis it stands, and on top of that the five are different sizes
+    (392px wide at the ends against 180px in the middle), so spacing evenly in
+    **angle** spread the outer gaps to ~2.3x the inner ones and spacing evenly
+    in **x** did the same the other way. Neither is an even row. Don't replace
+    the solve with a constant step.
+  - Both cards' own sizes go into each step, which is what holds the gaps even
+    (measured 26–28px) under `CARD_SIZE_TIERS`.
 - **Facing the camera is what foreshortens a card, not what flattens it**, and
   believing the opposite is what once made the arc read as five rotated
   rectangles. The projection is onto a *plane*, so a card's on-screen size comes
@@ -404,29 +423,30 @@ where it *stands*.
   `CARD_FACE` 0 lays the card parallel to the image plane, both edges share one
   depth, and it draws as a perfect rectangle however far off-axis it sits; 1 is
   the maximum. Don't lower it "to add tilt".
-- Measured on the rendered page at 1536x797 (drop a zero-size marker at each of
+- Measured on the rendered page at 1536x849 (drop a zero-size marker at each of
   the card's four corners and read their `getBoundingClientRect()`): the end
-  cards draw about **138px on the near edge against 99px on the far one — a
-  ~1.39 ratio**, the next pair ~1.22, and the middle card **1.00**. Gaps are an
-  even 25px. The five **tops sit within 21px of one line and the five bottoms
-  within 2px**; the 21px is the trapezoid's own extra height on the most turned
-  cards and cannot be removed without weakening the tilt. That — a gradient from
-  nothing at the centre to an obvious trapezoid at the ends, all of it inside
-  one horizontal band — is the thing to re-check after touching any of these
-  constants.
+  cards draw about **173px on the near edge against 119px on the far one — a
+  ~1.45 ratio**, the inner pair 127/107 for ~1.19, and the middle card **1.00**.
+  Gaps run an even 26–28px and the five bottoms sit within **1px** of one line.
+  Two things to re-check together after touching any of these constants: the
+  trapezoid gradient (nothing at the centre, obvious at the ends) and the
+  straight line under all five.
 - **The row deliberately overruns the frame**, and nothing tries to fit it. The
   window's visible half-width is `tan(fov / 2) * aspect` less the inset, about
-  `0.818 * aspect` in tangent units, against the row's fixed 1.525 reach — so
-  the end cards' outer corners clear the hairline by ~22px at 16:10 and ~36px at
-  16:9, and the whole row fits only above about a 1.86 aspect. This is on
-  purpose: the cards are sized to be legible, and this is a scene you look
-  around in.
-- `CARD_GAP_PX` is therefore also the knob for **how far it overruns**, since
-  the card size is fixed: widening the gap pushes the ends out with it. The one
-  thing that keeps it honest is the end cards' VIEW button, which sits right on
-  that outer edge — at 45 it stays whole down to about a 1.81 aspect, and 59 was
-  tried and took 25px off it. Retune the gap, not `CARD_SCALE`, to move the
-  reach.
+  `0.818 * aspect` in tangent units, against the row's fixed reach — so at 16:10
+  the end cards touch the hairline almost exactly, and they cross it on anything
+  narrower. This is on purpose: the cards are sized to be legible, and this is a
+  scene you look around in.
+- `CARD_GAP_PX` is the knob for **how far it overruns**, since the sizes are now
+  set by `CARD_SIZE_TIERS`: widening the gap pushes the ends out with it. The
+  one thing that keeps it honest is the end cards' VIEW button, which sits right
+  on that outer edge — at rest it comes within ~2px of the frame at 16:10, and a
+  gap of 59 was tried once and took 25px off it. Retune the gap or the outermost
+  tier, and re-measure the button.
+- Hovered, the VIEW buttons measure 90x31px on the smallest card up to 222x53px
+  on the largest, and all five clear the frame (the end cards grow inward, so
+  hovering one pulls its button back inside). 43x14px was the size that once
+  read as broken — keep the smallest well clear of that.
 - **Hover grows the card only** — `transform: scale(var(--pcard-hover))`; each
   card is its own object on the arc, so no neighbour moves or resizes. It runs
   on the card's own tokens (`--pcard-ease`, `--pcard-grow`, `--pcard-reveal`),
