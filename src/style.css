@@ -364,7 +364,7 @@ body {
   justify-content: center;
   /* Deeper at the foot than the head: the centred name and stack sit clear of
      the VIEW button in the bottom corner rather than running under it. */
-  padding: 24px 24px 46px;
+  padding: 24px 20px 62px;
   background: var(--pcard-surface);
   /* 2px, not 1: the card's CSS box is shrunk hard into world units, so a
      hairline here lands under a screen pixel and disappears. */
@@ -406,10 +406,14 @@ body {
    the 420x230 box and the shrink into the world, not against the screen. At
    58px the longest name still clears the box's inner width. */
 .pcard-name {
-  font-size: 58px;
+  font-size: 56px;
   font-weight: 700;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.03em;
   line-height: 1.2;
+  /* Never wrap: a second line would push the stack line into the VIEW button.
+     The size above is set so the longest name clears the box's inner width
+     with the letter-spacing counted in. */
+  white-space: nowrap;
 }
 
 /* Collapsed to nothing at rest, so the name sits centred on its own; the card
@@ -447,15 +451,19 @@ body {
    inverted patch on the card, so it reads as the thing to press. */
 .pcard-view {
   position: absolute;
-  right: 14px;
-  bottom: 14px;
+  right: 16px;
+  bottom: 16px;
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 9px 14px;
+  gap: 10px;
+  /* Deliberately large in the card's own box. The card is shrunk hard into
+     world units, so this renders at roughly half these numbers on screen even
+     while hovered — at the old 19px/9px it drew a 43x14px target on the
+     farthest card, which is why it read as not working at all. */
+  padding: 14px 22px;
   background: #000000;
   color: #ffffff;
-  font-size: 19px;
+  font-size: 26px;
   font-weight: 700;
   letter-spacing: 0.14em;
   line-height: 1;
@@ -493,8 +501,8 @@ body {
    both flattened to one white to match the site's other logos. */
 .pcard-view-icon {
   display: block;
-  width: 21px;
-  height: 21px;
+  width: 26px;
+  height: 26px;
 }
 
 /* ===========================================================
