@@ -38,6 +38,19 @@
   /* The line on that frame — without it the inset would just be black on
      black. Same hairline family as the close corner. */
   --reveal-frame: rgba(255, 255, 255, 0.22);
+
+  /* Project cards standing in the reveal window's space. Their box is authored
+     in CSS pixels and shrunk into world units by CARD_SCALE in
+     three/reveal.ts — change one without the other and the cards resize on
+     screen. Palette-safe: a near-white face, a soft (not harsh) black edge,
+     black type. */
+  --pcard-surface: #f4f4f6;
+  --pcard-ink: #0b0b0d;
+  --pcard-ink-dim: rgba(11, 11, 13, 0.6);
+  --pcard-line: rgba(0, 0, 0, 0.3);
+  /* How much a hovered card grows. It scales about its own centre, so no card
+     ever moves its neighbours. */
+  --pcard-hover: 1.4;
 }
 
 /* ===========================================================
