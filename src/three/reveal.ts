@@ -130,12 +130,20 @@ const PLANETS: PlanetSpec[] = [
  * fed the *same* camera — so they turn with the stars and the planets instead
  * of sitting on the screen.
  *
- * They stand on an **arc around the camera**, not in a flat row: each one is
- * spaced from the next by an angle rather than by an x offset, and the two ends
- * of the arc are pulled in *nearer* the camera than the middle, so the row
- * wraps slightly around the viewpoint instead of bowing away from it. That
- * gives the end cards their own depth (nearer, so larger) on top of the yaw
- * below.
+ * They all stand on **one plane at `CARD_DIST`**, and the arc is in how far
+ * each one is *turned*: the middle card faces straight down the view axis and
+ * every card out from it is yawed to face the viewpoint, harder the further out
+ * it stands. That is what makes the row read as a curve — five cards wrapping
+ * around the viewer — while every card keeps the same apparent size.
+ *
+ * **The single depth is load-bearing.** A card's on-screen size is set by its
+ * depth, so an arc that really curved in depth drew its end cards half again as
+ * large as its middle one: their tops rode 52px above the middle card's and
+ * their feet 29px below, and the row lost any consistent band. Equal depth is
+ * the only thing that puts all five in one. It costs nothing, because a card's
+ * foreshortening comes from its *yaw*, not from where it stands — and curving
+ * the row in depth while scaling each card to match is, by construction, the
+ * exact same picture as this one.
  *
  * CSS3DRenderer maps one CSS pixel to one world unit, which would make a 420px
  * card 420 units wide. `CARD_SCALE` is the conversion: the card's CSS box is
@@ -143,63 +151,54 @@ const PLANETS: PlanetSpec[] = [
  * Change the CSS box and this together, or the cards change size on screen.
  *
  * The values below are solved against the projection, not eyeballed. They draw
- * the end cards' two vertical edges at a **1.43 ratio** — an obvious trapezoid —
- * while the middle card, whose angle is 0, stays an exact 1.000 rectangle. They
- * also leave ~37px between neighbours and reach 1.416 in tan units against a
- * frame half-width of 1.492 at 16:9.
- *
- * Those three — edge ratio, neighbour gap, frame reach — pull against each
- * other: a stronger trapezoid wants a wider arc and bigger cards, and both eat
- * the gap and the margin. Re-solve all three before retuning any of these.
- * Known limitation: below about 16:9 the end cards start to clip.
+ * the end cards' two vertical edges at a **1.41 ratio** — an obvious trapezoid —
+ * the next pair at 1.24, and the middle card, whose yaw is 0, at an exact 1.000
+ * rectangle. The two ends deliberately run past the frame: the row is sized for
+ * the cards to be legible, not to fit, and this is a scene you look around in.
  */
 const CARD_PX_W = 420
 const CARD_PX_H = 230
-const CARD_SCALE = 0.0105
-/** Radius at the middle of the arc. The ends come in closer than this. */
+const CARD_SCALE = 0.015
+/** Depth of the plane every card stands on. One depth, one apparent size. */
 const CARD_DIST = 14
-/** Angle between neighbouring cards along the arc, in radians (~22°). */
-const CARD_ARC_STEP = 0.39
 /**
- * How much nearer the camera the two end cards sit than the middle one, in
- * world units, falling off as the square of the position along the arc. This is
- * what curves the arc *toward* the viewer at its ends.
+ * The space between neighbours **as it lands on screen**, in the card's own
+ * authoring pixels. It is not an x offset: the row is solved outward from the
+ * middle so that every neighbouring pair leaves exactly this gap after the
+ * projection, which is the only way to get an even row out of cards that
+ * project wider the further off-axis they stand (the end pair covers ~360px
+ * against the middle card's ~228px at 16:9).
  *
- * It sharpens the foreshortening (a nearer card spans a bigger fraction of its
- * own depth) but it is not what creates it — the arc's *angle* does most of
- * that work, and even at 0 the end cards still run a ~1.33 edge ratio. Keep it
- * modest: 3.5 was tried and drew the end cards 2.6x the middle one's width,
- * which reads as two sizes of card rather than one arc.
+ * Spacing the cards evenly in *angle* instead spread the outer gaps to ~2.3x
+ * the inner ones, and spacing them evenly in *x* did the same the other way.
+ * Neither is the same thing as an even row; this is.
  */
-const CARD_ARC_PULL = 1.6
+const CARD_GAP_PX = 59
 /**
  * How far each card is turned back toward the camera: 1 aims it straight at the
  * viewpoint, 0 leaves it parallel to the screen.
  *
  * **1 is what maximises the foreshortening, not what removes it**, and getting
- * that backwards is what made the arc read as five rotated rectangles. The
+ * that backwards is what made the row read as five rotated rectangles. The
  * projection is onto a *plane*, so a card's on-screen size is set by its depth
  * (its -z), not by its distance from the camera. Turning a card to face the
  * camera equalises its two edges' distances but pushes them to very different
- * depths: the spread works out to `w * sin(angle * CARD_FACE)`. At 0 the card
- * lies parallel to the image plane, both edges share one depth and it projects
- * as a perfect rectangle however far off-axis it sits; at 1 the spread is
- * widest and the trapezoid strongest. Since the middle card's angle is 0 it
- * stays an undistorted rectangle either way, and the distortion grows with
- * position along the arc.
+ * depths: the spread works out to `w * sin(yaw)`. At 0 the card lies parallel
+ * to the image plane, both edges share one depth and it projects as a perfect
+ * rectangle however far off-axis it sits; at 1 the spread is widest and the
+ * trapezoid strongest. Since the middle card's yaw is 0 it stays an undistorted
+ * rectangle either way, and the distortion grows out along the row.
  */
 const CARD_FACE = 1
 /**
  * How high the cards ride, **in screen terms** rather than world units: it is
- * the tangent of the angle above the view axis, so every card's centre lands on
- * the same horizontal line on screen.
+ * the tangent of the angle above the view axis, so the row's centre line lands
+ * that far above the middle of the frame whatever the cards' depth.
  *
- * That is why each card's world `y` is solved from its own depth
- * (`CARD_RISE * depth`) instead of every card sharing one height. A single
- * world `y` puts them all on a level plane in 3D, but the projection divides by
- * depth, so the nearer end cards rode visibly higher than the middle ones — the
- * row read as a smile. Only the *apparent height* of a card should vary along
- * the arc; its centre should not.
+ * At this value the cards' feet fall almost exactly on the view axis, where the
+ * projection barely moves with depth — which is why the row's *bottom* edge
+ * comes out dead level (within 2px) and what is left of the trapezoid's extra
+ * height all goes upward.
  */
 const CARD_RISE = 0.107
 
@@ -275,6 +274,65 @@ function createStars(): Points {
   })
 
   return new Points(geometry, material)
+}
+
+/** Half the card's authored width, the offset both of its edges sit at. */
+const CARD_HALF_PX = CARD_PX_W / 2
+
+/**
+ * Where one vertical edge of a card lands on screen, in tangent units — the
+ * `x / depth` the projection leaves behind, before the frame's own width turns
+ * it into pixels.
+ *
+ * `halfPx` is the edge's offset in the card's own pixels: `+CARD_HALF_PX` for
+ * the outer edge, `-CARD_HALF_PX` for the inner one. Because the card is yawed,
+ * its two edges sit at different depths, and that is exactly the term that
+ * makes an off-axis card project wider than a face-on one.
+ */
+function edgeTan(centre: number, halfPx: number): number {
+  const yaw = Math.atan(centre / CARD_DIST) * CARD_FACE
+  const offset = halfPx * CARD_SCALE
+  return (
+    (centre + offset * Math.cos(yaw)) / (CARD_DIST - offset * Math.sin(yaw))
+  )
+}
+
+/**
+ * The world x of the card whose inner edge lands at `target` on screen.
+ *
+ * There is no closed form worth writing here — the yaw depends on the position
+ * it is solving for — but `edgeTan` climbs monotonically with the centre, so a
+ * bisection walks straight to it. It runs a handful of times at startup and
+ * never again.
+ */
+function centreForInnerEdge(target: number): number {
+  let low = 0
+  let high = CARD_DIST * 8
+  for (let i = 0; i < 60; i++) {
+    const mid = (low + high) / 2
+    if (edgeTan(mid, -CARD_HALF_PX) < target) low = mid
+    else high = mid
+  }
+  return (low + high) / 2
+}
+
+/**
+ * The right-hand half of the row, as world x offsets from the middle outward —
+ * index 0 is the centremost card, and the left half is its mirror.
+ *
+ * Each card is placed where the one before it leaves `CARD_GAP_PX` of screen,
+ * so the row comes out evenly spaced *as drawn* rather than evenly spaced in
+ * some quantity that the projection then stretches. An odd count puts a card on
+ * the axis; an even one straddles it, sharing the gap.
+ */
+function solveRowCentres(count: number): number[] {
+  const gap = (CARD_GAP_PX * CARD_SCALE) / CARD_DIST
+  const centres = [count % 2 === 1 ? 0 : centreForInnerEdge(gap / 2)]
+  while (centres.length < Math.ceil(count / 2)) {
+    const outerEdge = edgeTan(centres[centres.length - 1], CARD_HALF_PX)
+    centres.push(centreForInnerEdge(outerEdge + gap))
+  }
+  return centres
 }
 
 /**
@@ -361,32 +419,30 @@ export function createRevealScene(
     })
   }
 
-  // The cards: an arc around the camera, centred on the resting view. Each one
-  // gets its own angle off straight ahead and its own radius — the ends sit
-  // nearer than the middle — so the row curves toward the viewer rather than
-  // lying flat across it. Each card's CSS box is shrunk by CARD_SCALE, which is
-  // what turns its pixels into world units.
-  const half = (cards.length - 1) / 2
+  // The cards: one plane at CARD_DIST, centred on the resting view, with each
+  // card turned to face the viewpoint — harder the further out it stands, so
+  // the row reads as a curve wrapping around the viewer while every card keeps
+  // the same apparent size. Each card's CSS box is shrunk by CARD_SCALE, which
+  // is what turns its pixels into world units.
+  const centres = solveRowCentres(cards.length)
+  const middle = (cards.length - 1) / 2
   cards.forEach((el, i) => {
     el.style.width = `${CARD_PX_W}px`
     el.style.height = `${CARD_PX_H}px`
 
-    // -1 at the left end, 0 in the middle, +1 at the right end.
-    const t = (i - half) / half
-    const angle = t * half * CARD_ARC_STEP
-    const radius = CARD_DIST - CARD_ARC_PULL * t * t
-    // Depth along the view axis — what the projection divides by, and so what
-    // the card's height on screen is set by. Its `y` is scaled by it, which is
-    // what lands every card's centre on one line however near it stands.
-    const depth = radius * Math.cos(angle)
+    // Mirrored about the middle: rank 0 is the centremost card either side.
+    const x = Math.sign(i - middle) * centres[Math.floor(Math.abs(i - middle))]
+    const yaw = Math.atan(x / CARD_DIST) * CARD_FACE
 
     const object = new CSS3DObject(el)
-    object.position.set(Math.sin(angle) * radius, CARD_RISE * depth, -depth)
+    // One depth for all five, and one height with it — the projection divides
+    // by that depth, so a shared y is what lands every card on one line.
+    object.position.set(x, CARD_RISE * CARD_DIST, -CARD_DIST)
     // A genuine 3D yaw about the card's own centre, written into the object's
     // matrix and carried into the CSS matrix3d — never a 2D skew() or scale().
-    // `-angle` aims the card at the camera, which is what spreads its two
+    // `-yaw` aims the card at the camera, which is what spreads its two
     // vertical edges furthest apart in depth and gives the real trapezoid.
-    object.rotation.y = -angle * CARD_FACE
+    object.rotation.y = -yaw
     object.scale.setScalar(CARD_SCALE)
     // The two ends stand near the frame's edges and already draw largest, so
     // growing them about their own centre pushes them out through the window's
