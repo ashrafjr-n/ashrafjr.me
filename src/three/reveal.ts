@@ -111,7 +111,14 @@ interface PlanetSpec {
  * unchanged from the 62° version on purpose; re-derive both if the fov moves.
  */
 const PLANETS: PlanetSpec[] = [
-  { src: 'white.png', dist: 40, size: 11.2, yaw: -0.484, pitch: -0.139, opacity: 1 },
+  // Out to the low left, well clear of the cards. It was moved there from
+  // (dist 40, yaw -0.484, pitch -0.139) — 232px left and 51px down at
+  // 1536x849 — and `dist` had to go up with it to hold its drawn size. A
+  // sprite is scaled by its **depth**, `cos(yaw) * cos(pitch) * dist`, not by
+  // `dist`, so swinging it further off-axis at a fixed distance would have
+  // drawn it bigger. 50.1 keeps the depth at the 35.06 it always had, and the
+  // planet the same 162px tall it always was.
+  { src: 'white.png', dist: 50.1, size: 11.2, yaw: -0.777, pitch: -0.182, opacity: 1 },
   { src: 'black.png', dist: 60, size: 12.6, yaw: 0.459, pitch: 0.222, opacity: 0.95 },
   // The same white planet again, further off and half the size, out to the
   // right — one body seen twice at two depths, which is cheap parallax. It
@@ -236,16 +243,17 @@ const CARD_RISE = 0.107
 /**
  * How far each rank sits **below** that line, in the same screen (tangent)
  * terms — index 0 is the middle card and the list runs outward, matching
- * `CARD_SIZE_TIERS`. The two ends hold the line at 0 and the inner three are
- * let down ~12px at 1536x849.
+ * `CARD_SIZE_TIERS`. The two ends hold the line at 0, the inner pair is let
+ * down ~12px at 1536x849 and the middle card ~19px.
  *
  * This is the one thing that is deliberately *not* on the shared centre: the
- * row reads better with the smaller cards sitting a little lower, which also
- * brings the five bottom edges closer together (455 / 443 / 432 rather than
- * 446 / 430 / 420) without going back to hanging the whole row off a floor.
- * Keep the outermost entry at 0 — it is what the rest are measured against.
+ * row reads better with the smaller cards sitting lower, further the smaller
+ * they get, which also brings the five bottom edges closer together
+ * (455 / 443 / 439 rather than 446 / 430 / 420) without going back to hanging
+ * the whole row off a floor. Keep the outermost entry at 0 — it is what the
+ * rest are measured against.
  */
-const CARD_DROP_TIERS = [0.024, 0.024, 0]
+const CARD_DROP_TIERS = [0.038, 0.024, 0]
 
 // --- Look-around ---
 /**
