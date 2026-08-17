@@ -352,7 +352,9 @@ body {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 22px;
+  /* Deeper at the foot than the head: the centred name and stack sit clear of
+     the VIEW button in the bottom corner rather than running under it. */
+  padding: 22px 22px 40px;
   background: var(--pcard-surface);
   /* 2px, not 1: the card's CSS box is shrunk hard into world units, so a
      hairline here lands under a screen pixel and disappears. */
