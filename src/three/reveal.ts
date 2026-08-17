@@ -192,7 +192,17 @@ function createStars(): Points {
   return new Points(geometry, material)
 }
 
-export function createRevealScene(canvas: HTMLCanvasElement): RevealScene {
+/**
+ * `canvas` takes the stars and planets; `cssLayer` takes the project cards,
+ * which are DOM. Both are viewport-sized and share one camera, so the two
+ * layers turn as one — see the .reveal-cards rule in style.css for how the
+ * layer is stacked over the canvas.
+ */
+export function createRevealScene(
+  canvas: HTMLCanvasElement,
+  cssLayer: HTMLElement,
+  cards: HTMLElement[],
+): RevealScene {
   // Opaque: this canvas covers the whole viewport when the window is open and
   // has to hide the Scene 1 canvas behind it, not composite over it.
   const renderer = new WebGLRenderer({ canvas, antialias: true })
@@ -200,7 +210,16 @@ export function createRevealScene(canvas: HTMLCanvasElement): RevealScene {
   renderer.setSize(window.innerWidth, window.innerHeight, false)
   renderer.setClearColor(0x000000, 1)
 
+  // The cards' renderer. It only writes CSS transforms, so it costs nothing per
+  // frame beyond the matrices — but it must be driven from the same `render()`
+  // as the WebGL pass or the two layers would drift apart mid-turn.
+  const cssRenderer = new CSS3DRenderer({ element: cssLayer })
+  cssRenderer.setSize(window.innerWidth, window.innerHeight)
+
   const scene = new Scene()
+  // A scene of its own: CSS3DObjects carry no geometry and have no business
+  // being walked by the WebGL renderer.
+  const cssScene = new Scene()
   const camera = new PerspectiveCamera(
     CAMERA_FOV,
     window.innerWidth / window.innerHeight,
@@ -265,6 +284,7 @@ export function createRevealScene(canvas: HTMLCanvasElement): RevealScene {
 
   function render(): void {
     renderer.render(scene, camera)
+    cssRenderer.render(cssScene, camera)
   }
 
   function update(state: InputState): void {
@@ -303,6 +323,7 @@ export function createRevealScene(canvas: HTMLCanvasElement): RevealScene {
     camera.aspect = window.innerWidth / window.innerHeight
     camera.updateProjectionMatrix()
     renderer.setSize(window.innerWidth, window.innerHeight, false)
+    cssRenderer.setSize(window.innerWidth, window.innerHeight)
     render()
   }
 
