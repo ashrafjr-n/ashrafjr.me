@@ -142,31 +142,37 @@ const PLANETS: PlanetSpec[] = [
  * authored at a comfortable size for type and then scaled down to the world.
  * Change the CSS box and this together, or the cards change size on screen.
  *
- * Sized against the resting frustum: the horizontal half-angle is
- * `atan(tan(fov / 2) * aspect)`, ~47° at 16:9, and the end cards reach ~45°
- * from centre — so the arc fills the frame with a little to spare and clears
- * its neighbours by a couple of degrees. Widening a card or spreading the arc
- * further runs into one or the other; check both before retuning these.
+ * The values below are solved against the projection, not eyeballed. At 16:10
+ * and wider they put the end cards' two vertical edges at depths 6.9 and 9.8,
+ * which draws them ~136px and ~96px tall — a 1.42 ratio, an obvious trapezoid —
+ * while the middle card, whose angle is 0, stays an exact 1.000 rectangle. They
+ * also leave ~28px between neighbours and reach 1.371 in tan units against a
+ * frame half-width of 1.616 at 16:9.
+ *
+ * Those three — edge ratio, neighbour gap, frame reach — pull against each
+ * other: a stronger trapezoid wants a wider arc and bigger cards, and both eat
+ * the gap and the margin. Re-solve all three before retuning any of these.
+ * Known limitation: below about 16:9 the end cards start to clip.
  */
 const CARD_PX_W = 420
 const CARD_PX_H = 200
-const CARD_SCALE = 0.0118
+const CARD_SCALE = 0.01
 /** Radius at the middle of the arc. The ends come in closer than this. */
-const CARD_DIST = 20
-/** Angle between neighbouring cards along the arc, in radians (~16°). */
-const CARD_ARC_STEP = 0.28
+const CARD_DIST = 14
+/** Angle between neighbouring cards along the arc, in radians (~22°). */
+const CARD_ARC_STEP = 0.38
 /**
  * How much nearer the camera the two end cards sit than the middle one, in
  * world units, falling off as the square of the position along the arc. This is
  * what curves the arc *toward* the viewer at its ends.
  *
- * Keep it modest. A perspective projection onto a flat screen already stretches
- * whatever sits off-axis — at these angles the end cards draw ~1.5x the middle
- * one's width from the projection alone — so the pull compounds with that
- * rather than acting on its own. 4.2 was tried and read as two different sizes
- * of card rather than one arc.
+ * It sharpens the foreshortening (a nearer card spans a bigger fraction of its
+ * own depth) but it is not what creates it — the arc's *angle* does most of
+ * that work, and even at 0 the end cards still run a ~1.33 edge ratio. Keep it
+ * modest: 3.5 was tried and drew the end cards 2.6x the middle one's width,
+ * which reads as two sizes of card rather than one arc.
  */
-const CARD_ARC_PULL = 2.6
+const CARD_ARC_PULL = 2.5
 /**
  * How far each card is turned back toward the camera: 1 aims it straight at the
  * viewpoint, 0 leaves it parallel to the screen.
@@ -185,7 +191,7 @@ const CARD_ARC_PULL = 2.6
  */
 const CARD_FACE = 1
 /** Slightly above eye level, so the arc sits up in the frame. */
-const CARD_Y = 1.2
+const CARD_Y = 1.5
 
 // --- Look-around ---
 /**
