@@ -64,7 +64,15 @@ const CAMERA_FOV = 80
  * radius is cubed on the way in so the volume fills evenly rather than
  * bunching near the inner surface.
  */
-const STAR_COUNT = 4000
+/**
+ * Also compensated for `CAMERA_FOV`. Three sizes points as
+ * `size * 0.5 * height / distance` — no fov term — so a star keeps its pixel
+ * size however wide the camera is, and widening the fov only puts *more* of
+ * them on screen. The 80° frustum holds ~1.95x the solid angle the 62° one did,
+ * so the count comes down by the same factor to keep the field's on-screen
+ * density where it was.
+ */
+const STAR_COUNT = 2050
 const STAR_NEAR = 40
 const STAR_FAR = 200
 const STAR_SIZE = 0.55
@@ -93,18 +101,27 @@ interface PlanetSpec {
   pitch: number
   opacity: number
 }
+/**
+ * Sizes and angles here are **compensated for `CAMERA_FOV`**. The fov was
+ * widened from 62° for the cards' sake, which alone would have shrunk every
+ * planet to ~72% and pulled them all toward the centre of a wider frame. Each
+ * `size` is therefore multiplied by 1.3965 (= tan40° / tan31°) and each angle
+ * re-solved as `atan(tan(old) * 1.3965)`, which puts every planet back on the
+ * screen position and at the size it held before. The composition here is
+ * unchanged from the 62° version on purpose; re-derive both if the fov moves.
+ */
 const PLANETS: PlanetSpec[] = [
-  { src: 'white.png', dist: 40, size: 8, yaw: -0.36, pitch: -0.1, opacity: 1 },
-  { src: 'black.png', dist: 60, size: 9, yaw: 0.34, pitch: 0.16, opacity: 0.95 },
+  { src: 'white.png', dist: 40, size: 11.2, yaw: -0.484, pitch: -0.139, opacity: 1 },
+  { src: 'black.png', dist: 60, size: 12.6, yaw: 0.459, pitch: 0.222, opacity: 0.95 },
   // The same white planet again, further off and half the size, out to the
   // right — one body seen twice at two depths, which is cheap parallax. It
   // shares the first one's texture (see the loader below); a file is loaded
   // once however many planets use it.
-  { src: 'white.png', dist: 72, size: 5.2, yaw: 0.46, pitch: -0.16, opacity: 0.9 },
-  { src: 'four.png', dist: 85, size: 9, yaw: -0.62, pitch: 0.24, opacity: 0.8 },
-  { src: 'one.png', dist: 110, size: 8, yaw: 0.12, pitch: -0.26, opacity: 0.7 },
-  { src: 'two.png', dist: 140, size: 8.5, yaw: 0.66, pitch: -0.2, opacity: 0.6 },
-  { src: 'three.png', dist: 170, size: 8, yaw: -0.06, pitch: 0.3, opacity: 0.5 },
+  { src: 'white.png', dist: 72, size: 7.3, yaw: 0.606, pitch: -0.222, opacity: 0.9 },
+  { src: 'four.png', dist: 85, size: 12.6, yaw: -0.784, pitch: 0.329, opacity: 0.8 },
+  { src: 'one.png', dist: 110, size: 11.2, yaw: 0.167, pitch: -0.355, opacity: 0.7 },
+  { src: 'two.png', dist: 140, size: 11.9, yaw: 0.825, pitch: -0.276, opacity: 0.6 },
+  { src: 'three.png', dist: 170, size: 11.2, yaw: -0.084, pitch: 0.408, opacity: 0.5 },
 ]
 
 // --- Project cards ---
