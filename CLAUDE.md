@@ -379,27 +379,39 @@ where it *stands*.
     through the object's matrix into the CSS `matrix3d`. Never a 2D `skew()` or
     `scale()`; those give a parallelogram or a plain rectangle, not a trapezoid.
 - **Card sizes are authored, not inherited.** `CARD_SIZE_TIERS`
-  (`[0.8, 0.95, 1.15]`, indexed from the middle card outward, last entry
+  (`[0.8, 0.95, 1.26]`, indexed from the middle card outward, last entry
   covering anything further out) multiplies `CARD_SCALE` per card, so the row is
-  a deliberate hierarchy — **ends largest, inner pair medium, middle smallest**,
-  each step about 1.2x the last. Measured at 1536x849: 392x146px at the ends,
-  236x117 for the inner pair, 180x98 in the middle. The tiers feed the spacing
-  solve too, so changing one re-spaces the row by itself; what they do not
-  adjust for is the row's reach (see the frame note below).
-- **The cards are centred on one line, not stood on one.** Every card's `y` is
-  `CARD_RISE * CARD_DIST` — one height for all five — and since they also share
-  one depth, all five centres project to **exactly the same screen y** (measured
-  spread 0.000px at 370.38). The size difference from the tiers therefore splits
-  evenly above and below that line rather than piling up in one direction.
-  - They were briefly hung from their feet instead, off a shared
-    `CARD_FOOT` floor, which kept the row's bottom edge dead straight and sent
-    the whole size difference upward. Centring replaced it deliberately; don't
-    reintroduce the floor.
+  a deliberate hierarchy — **ends largest, inner pair medium, middle smallest**.
+  Measured at 1536x849: 440x162px at the ends, 236x117 for the inner pair,
+  180x98 in the middle.
+  - The tiers feed the spacing solve too, and the solve fixes each card's
+    *inner* edge against its neighbour — so growing the outermost tier spends
+    the growth **outward** and leaves the other three exactly where they stood.
+    What it does not adjust for is the row's reach (see the frame note below).
+  - A bigger card also carries a **stronger trapezoid** at the same yaw, since
+    its two edges spread further apart in depth: the ends went 1.45 → 1.52 when
+    the outer tier went 1.15 → 1.26. That is the projection, not a separate
+    tilt setting, and there is no way to grow a card and hold its ratio.
+- **The cards are centred on a line, not stood on one.** A card's `y` is
+  `(CARD_RISE - drop) * CARD_DIST`, and because they all share one depth those
+  heights compare directly on screen: each card's size splits evenly above and
+  below **its own** centre rather than piling up in one direction.
+  - `CARD_DROP_TIERS` (`[0.024, 0.024, 0]`, same middle-outward indexing as the
+    sizes) is how far each rank sits below the row's line. **The two ends hold
+    the line and the inner three are let down ~12px**, which is a deliberate
+    composition choice, not a stray offset — it also brings the five bottom
+    edges closer together (455 / 443 / 432 rather than 446 / 430 / 420). Keep
+    the outermost entry at 0; it is what the others are measured against.
+  - They were briefly hung from their feet instead, off a shared `CARD_FOOT`
+    floor, which forced the bottom edge dead straight and sent the whole size
+    difference upward. That was replaced by centring; don't reintroduce the
+    floor — the drop tiers do the same job by degrees.
   - Neither the tops nor the bottoms line up, and they cannot: at 1536x849 the
-    cards run 271→445 at the ends, 302→429 for the inner pair and 321→419 in the
-    middle. That is the hierarchy being visible. **The check is the centre, not
-    the edges** — probe a marker at `left:50%; top:50%` inside each `.pcard` and
-    the five should agree to the pixel.
+    cards run 259→454 at the ends, 315→442 for the inner pair and 334→432 in the
+    middle. That is the hierarchy being visible. **The check is each card's own
+    centre against its tier**, not the edges — probe a marker at
+    `left:50%; top:50%` inside each `.pcard`; the two ends should agree exactly
+    (370.4) and the inner three should agree exactly with each other (382.5).
   - A card's *bounding box* is still not centred on the line — the trapezoid
     magnifies its near edge, and the row sits above the view axis, so that edge
     gains more above than below (the end cards reach ~99px up against ~75px
@@ -430,28 +442,32 @@ where it *stands*.
   the maximum. Don't lower it "to add tilt".
 - Measured on the rendered page at 1536x849 (drop a zero-size marker at each of
   the card's four corners and read their `getBoundingClientRect()`): the end
-  cards draw about **173px on the near edge against 119px on the far one — a
-  ~1.45 ratio**, the inner pair 127/107 for ~1.19, and the middle card **1.00**.
-  Gaps run an even 26–28px and the five centres agree to 0.000px. Two things to
-  re-check together after touching any of these constants: the trapezoid
-  gradient (nothing at the centre, obvious at the ends) and the shared centre
-  line.
+  cards draw about **195px on the near edge against 128px on the far one — a
+  ~1.52 ratio**, the inner pair 127/107 for ~1.19, and the middle card **1.00**.
+  Gaps run an even 26–28px. Two things to re-check together after touching any
+  of these constants: the trapezoid gradient (nothing at the centre, obvious at
+  the ends) and each card's centre landing on its tier's line.
 - **The row deliberately overruns the frame**, and nothing tries to fit it. The
   window's visible half-width is `tan(fov / 2) * aspect` less the inset, about
   `0.818 * aspect` in tangent units, against the row's fixed reach — so at 16:10
   the end cards touch the hairline almost exactly, and they cross it on anything
   narrower. This is on purpose: the cards are sized to be legible, and this is a
   scene you look around in.
-- `CARD_GAP_PX` is the knob for **how far it overruns**, since the sizes are now
-  set by `CARD_SIZE_TIERS`: widening the gap pushes the ends out with it. The
-  one thing that keeps it honest is the end cards' VIEW button, which sits right
-  on that outer edge — at rest it comes within ~2px of the frame at 16:10, and a
-  gap of 59 was tried once and took 25px off it. Retune the gap or the outermost
-  tier, and re-measure the button.
-- Hovered, the VIEW buttons measure 90x31px on the smallest card up to 222x53px
-  on the largest, and all five clear the frame (the end cards grow inward, so
-  hovering one pulls its button back inside). 43x14px was the size that once
-  read as broken — keep the smallest well clear of that.
+- **What actually limits the outermost tier is the VIEW button, and only when
+  hovered.** At rest the button is `opacity: 0` and inert, so its resting
+  position past the frame costs nothing — ignore it. Hovered is what counts, and
+  there the end cards grow *inward* (see the `data-arc-end` note), which pulls
+  the button back by about 6% of the card's width before the frame gets a say.
+  - Measured hovered at 1536x849: 90x31px on the middle card up to **252x60px on
+    Naelj, whose right-hand ~36px (14%) now sits past the frame** — the trailing
+    padding and the outer edge of the icon. The word and the mark both still
+    read, and the whole button is still clickable, but this is the ceiling: the
+    outer tier cannot go much past 1.26 without eating into the mark itself.
+  - `CARD_GAP_PX` is the only other knob on that reach, and it is a weak one —
+    dropping it 45 → 32 buys back ~24px while costing a third of the spacing.
+    Re-measure the *hovered* button after touching either.
+  - 43x14px was the size that once read as broken — keep the smallest card's
+    button well clear of that.
 - **Hover grows the card only** — `transform: scale(var(--pcard-hover))`; each
   card is its own object on the arc, so no neighbour moves or resizes. It runs
   on the card's own tokens (`--pcard-ease`, `--pcard-grow`, `--pcard-reveal`),
