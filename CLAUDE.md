@@ -282,6 +282,17 @@ other module touches it. It shares **nothing** with the Scene 1 starfield in
   of re-rendering at a new size every frame of it.
 - The renderer is **opaque** (no `alpha`): when open it covers the screen and
   has to hide the Scene 1 canvas behind it rather than composite over it.
+- **`CAMERA_FOV` is 80, and deliberately wide.** A card only foreshortens when
+  it covers a real angle of the view *and* is turned, and five of those need a
+  field wide enough to hold them; at the old 62° the arc either overflowed the
+  frame or the cards had to be small enough that the trapezoid collapsed to
+  ~10%. **Everything else in this scene is scaled to that number**: every
+  planet's `size` carries a 1.3965 factor (= tan40° / tan31°) and every
+  `yaw`/`pitch` was re-solved as `atan(tan(old) * 1.3965)`, which puts the
+  composition back exactly where it was at 62°; and `STAR_COUNT` came down from
+  4000 to 2050 because the wider frustum holds ~1.95x the solid angle and Three
+  sizes points with no fov term, so the same count would have read as a denser
+  field. Move the fov and all three have to be re-derived.
 - **Camera position is fixed at the origin, for good.** The mouse only turns
   it — `rotation.order = 'YXZ'` so yaw and pitch stay independent and the
   horizon cannot roll. Turning the camera is the whole point: it reads as
@@ -384,14 +395,23 @@ card *is* (the `PROJECTS` list and the DOM), `three/reveal.ts` owns where it
   upper half of the frame. Because y is constant while the radius is not, the
   nearer end cards also sit visibly higher on screen than the middle one — that
   smile is correct for a level arc, not a bug.
-- **Hover grows the card only.** `transform: scale(var(--pcard-hover))` about
-  its own centre — each card is its own object out in the row, so no neighbour
-  moves or resizes. The hovered card is also **moved to the end of its parent**
-  (`ui/project-cards.ts`, on `pointerenter`/`focusin`): the cards are coplanar
-  inside a `preserve-3d` container, where paint order and hit testing follow
-  document order and `z-index` does not apply. CSS3DRenderer re-appends an
-  element only when it is not already a child of its camera element, so it will
-  not shuffle them back.
+- **Hover grows the card only** — `transform: scale(var(--pcard-hover))`; each
+  card is its own object on the arc, so no neighbour moves or resizes.
+- **The hovered card is moved to the end of its parent** on
+  `pointerenter`/`focusin` (`ui/project-cards.ts`). That is the whole of the
+  stacking rule, and it holds whatever the card's depth on the arc: inside a
+  `preserve-3d` container paint order *and hit testing* follow document order,
+  and `z-index` does not apply. Verified for all five positions — including the
+  far middle card covering its nearer neighbours, and an inner card covering
+  the much nearer end card. CSS3DRenderer re-appends an element only when it is
+  not already a child of its camera element, so it will not shuffle them back.
+- **The two end cards grow inward, not about their centres.** They sit nearest
+  the camera, so they already draw largest and reach nearest the window frame;
+  scaled about the middle they pushed out through it and lost their outer edge
+  and the VIEW button. `three/reveal.ts` marks them `data-arc-end="left|right"`
+  (it is what knows the arc order) and style.css anchors `transform-origin` to
+  the outer edge, which pins it where it already is and spends the growth on
+  the inward side. The three inner cards stay centred.
 - At rest a card shows **only its name**, large (44px in the card's own box).
   The stack line is collapsed (`max-height: 0`) rather than removed, and the
   VIEW button is `opacity: 0` *and* `pointer-events: none`, so neither is
