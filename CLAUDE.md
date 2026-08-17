@@ -315,6 +315,55 @@ other module touches it. It shares **nothing** with the Scene 1 starfield in
   canvas, ready for the next open. Render-on-demand, so nothing keeps drawing
   while the window is shut (and nothing is visible then either).
 
+### Project cards (`src/ui/project-cards.ts` + the CSS3D layer)
+Five cards — REJOX, TTU Clinic, Datassert, AGB Media, Naelj — in one straight
+horizontal row **inside** the reveal window's space. They are DOM, drawn by a
+`CSS3DRenderer` stacked over the WebGL canvas and given the **same camera**, so
+they yaw and pitch with the stars and planets instead of sitting on the screen.
+Two modules, split by question: `ui/project-cards.ts` owns what a card *is*
+(the `PROJECTS` list and the DOM), `three/reveal.ts` owns where it *stands*.
+
+- **Both renderers share one camera and one `render()`.** The CSS3D pass is
+  called from the same on-demand `render()` as the WebGL pass in `reveal.ts`;
+  split them and the two layers drift apart mid-turn. The cards live in their
+  own `Scene` (`cssScene`), since a `CSS3DObject` has no geometry for the WebGL
+  renderer to walk.
+- **The layer is not the mask.** `.reveal-cards` is viewport-sized and centred
+  on the window exactly like `.reveal-canvas`, so the opening window uncovers
+  the row rather than re-laying it out. It carries **no `z-index`** — document
+  order alone (canvas, cards, close) stacks it. Keep that order in
+  `reveal-window.ts`.
+- **Two elements per card, and that is load-bearing.** CSS3DRenderer writes its
+  own `transform` onto the element it is given, so `.pcard-slot` can never
+  carry one of ours; the inner `.pcard` is what scales on hover.
+- The card row is authored in **CSS pixels and converted** — `CARD_SCALE` in
+  `reveal.ts` turns the `CARD_PX_W`/`CARD_PX_H` box into world units, because
+  CSS3DRenderer maps one CSS pixel to one world unit. Change the CSS box and
+  that constant together or the cards resize on screen. `CARD_DIST` / `CARD_GAP`
+  / `CARD_Y` place the row; at the current values it spans ~15.4 units either
+  side of centre and clears the frame on anything wider than about 4:3.
+- **Hover grows the card only.** `transform: scale(var(--pcard-hover))` about
+  its own centre — each card is its own object out in the row, so no neighbour
+  moves or resizes. The hovered card is also **moved to the end of its parent**
+  (`ui/project-cards.ts`, on `pointerenter`/`focusin`): the cards are coplanar
+  inside a `preserve-3d` container, where paint order and hit testing follow
+  document order and `z-index` does not apply. CSS3DRenderer re-appends an
+  element only when it is not already a child of its camera element, so it will
+  not shuffle them back.
+- At rest a card shows **only its name**. The stack line is collapsed
+  (`max-height: 0`) rather than removed, and the VIEW button is `opacity: 0`
+  *and* `pointer-events: none`, so neither is reachable until the card is
+  entered or focused.
+- **VIEW is a real `<a target="_blank">`**, bottom-right, black on the white
+  face. Its mark says where it lands: GitHub's Invertocat for a repo (REJOX),
+  Material's `open_in_new` for the four live sites, both flattened to one white
+  per the palette rule. `kind` in the `PROJECTS` entry picks it.
+- **The cards are inert while the window is shut.** `CSS3DObject` stamps
+  `pointer-events: auto` inline, which would outrank any stylesheet rule and
+  leave an opacity-0 card clickable over Scene 2 — `reveal.ts` clears that
+  inline value so `.reveal-window.is-open .pcard-slot` is what decides. Don't
+  put the inline value back.
+
 ## Model spin
 The model spins slowly clockwise about its own vertical axis, forever.
 
