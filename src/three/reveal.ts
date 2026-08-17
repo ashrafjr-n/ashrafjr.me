@@ -212,25 +212,22 @@ const CARD_GAP_PX = 45
  */
 const CARD_FACE = 1
 /**
- * How high the row rides, **in screen terms** rather than world units: it is
- * the tangent of the angle above the view axis, taken at the base size.
+ * The line the row is **centred on**, in screen terms rather than world units:
+ * the tangent of the angle above the view axis. Every card's own centre is put
+ * at `CARD_RISE * CARD_DIST`, and since they all share one depth, that lands
+ * all five centres on exactly the same horizontal line on screen — the size
+ * difference from `CARD_SIZE_TIERS` splits evenly above and below it.
+ *
+ * Cards were briefly hung from their feet instead, off a shared floor, so the
+ * whole size difference went upward and the row's bottom edge stayed straight.
+ * Centring is what was wanted: no card leads the line, they just reach further
+ * from it. Note that a card's *bounding box* still is not centred on that line
+ * — the trapezoid magnifies its near edge, and the row sits above the view
+ * axis, so the near edge gains more above than below. The card's centre is on
+ * the line; its bbox midpoint drifts a few px, and that is the projection, not
+ * a placement bug.
  */
 const CARD_RISE = 0.107
-/**
- * The world height the cards all **stand on** — one line the whole row shares.
- *
- * Cards are hung from their feet, not their centres, because they are no longer
- * the same size: anchoring the middle of each one would spread the row's bottom
- * edge as far as its top, whereas a shared floor keeps a straight line under
- * all five and spends the whole size difference upward. That is what lets the
- * row be openly stepped and still read as one band — no card sits lower than
- * its neighbour, some are simply taller.
- *
- * It also lands just under the view axis, where the projection barely moves
- * with depth, so the bottom edge holds to within ~2px across the row even
- * though each card's two corners sit at different depths.
- */
-const CARD_FOOT = CARD_RISE * CARD_DIST - (CARD_PX_H / 2) * CARD_SCALE
 
 // --- Look-around ---
 /**
@@ -466,7 +463,7 @@ export function createRevealScene(
   // card turned to face the viewpoint — harder the further out it stands, so
   // the row reads as a curve wrapping around the viewer. Size is not left to
   // the projection: CARD_SIZE_TIERS steps it down from the ends to the middle,
-  // and every card rests its feet on CARD_FOOT so the row keeps one baseline.
+  // and every card is centred on CARD_RISE so the row shares one centre line.
   const centres = solveRowCentres(cards.length)
   const middle = (cards.length - 1) / 2
   cards.forEach((el, i) => {
@@ -480,9 +477,10 @@ export function createRevealScene(
     const yaw = Math.atan(x / CARD_DIST) * CARD_FACE
 
     const object = new CSS3DObject(el)
-    // Hung from its feet on the row's shared floor, so a bigger card grows
-    // upward instead of straddling the line and dropping below its neighbours.
-    object.position.set(x, CARD_FOOT + (CARD_PX_H / 2) * scale, -CARD_DIST)
+    // One height for all five, so with one depth under them every card's centre
+    // projects to the same line and a bigger card reaches equally far above and
+    // below it.
+    object.position.set(x, CARD_RISE * CARD_DIST, -CARD_DIST)
     // A genuine 3D yaw about the card's own centre, written into the object's
     // matrix and carried into the CSS matrix3d — never a 2D skew() or scale().
     // `-yaw` aims the card at the camera, which is what spreads its two
