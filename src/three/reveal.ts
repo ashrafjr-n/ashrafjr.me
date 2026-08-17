@@ -101,27 +101,48 @@ const PLANETS: PlanetSpec[] = [
 /**
  * The cards are DOM, drawn by a CSS3DRenderer stacked over the WebGL canvas and
  * fed the *same* camera — so they turn with the stars and the planets instead
- * of sitting on the screen. They are laid out here in world units, in one
- * straight row at a single distance.
+ * of sitting on the screen.
  *
- * CSS3DRenderer maps one CSS pixel to one world unit, which would make a 280px
- * card 280 units wide. `CARD_SCALE` is the conversion: the card's CSS box is
+ * They stand on an **arc around the camera**, not in a flat row: each one is
+ * spaced from the next by an angle rather than by an x offset, and the two ends
+ * of the arc are pulled in *nearer* the camera than the middle, so the row
+ * wraps slightly around the viewpoint instead of bowing away from it. That
+ * gives the end cards their own depth (nearer, so larger) on top of the yaw
+ * below.
+ *
+ * CSS3DRenderer maps one CSS pixel to one world unit, which would make a 380px
+ * card 380 units wide. `CARD_SCALE` is the conversion: the card's CSS box is
  * authored at a comfortable size for type and then scaled down to the world.
  * Change the CSS box and this together, or the cards change size on screen.
  *
- * Sized against the resting frustum: at `CARD_DIST` the view is
- * `2 * dist * tan(fov / 2)` tall (~22.8) and that times the aspect wide, so the
- * row below spans ~15.4 units either side of centre and clears the frame edges
- * on anything wider than about 4:3.
+ * Sized against the resting frustum: the horizontal half-angle is
+ * `atan(tan(fov / 2) * aspect)`, ~47° at 16:9, and the end cards reach ~45°
+ * from centre — so the arc fills the frame with a little to spare and clears
+ * its neighbours by a couple of degrees. Widening a card or spreading the arc
+ * further runs into one or the other; check both before retuning these.
  */
-const CARD_PX_W = 280
-const CARD_PX_H = 190
-const CARD_SCALE = 0.019
-const CARD_DIST = 19
-/** Edge-to-edge spacing between neighbouring cards, in world units. */
-const CARD_GAP = 1.05
-/** A touch below eye level, so the row sits under the planets rather than in them. */
-const CARD_Y = -0.8
+const CARD_PX_W = 380
+const CARD_PX_H = 180
+const CARD_SCALE = 0.0125
+/** Radius at the middle of the arc. The ends come in closer than this. */
+const CARD_DIST = 20
+/** Angle between neighbouring cards along the arc, in radians (~18°). */
+const CARD_ARC_STEP = 0.32
+/**
+ * How much nearer the camera the two end cards sit than the middle one, in
+ * world units, falling off as the square of the position along the arc. This is
+ * what curves the arc *toward* the viewer at its ends.
+ */
+const CARD_ARC_PULL = 4.2
+/**
+ * How far each card is turned back toward the camera: 1 would aim it straight
+ * at the viewpoint and flatten the perspective on it, 0 would leave it parallel
+ * to the screen. Half-way keeps a real angle on every card — one side edge
+ * nearer than the other — which is the whole point of the arc.
+ */
+const CARD_FACE = 0.5
+/** Slightly above eye level, so the arc sits up in the frame. */
+const CARD_Y = 1.2
 
 // --- Look-around ---
 /**
