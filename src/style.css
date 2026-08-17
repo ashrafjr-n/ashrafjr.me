@@ -42,9 +42,9 @@
   /* Project cards standing in the reveal window's space. Their box is authored
      in CSS pixels and shrunk into world units by CARD_SCALE in
      three/reveal.ts — change one without the other and the cards resize on
-     screen. Palette-safe: a near-white face, a soft (not harsh) black edge,
-     black type. */
-  --pcard-surface: #f4f4f6;
+     screen. Palette-safe: a soft off-white face — deliberately not stark
+     #ffffff — a soft (not harsh) black edge, black type. */
+  --pcard-surface: #e9e9ed;
   --pcard-ink: #0b0b0d;
   --pcard-ink-dim: rgba(11, 11, 13, 0.6);
   --pcard-line: rgba(0, 0, 0, 0.3);
