@@ -142,12 +142,11 @@ const PLANETS: PlanetSpec[] = [
  * authored at a comfortable size for type and then scaled down to the world.
  * Change the CSS box and this together, or the cards change size on screen.
  *
- * The values below are solved against the projection, not eyeballed. At 16:10
- * and wider they put the end cards' two vertical edges at depths 6.9 and 9.8,
- * which draws them ~136px and ~96px tall — a 1.42 ratio, an obvious trapezoid —
+ * The values below are solved against the projection, not eyeballed. They draw
+ * the end cards' two vertical edges at a **1.43 ratio** — an obvious trapezoid —
  * while the middle card, whose angle is 0, stays an exact 1.000 rectangle. They
- * also leave ~28px between neighbours and reach 1.371 in tan units against a
- * frame half-width of 1.616 at 16:9.
+ * also leave ~37px between neighbours and reach 1.416 in tan units against a
+ * frame half-width of 1.492 at 16:9.
  *
  * Those three — edge ratio, neighbour gap, frame reach — pull against each
  * other: a stronger trapezoid wants a wider arc and bigger cards, and both eat
