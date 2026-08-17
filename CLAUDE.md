@@ -206,6 +206,9 @@ translation cannot produce a true look-around, and it should not come back.
 sprite textures. The `projects-background.png` files went unreferenced with
 that change and have been deleted.
 
+The five project cards stand in that same space, as DOM on a CSS3D layer
+sharing the scene's camera — see **Project cards** below.
+
 **The window is a mask, not a viewport of its own.** The canvas inside is
 always viewport-sized, so opening grows the mask and uncovers more of the same
 rendered frame rather than re-rendering. Never resize or scale the canvas to
