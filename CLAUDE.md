@@ -406,7 +406,12 @@ card *is* (the `PROJECTS` list and the DOM), `three/reveal.ts` owns where it
   nearer end cards also sit visibly higher on screen than the middle one — that
   smile is correct for a level arc, not a bug.
 - **Hover grows the card only** — `transform: scale(var(--pcard-hover))`; each
-  card is its own object on the arc, so no neighbour moves or resizes.
+  card is its own object on the arc, so no neighbour moves or resizes. It runs
+  on the card's own tokens (`--pcard-ease`, `--pcard-grow`, `--pcard-reveal`),
+  a gentler curve than the window's expo-out `--reveal-ease`, which starts too
+  fast to read as a card easing open. The growth, the stack line and the button
+  are **staggered by `transition-delay` on the way in only** (0 / 70 / 140ms),
+  so they arrive as one move and collapse cleanly together on the way out.
 - **The hovered card is moved to the end of its parent** on
   `pointerenter`/`focusin` (`ui/project-cards.ts`). That is the whole of the
   stacking rule, and it holds whatever the card's depth on the arc: inside a
@@ -435,7 +440,23 @@ card *is* (the `PROJECTS` list and the DOM), `three/reveal.ts` owns where it
 - **VIEW is a real `<a target="_blank">`**, bottom-right, black on the white
   face. Its mark says where it lands: GitHub's Invertocat for a repo (REJOX),
   Material's `open_in_new` for the four live sites, both flattened to one white
-  per the palette rule. `kind` in the `PROJECTS` entry picks it.
+  per the palette rule. `kind` in the `PROJECTS` entry picks it. Verified live:
+  clicking it opens the project's own URL in a new tab.
+- **`raise()` must not move the card while a click is in flight**, and its
+  early return is what guarantees that. Raising re-appends the slot, which
+  detaches and re-inserts the whole card — and `focusin` fires on *mousedown*
+  when the VIEW link takes focus. Unguarded, that moved the anchor between
+  mousedown and mouseup and Chrome then fired **no `click` at all**: the link
+  was reachable, `pointerdown`/`mousedown`/`mouseup` all landed on it, nothing
+  called `preventDefault`, and VIEW still did nothing. A mouse has always
+  raised the card on `pointerenter` before it reaches the link, so the guard
+  makes the focus path a no-op exactly when it matters.
+- **The VIEW button is deliberately oversized in the card's own box** (26px
+  type, 14/22px padding). The card is shrunk hard into world units, so it draws
+  at roughly half those numbers on screen even while hovered. At the earlier
+  19px/9px it rendered a **43x14px** target on the farthest card, which is
+  small enough to read as broken. Size it against what it measures on screen,
+  not against the 420x230 box.
 - **The cards are inert while the window is shut.** `CSS3DObject` stamps
   `pointer-events: auto` inline, which would outrank any stylesheet rule and
   leave an opacity-0 card clickable over Scene 2 — `reveal.ts` clears that
