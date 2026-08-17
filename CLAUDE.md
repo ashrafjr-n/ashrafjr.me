@@ -50,13 +50,17 @@ back. What exists today:
   open/close behaviour, its JS-written geometry and the 3D layer behind it
   (see **Reveal window** below). `main.ts` only mounts it, binds the trigger
   words and calls its `update()`.
+- `src/ui/project-cards.ts` — the five project cards' data and DOM: what a card
+  *is*. Where each one stands is `src/three/reveal.ts`'s business (see
+  **Project cards** below).
 - `src/three/scene.ts` — owns the renderer and the orbiting particle starfield
   (white/silver dots only; see **Starfield** below). The particle field also
   tilts in response to mouse position. It owns the two-pass composite (see
   **Render passes**). It also owns the smoothed `progress` that drives the
   Scene 1 → Scene 2 transition (see **Scroll transition**).
 - `src/three/reveal.ts` — the reveal window's own 3D scene: its own renderer,
-  scene and fixed camera, shared with nothing (see **Reveal window** below).
+  scene and fixed camera, shared with nothing (see **Reveal window** below). It
+  also owns the CSS3D layer the project cards stand in, on that same camera.
 - `src/three/world.ts` — the Scene 1 world layer: its own `Scene` +
   bird's-eye `PerspectiveCamera` (fov 35, at `(0, 9.3, 4.6)` looking at
   `(0, 0.25, 0)`, ~63° above the horizon), white key/fill/ambient lights, the
