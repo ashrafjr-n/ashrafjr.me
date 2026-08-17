@@ -314,17 +314,23 @@ other module touches it. It shares **nothing** with the Scene 1 starfield in
   blob. Same soft radial sprite, additive blending and grayscale-only colours
   as the site's other field.
 - Planets are billboards (`Sprite`), aimed by `yaw`/`pitch` from the camera and
-  placed at `dist`, listed in `PLANETS`. On-screen size is
-  `size / (2 * dist * tan(fov/2))` — the current values run ~17% of the frame
-  height for the nearest down to ~4% for the farthest, and opacity falls with
-  distance. Several sit outside the resting frustum on purpose, so turning the
-  view actually finds something. Each sprite's aspect is read off its texture
-  once it loads, so only the height is authored.
+  placed at `dist`, listed in `PLANETS`. They run ~19% of the frame height for
+  the nearest down to ~4% for the farthest, and opacity falls with distance.
+  Several sit outside the resting frustum on purpose, so turning the view
+  actually finds something. Each sprite's aspect is read off its texture once it
+  loads, so only the height is authored.
+- **A sprite is scaled by its depth, not its `dist`.** On-screen size is
+  `size / (2 * depth * tan(fov/2))` where `depth = cos(yaw) * cos(pitch) * dist`
+  — Three offsets a sprite's corners in *view space* and the projection then
+  divides by view-space z. So swinging a planet further off-axis at a fixed
+  `dist` draws it **bigger**. To move one without resizing it, solve `dist` to
+  hold `depth` where it was; the near white planet was moved that way (dist 40 →
+  50.1) and its 162px height did not budge.
 - **`PLANETS` may list the same file more than once** — `white.png` appears
-  twice, once near and large on the left and once further off and half the size
-  on the right, which reads as one body seen at two depths. The loader groups
-  the list **by file**, so a texture is fetched and uploaded once however many
-  planets use it. Keep that grouping if more repeats are added.
+  twice, once near and large out to the low left and once further off and
+  smaller on the right, which reads as one body seen at two depths. The loader
+  groups the list **by file**, so a texture is fetched and uploaded once however
+  many planets use it. Keep that grouping if more repeats are added.
 - `setActive(false)` recentres the camera and leaves **one still frame** on the
   canvas, ready for the next open. Render-on-demand, so nothing keeps drawing
   while the window is shut (and nothing is visible then either).
@@ -396,22 +402,24 @@ where it *stands*.
   `(CARD_RISE - drop) * CARD_DIST`, and because they all share one depth those
   heights compare directly on screen: each card's size splits evenly above and
   below **its own** centre rather than piling up in one direction.
-  - `CARD_DROP_TIERS` (`[0.024, 0.024, 0]`, same middle-outward indexing as the
+  - `CARD_DROP_TIERS` (`[0.038, 0.024, 0]`, same middle-outward indexing as the
     sizes) is how far each rank sits below the row's line. **The two ends hold
-    the line and the inner three are let down ~12px**, which is a deliberate
-    composition choice, not a stray offset — it also brings the five bottom
-    edges closer together (455 / 443 / 432 rather than 446 / 430 / 420). Keep
-    the outermost entry at 0; it is what the others are measured against.
+    the line, the inner pair is let down ~12px and the middle card ~19px** —
+    a deliberate composition choice, not a stray offset, and it also brings the
+    five bottom edges closer together (455 / 443 / 439 rather than the
+    446 / 430 / 420 they sat at when every card shared the line). Keep the
+    outermost entry at 0; it is what the others are measured against.
   - They were briefly hung from their feet instead, off a shared `CARD_FOOT`
     floor, which forced the bottom edge dead straight and sent the whole size
     difference upward. That was replaced by centring; don't reintroduce the
     floor — the drop tiers do the same job by degrees.
   - Neither the tops nor the bottoms line up, and they cannot: at 1536x849 the
-    cards run 259→454 at the ends, 315→442 for the inner pair and 334→432 in the
+    cards run 259→454 at the ends, 315→442 for the inner pair and 341→439 in the
     middle. That is the hierarchy being visible. **The check is each card's own
     centre against its tier**, not the edges — probe a marker at
     `left:50%; top:50%` inside each `.pcard`; the two ends should agree exactly
-    (370.4) and the inner three should agree exactly with each other (382.5).
+    (370.4), the inner pair with each other (382.5), and the middle card sits
+    alone at 389.6.
   - A card's *bounding box* is still not centred on the line — the trapezoid
     magnifies its near edge, and the row sits above the view axis, so that edge
     gains more above than below (the end cards reach ~99px up against ~75px
