@@ -435,6 +435,13 @@ body {
   background: #232326;
 }
 
+/* Keyboard only. The card is white here, so the ring is the card's own edge
+   colour rather than the white one the words on the black page use. */
+.pcard-view:focus-visible {
+  outline: 1px solid var(--pcard-ink);
+  outline-offset: 3px;
+}
+
 /* The mark on the button: GitHub's for a repo, open-in-new for a live site,
    both flattened to one white to match the site's other logos. */
 .pcard-view-icon {
