@@ -168,12 +168,22 @@ const CARD_ARC_STEP = 0.28
  */
 const CARD_ARC_PULL = 2.6
 /**
- * How far each card is turned back toward the camera: 1 would aim it straight
- * at the viewpoint and flatten the perspective on it, 0 would leave it parallel
- * to the screen. Half-way keeps a real angle on every card — one side edge
- * nearer than the other — which is the whole point of the arc.
+ * How far each card is turned back toward the camera: 1 aims it straight at the
+ * viewpoint, 0 leaves it parallel to the screen.
+ *
+ * **1 is what maximises the foreshortening, not what removes it**, and getting
+ * that backwards is what made the arc read as five rotated rectangles. The
+ * projection is onto a *plane*, so a card's on-screen size is set by its depth
+ * (its -z), not by its distance from the camera. Turning a card to face the
+ * camera equalises its two edges' distances but pushes them to very different
+ * depths: the spread works out to `w * sin(angle * CARD_FACE)`. At 0 the card
+ * lies parallel to the image plane, both edges share one depth and it projects
+ * as a perfect rectangle however far off-axis it sits; at 1 the spread is
+ * widest and the trapezoid strongest. Since the middle card's angle is 0 it
+ * stays an undistorted rectangle either way, and the distortion grows with
+ * position along the arc.
  */
-const CARD_FACE = 0.5
+const CARD_FACE = 1
 /** Slightly above eye level, so the arc sits up in the frame. */
 const CARD_Y = 1.2
 
@@ -352,9 +362,10 @@ export function createRevealScene(
 
     const object = new CSS3DObject(el)
     object.position.set(Math.sin(angle) * dist, CARD_Y, -Math.cos(angle) * dist)
-    // A card facing the camera dead-on would need `-angle`; turning it only
-    // CARD_FACE of the way leaves the rest as a real angle to the view, which
-    // is what puts one side edge nearer (and larger) than the other.
+    // A genuine 3D yaw about the card's own centre, written into the object's
+    // matrix and carried into the CSS matrix3d — never a 2D skew() or scale().
+    // `-angle` aims the card at the camera, which is what spreads its two
+    // vertical edges furthest apart in depth and gives the real trapezoid.
     object.rotation.y = -angle * CARD_FACE
     object.scale.setScalar(CARD_SCALE)
     // CSS3DObject stamps `pointer-events: auto` on the element, which would
