@@ -330,13 +330,13 @@ other module touches it. It shares **nothing** with the Scene 1 starfield in
   while the window is shut (and nothing is visible then either).
 
 ### Project cards (`src/ui/project-cards.ts` + the CSS3D layer)
-Five cards — REJOX, TTU Clinic, Datassert, AGB Media, Naelj — standing on an
-**arc around the camera** inside the reveal window's space. They are DOM, drawn
-by a `CSS3DRenderer` stacked over the WebGL canvas and given the **same
-camera**, so they yaw and pitch with the stars and planets instead of sitting on
-the screen. Two modules, split by question: `ui/project-cards.ts` owns what a
-card *is* (the `PROJECTS` list and the DOM), `three/reveal.ts` owns where it
-*stands*.
+Five cards — REJOX, TTU Clinic, Datassert, AGB Media, Naelj — standing in a
+**row that curves around the camera** inside the reveal window's space. They are
+DOM, drawn by a `CSS3DRenderer` stacked over the WebGL canvas and given the
+**same camera**, so they yaw and pitch with the stars and planets instead of
+sitting on the screen. Two modules, split by question: `ui/project-cards.ts`
+owns what a card *is* (the `PROJECTS` list and the DOM), `three/reveal.ts` owns
+where it *stands*.
 
 - **Both renderers share one camera and one `render()`.** The CSS3D pass is
   called from the same on-demand `render()` as the WebGL pass in `reveal.ts`;
@@ -351,28 +351,50 @@ card *is* (the `PROJECTS` list and the DOM), `three/reveal.ts` owns where it
 - **Two elements per card, and that is load-bearing.** CSS3DRenderer writes its
   own `transform` onto the element it is given, so `.pcard-slot` can never
   carry one of ours; the inner `.pcard` is what scales on hover.
-- The cards are authored in **CSS pixels and converted** — `CARD_SCALE` in
-  `reveal.ts` turns the `CARD_PX_W`/`CARD_PX_H` box (420x200, a wide rectangle)
-  into world units, because CSS3DRenderer maps one CSS pixel to one world unit.
-  Change the CSS box and that constant together or the cards resize on screen.
-- **It is an arc, not a row, and each card is placed by three numbers.** A card
-  `i` gets `t` running -1 (left end) to +1 (right end); from that:
-  - `angle = t * (n - 1) / 2 * CARD_ARC_STEP` — spacing is angular, not an x
-    offset, and the position is `(sin a * radius, y, -depth)`.
-  - `radius = CARD_DIST - CARD_ARC_PULL * t²`, and `depth = radius * cos a` —
-    the **ends sit nearer the camera** than the middle, so the arc curves toward
-    the viewer rather than away.
-  - `y = CARD_RISE * depth`. **Not a constant height.** `CARD_RISE` is a screen
-    quantity — the tangent of the angle above the view axis — so scaling `y` by
-    each card's own depth lands every card's centre on the same horizontal line
-    on screen. One shared world `y` puts them on a level plane in 3D, but the
-    projection divides by depth, so the nearer end cards rode visibly higher and
-    the row read as a smile. Only a card's *apparent height* should vary along
-    the arc; its centre should not.
-  - `rotation.y = -angle * CARD_FACE`, with `CARD_FACE` at **1** — a genuine 3D
-    yaw about the card's own centre, carried through the object's matrix into
-    the CSS `matrix3d`. Never a 2D `skew()` or `scale()`; those give a
-    parallelogram or a plain rectangle, not a trapezoid.
+- The cards are authored in **CSS pixels and converted** — `CARD_SCALE` (0.015)
+  in `reveal.ts` turns the `CARD_PX_W`/`CARD_PX_H` box (420x230, a wide
+  rectangle) into world units, because CSS3DRenderer maps one CSS pixel to one
+  world unit. Change the CSS box and that constant together or the cards resize
+  on screen.
+- **Every card stands on one plane at `CARD_DIST`, and the curve is entirely in
+  how far each one is turned.** A card at world x gets
+  `rotation.y = -atan(x / CARD_DIST) * CARD_FACE`, so the middle card faces
+  straight down the view axis and each card out from it is yawed harder to face
+  the viewpoint. That reads as a row wrapping around the viewer while every card
+  keeps the same apparent size.
+  - **The single depth is load-bearing, and this replaced a real arc.** The
+    earlier version curved in depth (`radius = CARD_DIST - CARD_ARC_PULL * t²`,
+    angular spacing), which drew the end cards 165px tall against the middle
+    card's 86 — their tops rode 52px above it and their feet 29px below, and the
+    row had no consistent band. A card's on-screen size comes from its depth, so
+    equal depth is the only thing that puts all five in one band.
+  - It costs no foreshortening, because that comes from a card's *yaw*, not from
+    where it stands. Curving the row in depth and scaling each card by its own
+    depth to compensate is, by construction, **the same picture as this one** —
+    a radial scaling about the camera survives the projection, and survives the
+    look-around too, since the camera only ever rotates about that same point.
+    `CARD_ARC_STEP` and `CARD_ARC_PULL` are gone: under equal apparent size the
+    pull provably does nothing at all.
+  - `y = CARD_RISE * CARD_DIST`, one height for all five. `CARD_RISE` is still a
+    screen quantity — the tangent of the angle above the view axis — but with
+    one depth it no longer has to be solved per card. At 0.107 the cards' feet
+    land almost exactly on the view axis, where the projection barely moves with
+    depth, which is why the row's **bottom edge comes out dead level (within
+    2px)** and the trapezoid's extra height all goes upward.
+  - `CARD_FACE` is **1** — a genuine 3D yaw about the card's own centre, carried
+    through the object's matrix into the CSS `matrix3d`. Never a 2D `skew()` or
+    `scale()`; those give a parallelogram or a plain rectangle, not a trapezoid.
+- **Spacing is solved against the projection, not set as an offset.**
+  `CARD_GAP_PX` (45) is the gap between neighbours *as it lands on screen*, in
+  the card's own authoring pixels, and `solveRowCentres()` walks outward from
+  the middle bisecting for each next centre until the gap comes out right.
+  A closed form is not worth writing — the yaw depends on the position being
+  solved for — and it runs five times at startup and never again.
+  - This is the only way to get an even row here: a card projects wider the
+    further off-axis it stands (the end pair covers ~330px against the middle
+    card's ~212px), so spacing evenly in **angle** spread the outer gaps to
+    ~2.3x the inner ones and spacing evenly in **x** did the same the other way.
+    Neither is an even row. Don't replace the solve with a constant step.
 - **Facing the camera is what foreshortens a card, not what flattens it**, and
   believing the opposite is what once made the arc read as five rotated
   rectangles. The projection is onto a *plane*, so a card's on-screen size comes
@@ -382,29 +404,29 @@ card *is* (the `PROJECTS` list and the DOM), `three/reveal.ts` owns where it
   `CARD_FACE` 0 lays the card parallel to the image plane, both edges share one
   depth, and it draws as a perfect rectangle however far off-axis it sits; 1 is
   the maximum. Don't lower it "to add tilt".
-- Measured on the rendered page (probe a 1px full-height strip at each of a
-  card's edges and read `getBoundingClientRect().height`): the end cards draw
-  about **155px on the near edge against 110px on the far one — a ~1.42
-  ratio**, the next pair ~1.14, and the middle card **1.00**. The five cards'
-  centres sit within ~12px of one line, all of that the trapezoid's own
-  asymmetry rather than a baseline offset. That gradient — nothing at the
-  centre rising to an obvious trapezoid at the ends, on one level row — is the
-  thing to re-check after touching any of these constants.
-- The arc is sized against the resting frustum: horizontal half-angle is
-  `atan(tan(fov / 2) * aspect)`. Three numbers pull against each other — the
-  edge ratio, the ~28px gap between neighbours, and the 1.371 outer reach
-  against a 1.616 frame half-width at 16:9. A stronger trapezoid wants a wider
-  arc and bigger cards, and both eat the gap and the margin. Re-solve all three
-  before retuning `CARD_SCALE`, `CARD_ARC_STEP` or `CARD_ARC_PULL`. **Known
-  limitation: below about 16:9 the end cards clip.**
-- `CARD_ARC_PULL` sharpens the foreshortening but does not create it — the
-  arc's *angle* does most of that work, and even at 0 the end cards still run a
-  ~1.33 edge ratio. Keep it modest: 3.5 drew the end cards 2.6x the middle
-  one's width, which reads as two sizes of card rather than one arc.
-- `CARD_Y` is **above** eye level (+1.2), which is what lifts the arc into the
-  upper half of the frame. Because y is constant while the radius is not, the
-  nearer end cards also sit visibly higher on screen than the middle one — that
-  smile is correct for a level arc, not a bug.
+- Measured on the rendered page at 1536x797 (drop a zero-size marker at each of
+  the card's four corners and read their `getBoundingClientRect()`): the end
+  cards draw about **138px on the near edge against 99px on the far one — a
+  ~1.39 ratio**, the next pair ~1.22, and the middle card **1.00**. Gaps are an
+  even 25px. The five **tops sit within 21px of one line and the five bottoms
+  within 2px**; the 21px is the trapezoid's own extra height on the most turned
+  cards and cannot be removed without weakening the tilt. That — a gradient from
+  nothing at the centre to an obvious trapezoid at the ends, all of it inside
+  one horizontal band — is the thing to re-check after touching any of these
+  constants.
+- **The row deliberately overruns the frame**, and nothing tries to fit it. The
+  window's visible half-width is `tan(fov / 2) * aspect` less the inset, about
+  `0.818 * aspect` in tangent units, against the row's fixed 1.525 reach — so
+  the end cards' outer corners clear the hairline by ~22px at 16:10 and ~36px at
+  16:9, and the whole row fits only above about a 1.86 aspect. This is on
+  purpose: the cards are sized to be legible, and this is a scene you look
+  around in.
+- `CARD_GAP_PX` is therefore also the knob for **how far it overruns**, since
+  the card size is fixed: widening the gap pushes the ends out with it. The one
+  thing that keeps it honest is the end cards' VIEW button, which sits right on
+  that outer edge — at 45 it stays whole down to about a 1.81 aspect, and 59 was
+  tried and took 25px off it. Retune the gap, not `CARD_SCALE`, to move the
+  reach.
 - **Hover grows the card only** — `transform: scale(var(--pcard-hover))`; each
   card is its own object on the arc, so no neighbour moves or resizes. It runs
   on the card's own tokens (`--pcard-ease`, `--pcard-grow`, `--pcard-reveal`),
@@ -420,14 +442,16 @@ card *is* (the `PROJECTS` list and the DOM), `three/reveal.ts` owns where it
   far middle card covering its nearer neighbours, and an inner card covering
   the much nearer end card. CSS3DRenderer re-appends an element only when it is
   not already a child of its camera element, so it will not shuffle them back.
-- **The two end cards grow inward, not about their centres.** They sit nearest
-  the camera, so they already draw largest and reach nearest the window frame;
-  scaled about the middle they pushed out through it and lost their outer edge
-  and the VIEW button. `three/reveal.ts` marks them `data-arc-end="left|right"`
-  (it is what knows the arc order) and style.css anchors `transform-origin` to
-  the outer edge, which pins it where it already is and spends the growth on
-  the inward side. The three inner cards stay centred.
-- At rest a card shows **only its name**, large (44px in the card's own box).
+- **The two end cards grow inward, not about their centres.** They are the most
+  turned, so they project widest, and they already run past the window's frame;
+  scaled about the middle they would carry their outer edge — and with it the
+  right-hand card's VIEW button — further out of sight. `three/reveal.ts` marks
+  them `data-arc-end="left|right"` (it is what knows the row order) and style.css
+  anchors `transform-origin` to the outer edge, which pins it where it already
+  is and spends the growth on the inward side. The three inner cards stay
+  centred. This is about keeping the button reachable, **not** about fitting the
+  cards to the frame — the row is sized to overrun it.
+- At rest a card shows **only its name**, large (56px in the card's own box).
   The stack line is collapsed (`max-height: 0`) rather than removed, and the
   VIEW button is `opacity: 0` *and* `pointer-events: none`, so neither is
   reachable until the card is entered or focused. The stack's font size is
@@ -442,6 +466,21 @@ card *is* (the `PROJECTS` list and the DOM), `three/reveal.ts` owns where it
   Material's `open_in_new` for the four live sites, both flattened to one white
   per the palette rule. `kind` in the `PROJECTS` entry picks it. Verified live:
   clicking it opens the project's own URL in a new tab.
+- **Taking VIEW puts the card straight back to rest.** Neither state that holds
+  a card open lapses on its own once the link has opened its tab: the cursor is
+  still inside the card so `:hover` stays true, and the link keeps focus so
+  `:focus-within` does too. `ui/project-cards.ts` blurs the link on click and
+  adds `is-dismissed`, which style.css uses to force the resting look; the class
+  is cleared on the slot's `pointerleave`, so leaving and coming back is a fresh
+  hover. Keyboard activation is exempt — a click synthesised from Enter or Space
+  reports `detail` 0, and there the focus ring is still on VIEW, so closing the
+  card would hide the element holding it.
+  - **The dismissed rules name `:hover` and `:focus-within` explicitly**, and
+    that is not decoration. `.pcard.is-dismissed .pcard-view` only *ties* with
+    `.pcard:hover .pcard-view` — a pseudo-class counts the same as a class — so
+    the hover rule won on source order and the card's scale collapsed while its
+    stack line and button stayed open. This shipped broken once in this form;
+    keep the three-selector shape.
 - **`raise()` must not move the card while a click is in flight**, and its
   early return is what guarantees that. Raising re-appends the slot, which
   detaches and re-inserts the whole card — and `focusin` fires on *mousedown*
