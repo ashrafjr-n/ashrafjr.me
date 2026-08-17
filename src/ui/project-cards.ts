@@ -113,15 +113,27 @@ function buildProjectCard({ name, stack, href, kind }: Project): HTMLDivElement 
   card.append(title, line, view)
   slot.append(card)
 
+  /**
+   * Put this card last among its siblings, which is what paints it over them.
+   *
+   * The guard is load-bearing, not an optimisation. Re-appending detaches and
+   * re-inserts the whole card, and `focusin` fires on mousedown when the VIEW
+   * link takes focus — so an unguarded move happened *between* mousedown and
+   * mouseup and Chrome then fired no `click` at all. The link was reachable and
+   * nothing cancelled it; the click simply never existed, which is why VIEW did
+   * nothing. By the time a mouse reaches the link the card has already been
+   * raised by `pointerenter`, so this now no-ops during a click.
+   */
+  function raise(): void {
+    const parent = slot.parentElement
+    if (parent && parent.lastElementChild !== slot) parent.append(slot)
+  }
+
   // Raise on the way in, so the growing card is over its neighbours from the
   // first frame of the scale rather than sliding under one of them.
-  slot.addEventListener('pointerenter', () => {
-    slot.parentElement?.append(slot)
-  })
+  slot.addEventListener('pointerenter', raise)
   // Keyboard focus lands on the VIEW link, which the same reveal uncovers.
-  slot.addEventListener('focusin', () => {
-    slot.parentElement?.append(slot)
-  })
+  slot.addEventListener('focusin', raise)
 
   return slot
 }
