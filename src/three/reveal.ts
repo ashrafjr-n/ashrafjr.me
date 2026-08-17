@@ -44,7 +44,17 @@ import { rand } from '../lib/math'
 import type { InputState } from '../lib/state'
 import { createCircleTexture } from './sprite'
 
-const CAMERA_FOV = 62
+/**
+ * Deliberately wide. The project cards stand on an arc that wraps around the
+ * viewpoint, and a card only shows real foreshortening — one vertical edge
+ * taller than the other — when it covers a decent angle of the view *and* is
+ * turned. Five such cards need a field wide enough to hold them: at 62° the arc
+ * either overflowed the frame or the cards had to be small enough that the
+ * trapezoid collapsed to about 10%. Everything else in this scene is scaled to
+ * this value (see the note on PLANETS and STAR_COUNT), so changing it means
+ * re-scaling them too.
+ */
+const CAMERA_FOV = 80
 
 // --- Stars ---
 /**
