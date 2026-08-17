@@ -166,14 +166,21 @@ const CARD_DIST = 14
  * authoring pixels. It is not an x offset: the row is solved outward from the
  * middle so that every neighbouring pair leaves exactly this gap after the
  * projection, which is the only way to get an even row out of cards that
- * project wider the further off-axis they stand (the end pair covers ~360px
- * against the middle card's ~228px at 16:9).
+ * project wider the further off-axis they stand (the end pair covers ~352px
+ * against the middle card's ~228px at 1536x849).
  *
  * Spacing the cards evenly in *angle* instead spread the outer gaps to ~2.3x
  * the inner ones, and spacing them evenly in *x* did the same the other way.
  * Neither is the same thing as an even row; this is.
+ *
+ * It is also the knob that sets how far the row overruns the frame, since the
+ * cards' own size is fixed: at this value the outer corners clear the window's
+ * hairline by ~22px at 16:10 and ~36px at 16:9, and the end cards' VIEW button
+ * — which sits right on that outer edge — stays whole down to about a 1.81
+ * aspect. Widening the gap pushes both out together; it was 59 briefly and
+ * took 25px off that button.
  */
-const CARD_GAP_PX = 59
+const CARD_GAP_PX = 45
 /**
  * How far each card is turned back toward the camera: 1 aims it straight at the
  * viewpoint, 0 leaves it parallel to the screen.
