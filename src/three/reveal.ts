@@ -126,14 +126,20 @@ const CARD_PX_H = 180
 const CARD_SCALE = 0.0125
 /** Radius at the middle of the arc. The ends come in closer than this. */
 const CARD_DIST = 20
-/** Angle between neighbouring cards along the arc, in radians (~18°). */
-const CARD_ARC_STEP = 0.32
+/** Angle between neighbouring cards along the arc, in radians (~16°). */
+const CARD_ARC_STEP = 0.28
 /**
  * How much nearer the camera the two end cards sit than the middle one, in
  * world units, falling off as the square of the position along the arc. This is
  * what curves the arc *toward* the viewer at its ends.
+ *
+ * Keep it modest. A perspective projection onto a flat screen already stretches
+ * whatever sits off-axis — at these angles the end cards draw ~1.5x the middle
+ * one's width from the projection alone — so the pull compounds with that
+ * rather than acting on its own. 4.2 was tried and read as two different sizes
+ * of card rather than one arc.
  */
-const CARD_ARC_PULL = 4.2
+const CARD_ARC_PULL = 2.6
 /**
  * How far each card is turned back toward the camera: 1 would aim it straight
  * at the viewpoint and flatten the perspective on it, 0 would leave it parallel
