@@ -375,7 +375,7 @@ body {
 }
 
 /* The one thing a resting card shows, so it carries the card. Sized against
-   the 380px box and the shrink into the world, not against the screen. */
+   the 420px box and the shrink into the world, not against the screen. */
 .pcard-name {
   font-size: 44px;
   font-weight: 700;
@@ -390,7 +390,9 @@ body {
   margin-top: 0;
   overflow: hidden;
   opacity: 0;
-  font-size: 19px;
+  /* Sized to keep the longest stack on one line inside the card's 420px box —
+     two lines run into the VIEW button in the corner. */
+  font-size: 17px;
   line-height: 1.45;
   color: var(--pcard-ink-dim);
   transition: max-height 340ms var(--reveal-ease),

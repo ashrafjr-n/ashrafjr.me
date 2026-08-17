@@ -110,8 +110,8 @@ const PLANETS: PlanetSpec[] = [
  * gives the end cards their own depth (nearer, so larger) on top of the yaw
  * below.
  *
- * CSS3DRenderer maps one CSS pixel to one world unit, which would make a 380px
- * card 380 units wide. `CARD_SCALE` is the conversion: the card's CSS box is
+ * CSS3DRenderer maps one CSS pixel to one world unit, which would make a 420px
+ * card 420 units wide. `CARD_SCALE` is the conversion: the card's CSS box is
  * authored at a comfortable size for type and then scaled down to the world.
  * Change the CSS box and this together, or the cards change size on screen.
  *
@@ -121,9 +121,9 @@ const PLANETS: PlanetSpec[] = [
  * its neighbours by a couple of degrees. Widening a card or spreading the arc
  * further runs into one or the other; check both before retuning these.
  */
-const CARD_PX_W = 380
-const CARD_PX_H = 180
-const CARD_SCALE = 0.0125
+const CARD_PX_W = 420
+const CARD_PX_H = 200
+const CARD_SCALE = 0.0118
 /** Radius at the middle of the arc. The ends come in closer than this. */
 const CARD_DIST = 20
 /** Angle between neighbouring cards along the arc, in radians (~16°). */
