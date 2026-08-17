@@ -309,6 +309,141 @@ body {
 }
 
 /* ===========================================================
+   Project cards (inside the reveal window's 3D space)
+
+   These are DOM elements placed in the world by a CSS3DRenderer sharing the
+   scene's camera (three/reveal.ts), so they turn with the stars and planets
+   instead of sitting on the screen. Nothing here may pin them to the viewport.
+
+   The layer is viewport-sized and centred on the window, exactly like the
+   canvas, and carries no z-index: document order alone puts it over the stars
+   and under the close corner. Keep that order in ui/reveal-window.ts.
+   =========================================================== */
+.reveal-cards {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  translate: -50% -50%;
+  /* CSS3DRenderer writes its own width/height (and overflow) inline. */
+  pointer-events: none;
+}
+
+/* The element the renderer drives. Its transform belongs to the renderer and
+   its size is written from three/reveal.ts, so nothing may set either here —
+   the card inside is what carries the hover. */
+.pcard-slot {
+  pointer-events: none;
+}
+
+/* Only a grown window takes the pointer: an opacity-0 card is still a hit
+   target, and CSS3DObject's inline `pointer-events: auto` is cleared in
+   three/reveal.ts precisely so this rule is the one that decides. */
+.reveal-window.is-open .pcard-slot {
+  pointer-events: auto;
+}
+
+/* The card itself. At rest it shows nothing but its name; the stack line and
+   the VIEW button are uncovered by the same hover that grows it. */
+.pcard {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 18px;
+  background: var(--pcard-surface);
+  border: 1px solid var(--pcard-line);
+  color: var(--pcard-ink);
+  font-family: var(--font-code);
+  text-align: center;
+  /* About its own centre: the card grows in place, and since every card is its
+     own object out in the row, none of the others move or resize with it. */
+  transform-origin: 50% 50%;
+  transition: transform 340ms var(--reveal-ease);
+}
+
+/* Grown. The hovered card is also moved to the end of its parent from
+   ui/project-cards.ts — the cards are coplanar inside a preserve-3d container,
+   where paint order follows document order and z-index does not apply. */
+.pcard:hover,
+.pcard:focus-within {
+  transform: scale(var(--pcard-hover));
+}
+
+.pcard-name {
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  line-height: 1.2;
+}
+
+/* Collapsed to nothing at rest, so the name sits centred on its own; the card
+   opens it out as it grows. */
+.pcard-stack {
+  max-height: 0;
+  margin-top: 0;
+  overflow: hidden;
+  opacity: 0;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--pcard-ink-dim);
+  transition: max-height 340ms var(--reveal-ease),
+    margin-top 340ms var(--reveal-ease), opacity 240ms ease;
+}
+
+.pcard:hover .pcard-stack,
+.pcard:focus-within .pcard-stack {
+  max-height: 4em;
+  margin-top: 10px;
+  opacity: 1;
+}
+
+/* Bottom-right, and only on a grown card. Black on the white face — the one
+   inverted patch on the card, so it reads as the thing to press. */
+.pcard-view {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 9px;
+  background: #000000;
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  line-height: 1;
+  text-decoration: none;
+  opacity: 0;
+  /* Unreachable until it is shown, however the card is entered. */
+  pointer-events: none;
+  transition: opacity 220ms ease, background 200ms ease;
+}
+
+.pcard:hover .pcard-view,
+.pcard:focus-within .pcard-view {
+  opacity: 1;
+  pointer-events: auto;
+  transition-delay: 90ms;
+}
+
+.pcard-view:hover,
+.pcard-view:focus-visible {
+  background: #232326;
+}
+
+/* The mark on the button: GitHub's for a repo, open-in-new for a live site,
+   both flattened to one white to match the site's other logos. */
+.pcard-view-icon {
+  display: block;
+  width: 13px;
+  height: 13px;
+}
+
+/* ===========================================================
    Social badges (top-left corner): GitHub (icon + label), then
    icon-only LinkedIn and email links sharing the same hover style.
    =========================================================== */
