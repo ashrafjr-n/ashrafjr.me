@@ -53,6 +53,14 @@
      the old 1.4 because the arc's near end cards already draw largest, and at
      1.4 an enlarged one swallowed its neighbour whole. */
   --pcard-hover: 1.32;
+  /* Hover timing. A gentler curve than the window's expo-out --reveal-ease,
+     which starts too fast to read as a card easing open, and long enough that
+     the growth, the stack line and the button arrive as one move rather than
+     three snaps. The parts are staggered by transition-delay on the way in and
+     run with no delay on the way out, so it collapses cleanly. */
+  --pcard-ease: cubic-bezier(0.22, 0.68, 0.24, 1);
+  --pcard-grow: 460ms;
+  --pcard-reveal: 380ms;
 }
 
 /* ===========================================================
@@ -356,7 +364,7 @@ body {
   justify-content: center;
   /* Deeper at the foot than the head: the centred name and stack sit clear of
      the VIEW button in the bottom corner rather than running under it. */
-  padding: 24px 24px 44px;
+  padding: 24px 24px 46px;
   background: var(--pcard-surface);
   /* 2px, not 1: the card's CSS box is shrunk hard into world units, so a
      hairline here lands under a screen pixel and disappears. */
@@ -367,7 +375,7 @@ body {
   /* About its own centre: the card grows in place, and since every card is its
      own object out in the row, none of the others move or resize with it. */
   transform-origin: 50% 50%;
-  transition: transform 340ms var(--reveal-ease);
+  transition: transform var(--pcard-grow) var(--pcard-ease);
 }
 
 /* Grown. The hovered card is also moved to the end of its parent from
@@ -395,9 +403,10 @@ body {
 }
 
 /* The one thing a resting card shows, so it carries the card. Sized against
-   the 420px box and the shrink into the world, not against the screen. */
+   the 420x230 box and the shrink into the world, not against the screen. At
+   58px the longest name still clears the box's inner width. */
 .pcard-name {
-  font-size: 52px;
+  font-size: 58px;
   font-weight: 700;
   letter-spacing: 0.04em;
   line-height: 1.2;
@@ -410,20 +419,28 @@ body {
   margin-top: 0;
   overflow: hidden;
   opacity: 0;
+  /* Rises into place as it opens out, rather than appearing where it lands. */
+  transform: translateY(-6px);
   /* Sized to keep the longest stack on one line inside the card's 420px box —
      two lines run into the VIEW button in the corner. */
   font-size: 20px;
   line-height: 1.45;
   color: var(--pcard-ink-dim);
-  transition: max-height 340ms var(--reveal-ease),
-    margin-top 340ms var(--reveal-ease), opacity 240ms ease;
+  transition: max-height var(--pcard-reveal) var(--pcard-ease),
+    margin-top var(--pcard-reveal) var(--pcard-ease),
+    transform var(--pcard-reveal) var(--pcard-ease),
+    opacity 260ms var(--pcard-ease);
 }
 
 .pcard:hover .pcard-stack,
 .pcard:focus-within .pcard-stack {
   max-height: 4em;
-  margin-top: 10px;
+  margin-top: 12px;
   opacity: 1;
+  transform: none;
+  /* Just behind the card's own growth, so the line opens into a card that is
+     already on its way rather than fighting it. */
+  transition-delay: 70ms;
 }
 
 /* Bottom-right, and only on a grown card. Black on the white face — the one
@@ -444,16 +461,20 @@ body {
   line-height: 1;
   text-decoration: none;
   opacity: 0;
+  transform: translateY(8px);
   /* Unreachable until it is shown, however the card is entered. */
   pointer-events: none;
-  transition: opacity 220ms ease, background 200ms ease;
+  transition: opacity 260ms var(--pcard-ease),
+    transform 320ms var(--pcard-ease), background 200ms ease;
 }
 
+/* Last of the three to arrive, so the card reads as opening out into it. */
 .pcard:hover .pcard-view,
 .pcard:focus-within .pcard-view {
   opacity: 1;
+  transform: none;
   pointer-events: auto;
-  transition-delay: 90ms;
+  transition-delay: 140ms;
 }
 
 .pcard-view:hover,
