@@ -17,7 +17,11 @@
  */
 import type { InputState } from '../lib/state'
 import { createRevealScene } from '../three/reveal'
-import { buildProjectCards } from './project-cards'
+import {
+  armCardEntrance,
+  buildProjectCards,
+  playCardEntrance,
+} from './project-cards'
 
 /**
  * How long after opening the look-around starts, in ms. Matches
@@ -121,7 +125,12 @@ export function createRevealWindow(parent: HTMLElement): RevealWindow {
   // so reopening allocates nothing. The cards are built here and placed in the
   // world by the scene — this module owns what they are, the scene owns where
   // they stand.
-  const scene = createRevealScene(canvas, cards, raised, buildProjectCards())
+  // Held, not just handed over: the cards are armed and released on every open
+  // (see `open()` below), which is this module's business rather than the
+  // scene's — where they stand is the scene's, when they arrive is the
+  // window's.
+  const projectCards = buildProjectCards()
+  const scene = createRevealScene(canvas, cards, raised, projectCards)
 
   let isOpen = false
   /** The word the window is currently out of — where it shrinks back to. */
@@ -160,6 +169,13 @@ export function createRevealWindow(parent: HTMLElement): RevealWindow {
     isOpen = true
     openedFrom = trigger
 
+    // Before anything is painted: the row drops back below its place, ready to
+    // rise. Arming on open rather than on close is what makes the cascade play
+    // exactly once per open — and it leaves the cards standing while the window
+    // shrinks back into its word, so they go with it rather than blinking out
+    // from under it.
+    armCardEntrance(projectCards)
+
     // Sit on the word first, with transitions suppressed so that jump is not
     // animated, and flush it — otherwise the growth would start from wherever
     // the window happened to be left, not from the word that was clicked.
@@ -173,11 +189,15 @@ export function createRevealWindow(parent: HTMLElement): RevealWindow {
     trigger.setAttribute('aria-expanded', 'true')
     applyOpenBox()
 
-    // Hand the view over only when the window has finished growing.
+    // Hand the view over only when the window has finished growing, and start
+    // the cascade on the same beat: the mask is still a sliver of the screen
+    // until then, so a row rising behind it would be over before it could be
+    // seen. The cards' own transitions carry it from here — nothing per-frame.
     clearTimeout(lookTimer)
     lookTimer = window.setTimeout(() => {
       isLookLive = true
       scene.setActive(true)
+      playCardEntrance(projectCards)
     }, OPEN_MS)
   }
 
