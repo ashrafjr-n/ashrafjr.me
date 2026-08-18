@@ -70,9 +70,20 @@ const SCENE2_CAMERA_TARGET_WIDE = { x: 0, y: 0.3, z: 0 }
  *
  * Negative x is screen-left for this camera rig (world +x reads as screen
  * right here — see the camera basis note where this is used).
+ *
+ * Two tiers, not one: at CAMERA_FOV 35 and SCENE2_CAMERA_POS_WIDE's distance,
+ * the visible width at the model's own plane is set by the *horizontal* FOV,
+ * which shrinks with aspect — a tall tablet portrait (~0.73–0.78) sees barely
+ * over half the horizontal span a 16:10 desktop does. The full DESKTOP shift
+ * pushed the model's near edge off the left of the frame on an iPad-width
+ * tablet, so it is gated behind the same min-width: 900px boundary
+ * style.css's own desktop block uses (see DESKTOP below); tablets (768–
+ * 899.98px) get the milder TABLET tier instead.
  */
-const MODEL_X_WIDE = -1.3
-const MODEL_SCALE_WIDE = 1.3
+const MODEL_X_TABLET = -0.65
+const MODEL_SCALE_TABLET = 1.12
+const MODEL_X_DESKTOP = -1.3
+const MODEL_SCALE_DESKTOP = 1.3
 
 /**
  * Full turns the model makes across the scroll transition, on top of its idle
@@ -143,12 +154,14 @@ export interface WorldLayer {
 export function createWorld(aspect: number): WorldLayer {
   const scene = new Scene()
 
-  // Same breakpoint style.css's phone block and ui/reveal-window.ts's card
-  // drag both use. `.matches` is read fresh in update() every frame rather
-  // than cached from a resize listener, so the Scene 2 composition tracks the
-  // live viewport the same way the CSS does — including a window resized
-  // across the boundary mid-session, not just at load.
+  // Same two breakpoints style.css's Scene 2 row uses (the phone query and
+  // the min-width: 900px desktop-size block). `.matches` is read fresh in
+  // update() every frame rather than cached from a resize listener, so the
+  // Scene 2 composition tracks the live viewport the same way the CSS does —
+  // including a window resized across a boundary mid-session, not just at
+  // load.
   const MOBILE = window.matchMedia('(max-width: 767.98px)')
+  const DESKTOP = window.matchMedia('(min-width: 900px)')
 
   const camera = new PerspectiveCamera(CAMERA_FOV, aspect, 0.1, 200)
   camera.position.set(CAMERA_POS.x, CAMERA_POS.y, CAMERA_POS.z)
@@ -217,9 +230,12 @@ export function createWorld(aspect: number): WorldLayer {
     // The model's own left shift and scale-up, desktop/tablet only — mixed by
     // the same progress as the camera so it arrives exactly as Scene 2 does.
     // Explicitly reset on mobile rather than left alone, so a viewport resized
-    // across the breakpoint mid-session can't strand the pivot off-centre.
-    pivot.position.x = wide ? mix(0, MODEL_X_WIDE, progress) : 0
-    pivot.scale.setScalar(wide ? mix(1, MODEL_SCALE_WIDE, progress) : 1)
+    // across a breakpoint mid-session can't strand the pivot off-centre or
+    // over-scaled.
+    const modelX = DESKTOP.matches ? MODEL_X_DESKTOP : MODEL_X_TABLET
+    const modelScale = DESKTOP.matches ? MODEL_SCALE_DESKTOP : MODEL_SCALE_TABLET
+    pivot.position.x = wide ? mix(0, modelX, progress) : 0
+    pivot.scale.setScalar(wide ? mix(1, modelScale, progress) : 1)
   }
 
   function resize(nextAspect: number): void {
