@@ -223,6 +223,11 @@ export function armCardEntrance(slots: HTMLElement[]): void {
   for (const slot of slots) {
     arrivalWatchers.get(slot)?.()
     slot.classList.remove('is-arriving')
+    // Last open left the row lying below the frame. Dropping the class here
+    // rather than at the end of the close is what let the cards stay down while
+    // the window shrank back into its word; the armed state it lands in is the
+    // same position anyway, so nothing moves.
+    slot.classList.remove('is-leaving')
     slot.classList.add('is-entering')
   }
 }
@@ -239,5 +244,34 @@ export function playCardEntrance(slots: HTMLElement[]): void {
     slot.classList.add('is-arriving')
     watchArrival(slot)
     slot.classList.remove('is-entering')
+  }
+}
+
+/**
+ * How long the row takes to drop out, in ms. This is `--pcard-exit-dur` in
+ * style.css, and the one timing this module duplicates in both directions: the
+ * window has to know when the cards have gone before it may start shrinking, so
+ * the number has to exist here as well. Keep the two equal.
+ *
+ * It is a timer rather than a `transitionend` on the way out for a reason a
+ * stuck class does not have on the way in: nothing else would ever close the
+ * window. An event that fails to arrive — a backgrounded tab, an interrupted
+ * transition — would leave the window standing open for good.
+ */
+export const CARD_EXIT_MS = 600
+
+/**
+ * Send the row back down, all five at once. The exit is deliberately not the
+ * entrance reversed: there is no stagger, so the whole row is gone in one
+ * --pcard-exit-dur and the window is not left waiting on the last card.
+ *
+ * Any arrival watcher still pending is dropped first — a card caught mid-rise
+ * turns straight around, and the landing it was waiting for is never coming.
+ */
+export function dropCards(slots: HTMLElement[]): void {
+  for (const slot of slots) {
+    arrivalWatchers.get(slot)?.()
+    slot.classList.remove('is-arriving')
+    slot.classList.add('is-leaving')
   }
 }
