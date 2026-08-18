@@ -1,0 +1,875 @@
+At the start of every session, and after every /clear, read vibe.md first before doing anything else.
+
+# Personal Portfolio — Project Guide
+
+## Stack
+- **Vite** — build tool / dev server
+- **TypeScript** — vanilla, no framework. `strict` is on, along with
+  `noUnusedLocals`/`noUnusedParameters`; `npx tsc --noEmit` is the quick check
+- **Three.js** — 3D scene work (`src/three/`)
+- **Plain CSS** — no Tailwind, no CSS framework (`src/style.css`)
+
+## Theme
+- Cinematic, high-contrast.
+- Palette is **white / black / silver-gray only** — no other colors anywhere
+  (CSS, 3D materials, gradients, shadows). Enforce this on every visual change.
+  **There are no exceptions, including brand logos.** The social icons were
+  briefly shown in real brand colors (LinkedIn blue, Gmail multicolor) and that
+  was reverted — every logo mark is recolored to pure white/black on the way in.
+- Design tokens live in the `:root` block of `src/style.css`.
+- **The page background is pure `#000000` (`--bg`) and must stay that way.**
+  The `space_boi` model's own material is pure black, so at `#000000` the model
+  reads as one continuous surface with the page — its base slab is invisible
+  and only the white orbit rings, planets and figure show. The body background
+  is deliberately flat (no gradient) to preserve that. Do not add a gradient,
+  lighten the background, or put a ground/backdrop mesh behind the model.
+- Fonts loaded: **Space Grotesk** (`--font-display`, still not applied to any
+  element) and **JetBrains Mono** (`--font-code`, applied to body text, the
+  social badges, the intro line and the Scene 2 row). JetBrains Mono is
+  requested at **400 and 700**, Space Grotesk at **400 only** — the Google
+  Fonts request in `index.html` carries exactly what is rendered, so anything
+  set to a weight that is not in that URL will synthesize until it is added.
+
+## Current state
+Scene 1 is the static opening composition: the `space_boi` diorama seen from a
+bird's-eye camera, over the drifting starfield, on pure black. Most of the
+original scroll/section system was intentionally stripped out and has not come
+back. What exists today:
+
+- `src/main.ts` — wiring only: mounts the full-screen `#scene` canvas, the
+  intro line and the Scene 2 row, initializes the Three.js scene
+  (`src/three/scene.ts`), starts input tracking (`src/lib/state.ts`), mounts
+  the social row and the reveal window, hands the window its triggers, and runs
+  the single RAF loop with the DOM side of the scroll transition. It also owns
+  `setPageTakenOver()`, which the reveal window calls on open and close — that
+  is what freezes the page's scroll and pauses the covered site (see **Taking
+  the page over** below). Feature markup and behaviour live in `src/ui/`, not
+  here.
+- `src/ui/social.ts` — the social icon row: the three inline SVGs, the
+  `SOCIAL_LINKS` data and the one factory that builds them.
+- `src/ui/mark.ts` — the Scene 2 portrait and its draw/hold/wipe cycle (see
+  **Scene 2 portrait** below).
+- `src/ui/reveal-window.ts` — the reveal window as one unit: its DOM, its
+  open/close behaviour, its JS-written geometry and the 3D layer behind it
+  (see **Reveal window** below). `main.ts` only mounts it, binds the trigger
+  words and calls its `update()`.
+- `src/ui/project-cards.ts` — the five project cards' data and DOM: what a card
+  *is*. Where each one stands is `src/three/reveal.ts`'s business (see
+  **Project cards** below).
+- `src/three/scene.ts` — owns the renderer and the orbiting particle starfield
+  (white/silver dots only; see **Starfield** below). The particle field also
+  tilts in response to mouse position. It owns the two-pass composite (see
+  **Render passes**). It also owns the smoothed `progress` that drives the
+  Scene 1 → Scene 2 transition (see **Scroll transition**).
+- `src/three/reveal.ts` — the reveal window's own 3D scene: its own renderer,
+  scene and fixed camera, shared with nothing (see **Reveal window** below). It
+  also owns the CSS3D layer the project cards stand in, on that same camera.
+- `src/three/world.ts` — the Scene 1 world layer: its own `Scene` +
+  bird's-eye `PerspectiveCamera` (fov 35, at `(0, 9.3, 4.6)` looking at
+  `(0, 0.25, 0)`, ~63° above the horizon), white key/fill/ambient lights, the
+  GLB load, and the spin (`update(delta)`). **There is no platform/pedestal
+  mesh** — one existed briefly and was deliberately removed; the model's own
+  black base is the ground.
+- `public/models/space_boi.glb` — loaded via `GLTFLoader` (imported from
+  `three/examples/jsm/loaders/GLTFLoader.js` inside the installed `three`
+  package — no extra dependency, no Draco). It is a wide, shallow diorama with
+  its own black base slab, so `fitModel()` scales it by its **horizontal
+  footprint** (`MODEL_SPAN`, currently 3.5), not its height — fitting by height
+  overflows the viewport. It is then centered on x/z and dropped so it rests on
+  `y = 0`. The camera target's `y` is the model's mid-height, so a large change
+  to `MODEL_SPAN` wants `CAMERA_TARGET` nudged to keep the framing centred.
+- `src/lib/state.ts` — shared `InputState` (`mouseX`, `mouseY`, `scroll`)
+  written by `initPointer()` and `initScroll()`, read every frame by the scene.
+- `src/lib/scroll-lock.ts` — `lockScroll()` / `unlockScroll()`, the freeze the
+  reveal window holds the page with. See **Taking the page over** below; the
+  short version is that it deliberately never touches `overflow`.
+- `src/lib/math.ts` (`rand`, `clamp`) and `src/three/sprite.ts`
+  (`createCircleTexture`) — the handful of helpers both 3D scenes need. They
+  were duplicated verbatim in `scene.ts` and `reveal.ts`; keep them shared.
+  Each scene still calls `createCircleTexture()` for a texture of its own,
+  since the two have separate renderers.
+- Social icon row (`.social-badges`, top-left) — three `.social-badge`-class
+  links built in `src/ui/social.ts`: GitHub (icon + "ashrafjr-n" label, links to
+  `github.com/ashrafjr-n`), and two icon-only links (no label span) for
+  LinkedIn and email (`mailto:aannaelj@gmail.com`). They are **data, not three
+  functions**: the `SOCIAL_LINKS` array feeds one `buildSocialLink()` factory,
+  so adding a link means adding an entry. A `mailto:` href is what suppresses
+  `target="_blank"`; the caption is whatever `text` is set, omitted on the
+  icon-only two. All three share one hover style off the `.social-badge`
+  class. **The three icons are circular in the artwork, not in CSS.** Each
+  is a full-bleed disc whose `viewBox` is cropped to the disc's own bounds, so
+  all three paint an identical 26px circle inside the 26px `.social-icon` box
+  (verified: box *and* `getBBox()` artwork both measure 26x26 for all three).
+  `.social-icon` only sizes them — it deliberately carries no `border-radius`,
+  `background`, `border`, `clip-path` or mask, and none should be added back:
+  a CSS ring around a square glyph was tried and rejected.
+  All three share one treatment — **white disc, pure black mark, no other
+  colour** — so keep any future icon to that pattern.
+  - **GitHub** — the modern official Invertocat (Simple Icons `github`) in
+    black, scaled 0.9 and centred on a white `<circle>` in a 32x32 viewBox.
+    An older Entypo cartoon cat-face-in-a-circle was used before and rejected.
+  - **LinkedIn** — Entypo Social's `linkedin-with-circle` filled white, over a
+    black `<circle>` of the same radius. The "in" is a knockout in that path,
+    so the black circle behind is what shows through it. The circle behind is
+    explicit rather than relying on the page black, so the starfield can never
+    show through the letters. LinkedIn ships no official *circular* asset (its
+    real logo is a rounded square), so this composition is the closest true one.
+  - **Email** — the official Gmail mark (Iconify `logos:google-gmail`),
+    recoloured from its five brand colours to a single black, on a white disc;
+    scaled 0.1016 and translated to centre it in a 48x48 viewBox. The mark's
+    five shapes don't overlap, so flattening them to one colour keeps the "M"
+    readable. `mailto:` target, so the Gmail mark matches the address.
+
+  Paths are hand-embedded (no icon package is installed); don't hand-draw new
+  ones, pull the circular variant from a recognized set the same way.
+- Intro line — fixed top-centre, "Hi! I am ASHRAF." (`.intro`, built in
+  `main.ts`). Scene 1 only: `main.ts` fades and lifts it away over the first
+  `INTRO_FADE_END` of the scroll. It uses `--font-code`, the same face as the
+  badge; `--font-display` (Space Grotesk) is loaded but still unused anywhere.
+  No `text-transform` — the copy is rendered exactly as written.
+- Scene 2 row (`.scene2-row`, bottom-centre) — three elements on one line,
+  centred on each other, below the model in the levelled Scene 2 view: the word
+  **CONTACT**, the portrait, the word **PROJECTS**. Built in `main.ts`, sized
+  from four `:root` tokens (`--row-bottom`, `--row-gap`, `--row-mark-h`,
+  `--row-word-size`).
+  - **There are no containers here and there must not be any.** This replaced
+    two flush bordered cards (`.scene2-cards` / `.scene2-card`, with a
+    `--card-line` hairline boundary and divider, a hover scale, and the reveal
+    window fitted to the right card's inner box). All of that was deleted on
+    purpose — no card, border, divider, background, box-shadow or
+    `border-radius` may come back for these three.
+  - The two words are `.scene2-word` **`<button>`s reset to plain type**
+    (`background: none; border: 0`), so Enter/Space and focus come for free.
+    `--font-code` at **weight 700** — that weight is requested in `index.html`;
+    keep it there. **Hover is brightness only** — `--accent` to pure white, no
+    lift, no glow, no box. A `translateY` lift and a `text-shadow` were both
+    tried and removed; the words carry no shadow at rest either. Only PROJECTS
+    does anything; CONTACT is an inert placeholder (see **Reveal window**).
+  - The portrait (`.scene2-mark`) is `public/assets/svg/me.svg`, an ASCII-art
+    self-portrait — see **Scene 2 portrait** below. Its box is `--row-mark-h`
+    tall with the artwork's own `aspect-ratio` (1036 / 1363) stated in CSS, so
+    the row's layout holds before the file has even loaded.
+  - The row is `pointer-events: none` and the words opt back in via
+    `.scene2-row.is-live .scene2-word`, gated from `main.ts` because an
+    opacity-0 element is still a hit target.
+  - The row is a **DOM overlay** — nothing about it was added to the Scene 1
+    Three.js layers, so Scene 1 and the transition are untouched. `opacity`
+    starts at 0 in CSS and `main.ts` fades it in over the last
+    `1 - ROW_FADE_START` of the scroll off the same `progress` the scene
+    returns, so the row is invisible until Scene 2.
+- Reveal window (`.reveal-window`) — opened by the row's words; see **Reveal
+  window** below.
+- Cursor — the default system cursor everywhere. A custom Saturn cursor and
+  then a custom arrow both existed and were reverted; `public/cursor-saturn.svg`
+  is gone and no `cursor: url(...)` rule remains. The only cursor rules left
+  are `cursor: pointer` on `.social-badge` and `.scene2-word`.
+
+At rest (scroll 0) the world camera does not move; the mouse parallax affects
+the wide starfield only. Everything else moves only under scroll.
+
+## Scene 2 portrait (`src/ui/mark.ts`)
+`public/assets/svg/me.svg` — an ASCII-art self-portrait, 127 text lines, each
+clipped by a `<rect>` that widens from 0 to 1008 to reveal it. It draws itself
+in, holds, wipes back out and repeats, forever, but **only while Scene 2 is on
+screen**.
+
+- It is **inlined**, not an `<img>`: `mark.ts` fetches the file and injects it,
+  because an `<img>`'s internals cannot be reached. It stays in `public/` (a
+  295KB string does not belong in the JS bundle), so the row is briefly empty
+  on first arrival — the CSS box is sized anyway, so nothing shifts.
+- **The artwork's own SMIL animation is stripped and replaced.** Every
+  `<animate>`/`<set>` is removed in the same task as the inject, so the
+  built-in typing pass never gets a frame — it used to run once at page load
+  and freeze long before anyone scrolled down. Each line's full width is read
+  off its `<animate to="...">` first. The typing cursor rects are left at
+  `opacity: 0`, which is what they are without their `set`.
+- The whole picture is **one number**: how many lines are filled, fractionally.
+  Drawing top-to-bottom and wiping bottom-to-top are that number going up and
+  coming back down, so there is no separate reverse pass. `DRAW_MS` /
+  `HOLD_MS` / `WIPE_MS` are the cycle, and the wipe runs straight into the next
+  draw with no gap by construction (the cycle is `clock % CYCLE_MS`).
+- Only the lines between the last state and the new one are written, so a frame
+  touches one or two rects, not 127.
+- It runs off the **single RAF loop** like everything else — `main.ts` calls
+  `mark.update(time, rowShown > 0)`, where `rowShown` is the row's own fade. Off
+  screen it rewinds to blank, so arriving in Scene 2 always starts from the
+  first line. Do not give it a loop, an IntersectionObserver or a timer.
+- The file's `@media (prefers-color-scheme: light)` block is **cut out of the
+  stylesheet on the way in** (`stripLightScheme`). Inline, that stylesheet is a
+  document-level one, and on a light-mode system it would flip every grey to
+  near-black on a black page. Its greys are otherwise palette-safe; its one
+  off-palette cursor colour was recoloured to grey in the file itself.
+
+## Reveal window (opened from the Scene 2 row)
+The project preview. The element and everything it does live in
+`src/ui/reveal-window.ts`; the 3D layer behind it is
+`src/three/reveal.ts`. It is a **real Three.js scene**, not stacked images: a
+particle star volume around a fixed camera, with the planet PNGs as billboards
+at their own distances. An earlier version composited `projects-background.png`
+and six planet `<img>`s with CSS transforms; that was replaced because layer
+translation cannot produce a true look-around, and it should not come back.
+`public/assets/projects/black|white|one|two|three|four.png` are still used, as
+sprite textures. The `projects-background.png` files went unreferenced with
+that change and have been deleted.
+
+The five project cards stand in that same space, as DOM on a CSS3D layer
+sharing the scene's camera — see **Project cards** below.
+
+**The window is a mask, not a viewport of its own.** The canvas inside is
+always viewport-sized, so opening grows the mask and uncovers more of the same
+rendered frame rather than re-rendering. Never resize or scale the canvas to
+open it; that would read as a zoom.
+
+**Open, it is inset, not edge-to-edge.** It stops `--reveal-inset` short of all
+four screen edges and carries a 1px `--reveal-frame` hairline there, so the
+scene reads as a framed view. One token drives all four sides — that is what
+keeps the margin even — and the black gap alone would be invisible on a black
+page, which is why the line is there. It replaced a full-bleed takeover; don't
+put that back without being asked.
+
+- It is a **`position: fixed` element with no resting box**: while closed it is
+  `opacity: 0` and inert, and it has no place on screen of its own. There is
+  nothing to see in the Scene 2 row where it used to sit as the right card.
+- **Its geometry is written from JS, not CSS.** `bindTrigger(el)` makes a word
+  open it: on open the window is put on that word's measured box with
+  transitions suppressed and flushed (`void root.offsetWidth`), then grown to
+  the inset box (`applyOpenBox()`, which writes `var(--reveal-inset)` and
+  `calc(100% - 2 * ...)` straight into the inline style); on close it is given
+  the same word's box again and animates back into it. The values in
+  `.reveal-window` are only a starting point for before the first open.
+  Percentages for the open size, not `vw`/`vh` or measured pixels, so a classic
+  scrollbar cannot push it past the visible area.
+- The trigger's click **must stop propagating** — it is outside the window now,
+  so the click-away listener would otherwise close what it just opened.
+- `left/bottom/width/height` animate over 620ms expo-out. It cannot use a
+  transform: scaling the mask would scale the canvas with it. `opacity` is
+  instant on the way in and **delayed 440ms on the way out**, so the shrink
+  back into the word is actually seen; that split lives in the two
+  `.reveal-window` transition lists and both must keep the geometry timings.
+- The social badges sit at `z-index: 60`, above the window's 40, so the links
+  stay visible and clickable over the takeover. Keep them above it.
+- Opened by clicking (or Enter/Space on) **PROJECTS**, and only PROJECTS.
+  **CONTACT is deliberately inert** — it is built and styled identically but
+  nothing is bound to it, and `buildScene2Row()` does not even return it, so
+  nothing can be. It briefly shared this window as a placeholder and that was
+  undone; it gets its own behaviour later. Closed by the `.reveal-close`
+  button, a click outside, or Escape; two permanent document listeners handle
+  the last two, and closing returns focus to the word it came out of.
+- The close corner's `×` is a **text glyph sized well past its 64px box**
+  (`font-size: 118px`): the mark inks at about half its em, so that is what
+  puts its edges near the box's. Its line box overflows the button, which is
+  harmless — the button doesn't clip. Retune the font-size, not the box.
+- It is gated by hand from `updateScene2Row()` in `main.ts` via
+  `setInteractive()`, off the same `progress` as the row: below `ROW_ACTIVE_AT`
+  the words are not live and an open window is put away. **The "scrolling back
+  toward Scene 1 closes it" half of that is now unreachable and is kept as a
+  guard, not as behaviour** — the scroll is frozen while the window is open and
+  `updateScene2Row()` is not called at all then, so `progress` cannot fall
+  under an open window in the first place. It still matters closed.
+- It reports every open and close through the `onOpenChange` callback
+  `createRevealWindow()` takes. That is the whole of its coupling to the rest of
+  the page: the window knows nothing about what happens on the other end, and
+  `main.ts` is where the page is actually frozen and paused.
+- There is **no closed-state tilt any more**. The canvas used to rotate under
+  the mouse while the window sat in the right card; with nothing visible while
+  closed there is nothing to tilt, and that code and its CSS were removed.
+- The window **mounts itself** into `#app` and only then builds its 3D layer.
+  That order is load-bearing: the scene draws exactly one still frame at
+  startup and then renders on demand, so its canvas has to be in the page for
+  that frame to reach the screen.
+
+### Taking the page over (while the window is open)
+The window covers the screen, so the site behind it is frozen for as long as it
+is up. `main.ts`'s `setPageTakenOver()` is the one place that happens, driven by
+the window's `onOpenChange`, and it does exactly two things.
+
+- **The scroll is locked** (`src/lib/scroll-lock.ts`). Everything on screen is
+  `position: fixed`, so scrolling with the window open showed nothing while
+  silently advancing the Scene 1 → Scene 2 transition underneath; closing it
+  then dropped the viewer somewhere they never chose.
+  - **It must not touch `overflow`, and this was measured rather than assumed.**
+    `html { overflow: hidden }` takes the scrollbar out of the layout, which
+    widens the initial containing block every fixed element resolves against.
+    In Chrome with a classic 15px scrollbar forced on, the window's own
+    `calc(100% - 2 * inset)` box went **1481px → 1496px** the instant overflow
+    was hidden, and the viewport-sized canvas centred in it would jump 7.5px
+    sideways on open and back on close. `scrollbar-gutter: stable` does **not**
+    rescue it — Chrome drops the gutter as soon as the root stops scrolling,
+    giving the same 1481 → 1496. The window's percentage sizing exists to
+    survive a scrollbar; a lock that reintroduced the shift would undo it.
+  - So no box changes. `wheel` and `touchmove` are refused with
+    `preventDefault` (hence `{ passive: false }` — those default to passive on
+    `window`), and the `scroll` listener is only the catch-all behind them, for
+    a dragged scrollbar thumb or a programmatic scroll.
+  - **The scrolling keys are refused too, and that is not belt-and-braces.**
+    Chrome scrolls a keypress *smoothly*, over frames, and the catch-all only
+    runs a frame later — so a PageUp started an animation the snap-back fought
+    frame by frame and that simply carried on after the lock was released. This
+    shipped once in that form: the page was handed back at 1680 and drifted to
+    811 a moment after the window closed. Refusing the `keydown` means no
+    animation is ever started. Space is exempt **on a focused `<button>`** only
+    — there it activates the control and the page does not move, and the
+    window's `×` needs it. A focused *link* is not exempt: Space scrolls from an
+    anchor, where Enter is what follows it. `Enter` and `Tab` are not in the set
+    at all.
+- **The main RAF loop's work is skipped.** `raf()` in `main.ts` still runs — it
+  is still the only loop in the app — but behind an `isPaused` flag it skips
+  `scene.update()`, the intro, the row and the portrait, and calls only
+  `revealWindow.update()`. **The window's own 3D scene keeps running normally**;
+  that is the entire point, and it is why this is a flag inside the one loop
+  rather than a second loop or a stopped one.
+  - `scene.resync()` (in `src/three/scene.ts`) is called on the way back, before
+    the flag clears. `update()` spends `time - prevTime` on the star orbits and
+    the model's spin, so the paused stretch would otherwise arrive as one
+    enormous delta. The existing 0.1s clamp bounded how bad that looked, not
+    whether it happened; `resync()` drops the span entirely. Call it when frames
+    **resume**, never when they stop — `prevTime` has to name the last moment
+    actually spent, and until the pause ends nobody knows when that is.
+  - The portrait (`ui/mark.ts`) is deliberately *not* resynced. It is a pure
+    function of the loop's `time`, so it simply resumes at the phase it would
+    have reached anyway — and it is behind the opaque window throughout.
+
+### The 3D layer (`src/three/reveal.ts`)
+Its own renderer, scene and camera, owned by `src/ui/reveal-window.ts` — no
+other module touches it. It shares **nothing** with the Scene 1 starfield in
+`scene.ts`/`world.ts` but the technique — don't try to merge them.
+
+- **Still one RAF loop in the app.** The window's own `update()`, called from
+  that loop, calls into this scene only while the window is open and
+  full-screen; the scene draws nothing otherwise,
+  and skips the draw even then when the view has not moved enough to matter.
+  Everything is built once at startup and reused, so reopening allocates
+  nothing and there is no second loop or second context per open.
+- The canvas is sized to the **viewport**, never to the window
+  (`renderer.setSize(innerWidth, innerHeight, false)` — the `false` leaves the
+  CSS size alone). That is what lets the open animation uncover a frame instead
+  of re-rendering at a new size every frame of it.
+- The renderer is **opaque** (no `alpha`): when open it covers the screen and
+  has to hide the Scene 1 canvas behind it rather than composite over it.
+- **`CAMERA_FOV` is 80, and deliberately wide.** A card only foreshortens when
+  it covers a real angle of the view *and* is turned, and five of those need a
+  field wide enough to hold them; at the old 62° the arc either overflowed the
+  frame or the cards had to be small enough that the trapezoid collapsed to
+  ~10%. **Everything else in this scene is scaled to that number**: every
+  planet's `size` carries a 1.3965 factor (= tan40° / tan31°) and every
+  `yaw`/`pitch` was re-solved as `atan(tan(old) * 1.3965)`, which puts the
+  composition back exactly where it was at 62°; and `STAR_COUNT` came down from
+  4000 to 2050 because the wider frustum holds ~1.95x the solid angle and Three
+  sizes points with no fov term, so the same count would have read as a denser
+  field. Move the fov and all three have to be re-derived.
+- **Camera position is fixed at the origin, for good.** The mouse only turns
+  it — `rotation.order = 'YXZ'` so yaw and pitch stay independent and the
+  horizon cannot roll. Turning the camera is the whole point: it reads as
+  looking around inside the space, where translating layers reads as sliding
+  pictures. Note that rotation alone gives no depth parallax by construction;
+  the depth comes from the objects really being at different distances.
+- **The two axes are deliberately lopsided.** `MAX_YAW` is 0.3 rad (~17°
+  across) but `MAX_PITCH` is only 0.04 (~2° up and down), so left/right is the
+  pronounced move and vertical is barely a hint of weight. Keep the pitch a
+  small fraction of the yaw; raising it back toward the yaw was reverted.
+- The turn is **sprung, not lerped** (`SPRING_STIFFNESS` / `SPRING_DAMPING`,
+  just under critical damping): it trails a fast pointer, coasts on after it
+  stops and settles over about a second. That weight is most of what makes it
+  feel cinematic — don't trade it for something that tracks the cursor tightly.
+- Stars are a `Points` volume *surrounding* the camera: uniform directions and
+  a cube-rooted radius between `STAR_NEAR` and `STAR_FAR`, so density per unit
+  volume is even. The near bound matters — Three sizes points as
+  `size * 0.5 * height / distance`, so a star much closer than that draws as a
+  blob. Same soft radial sprite, additive blending and grayscale-only colours
+  as the site's other field.
+- Planets are billboards (`Sprite`), aimed by `yaw`/`pitch` from the camera and
+  placed at `dist`, listed in `PLANETS`. They run ~19% of the frame height for
+  the nearest down to ~4% for the farthest, and opacity falls with distance.
+  Several sit outside the resting frustum on purpose, so turning the view
+  actually finds something. Each sprite's aspect is read off its texture once it
+  loads, so only the height is authored.
+- **A sprite is scaled by its depth, not its `dist`.** On-screen size is
+  `size / (2 * depth * tan(fov/2))` where `depth = cos(yaw) * cos(pitch) * dist`
+  — Three offsets a sprite's corners in *view space* and the projection then
+  divides by view-space z. So swinging a planet further off-axis at a fixed
+  `dist` draws it **bigger**. To move one without resizing it, solve `dist` to
+  hold `depth` where it was; the near white planet was moved that way (dist 40 →
+  50.1) and its 162px height did not budge.
+- **`PLANETS` may list the same file more than once** — `white.png` appears
+  twice, once near and large out to the low left and once further off and
+  smaller on the right, which reads as one body seen at two depths. The loader
+  groups the list **by file**, so a texture is fetched and uploaded once however
+  many planets use it. Keep that grouping if more repeats are added.
+- `setActive(false)` recentres the camera and leaves **one still frame** on the
+  canvas, ready for the next open. Render-on-demand, so nothing keeps drawing
+  while the window is shut (and nothing is visible then either).
+
+### Project cards (`src/ui/project-cards.ts` + the CSS3D layer)
+Five cards — REJOX, TTU Clinic, Datassert, AGB Media, Naelj — standing in a
+**row that curves around the camera** inside the reveal window's space. They are
+DOM, drawn by a `CSS3DRenderer` stacked over the WebGL canvas and given the
+**same camera**, so they yaw and pitch with the stars and planets instead of
+sitting on the screen. Two modules, split by question: `ui/project-cards.ts`
+owns what a card *is* (the `PROJECTS` list and the DOM), `three/reveal.ts` owns
+where it *stands*.
+
+- **Both renderers share one camera and one `render()`.** The CSS3D pass is
+  called from the same on-demand `render()` as the WebGL pass in `reveal.ts`;
+  split them and the two layers drift apart mid-turn. The cards live in their
+  own `Scene` (`cssScene`), since a `CSS3DObject` has no geometry for the WebGL
+  renderer to walk.
+- **The layer is not the mask.** `.reveal-cards` is viewport-sized and centred
+  on the window exactly like `.reveal-canvas`, so the opening window uncovers
+  the row rather than re-laying it out. It carries **no `z-index`** — document
+  order alone (canvas, cards, close) stacks it. Keep that order in
+  `reveal-window.ts`.
+- **Two elements per card, and that is load-bearing.** CSS3DRenderer writes its
+  own `transform` onto the element it is given, so `.pcard-slot` can never
+  carry one of ours; the inner `.pcard` is what scales on hover.
+- The cards are authored in **CSS pixels and converted** — `CARD_SCALE` (0.015)
+  in `reveal.ts` turns the `CARD_PX_W`/`CARD_PX_H` box (420x230, a wide
+  rectangle) into world units, because CSS3DRenderer maps one CSS pixel to one
+  world unit. Change the CSS box and that constant together or the cards resize
+  on screen.
+- **Every card stands on one plane at `CARD_DIST`, and the curve is entirely in
+  how far each one is turned.** A card at world x gets
+  `rotation.y = -atan(x / CARD_DIST) * CARD_FACE`, so the middle card faces
+  straight down the view axis and each card out from it is yawed harder to face
+  the viewpoint. That reads as a row wrapping around the viewer.
+  - **The single depth is load-bearing, and this replaced a real arc.** The
+    earlier version curved in depth (`radius = CARD_DIST - CARD_ARC_PULL * t²`,
+    angular spacing), which drew the end cards 165px tall against the middle
+    card's 86 — their tops rode 52px above it and their feet 29px below, and the
+    row had no consistent band. A card's on-screen size comes from its depth, so
+    one depth is what takes size out of the geometry's hands, and it is what
+    lets `CARD_SIZE_TIERS` state the sizes outright instead.
+  - It costs no foreshortening, because that comes from a card's *yaw*, not from
+    where it stands. Curving the row in depth and scaling each card by its own
+    depth to compensate is, by construction, **the same picture as this one** —
+    a radial scaling about the camera survives the projection, and survives the
+    look-around too, since the camera only ever rotates about that same point.
+    `CARD_ARC_STEP` and `CARD_ARC_PULL` are gone: under a depth-independent size
+    the pull provably does nothing at all.
+  - `CARD_FACE` is **1** — a genuine 3D yaw about the card's own centre, carried
+    through the object's matrix into the CSS `matrix3d`. Never a 2D `skew()` or
+    `scale()`; those give a parallelogram or a plain rectangle, not a trapezoid.
+- **Card sizes are authored, not inherited.** `CARD_SIZE_TIERS`
+  (`[0.8, 0.95, 1.26]`, indexed from the middle card outward, last entry
+  covering anything further out) multiplies `CARD_SCALE` per card, so the row is
+  a deliberate hierarchy — **ends largest, inner pair medium, middle smallest**.
+  Measured at 1536x849: 440x162px at the ends, 236x117 for the inner pair,
+  180x98 in the middle.
+  - The tiers feed the spacing solve too, and the solve fixes each card's
+    *inner* edge against its neighbour — so growing the outermost tier spends
+    the growth **outward** and leaves the other three exactly where they stood.
+    What it does not adjust for is the row's reach (see the frame note below).
+  - A bigger card also carries a **stronger trapezoid** at the same yaw, since
+    its two edges spread further apart in depth: the ends went 1.45 → 1.52 when
+    the outer tier went 1.15 → 1.26. That is the projection, not a separate
+    tilt setting, and there is no way to grow a card and hold its ratio.
+- **The cards are centred on a line, not stood on one.** A card's `y` is
+  `(CARD_RISE - drop) * CARD_DIST`, and because they all share one depth those
+  heights compare directly on screen: each card's size splits evenly above and
+  below **its own** centre rather than piling up in one direction.
+  - `CARD_DROP_TIERS` (`[0.038, 0.024, 0]`, same middle-outward indexing as the
+    sizes) is how far each rank sits below the row's line. **The two ends hold
+    the line, the inner pair is let down ~12px and the middle card ~19px** —
+    a deliberate composition choice, not a stray offset, and it also brings the
+    five bottom edges closer together (455 / 443 / 439 rather than the
+    446 / 430 / 420 they sat at when every card shared the line). Keep the
+    outermost entry at 0; it is what the others are measured against.
+  - They were briefly hung from their feet instead, off a shared `CARD_FOOT`
+    floor, which forced the bottom edge dead straight and sent the whole size
+    difference upward. That was replaced by centring; don't reintroduce the
+    floor — the drop tiers do the same job by degrees.
+  - Neither the tops nor the bottoms line up, and they cannot: at 1536x849 the
+    cards run 259→454 at the ends, 315→442 for the inner pair and 341→439 in the
+    middle. That is the hierarchy being visible. **The check is each card's own
+    centre against its tier**, not the edges — probe a marker at
+    `left:50%; top:50%` inside each `.pcard`; the two ends should agree exactly
+    (370.4), the inner pair with each other (382.5), and the middle card sits
+    alone at 389.6.
+  - A card's *bounding box* is still not centred on the line — the trapezoid
+    magnifies its near edge, and the row sits above the view axis, so that edge
+    gains more above than below (the end cards reach ~99px up against ~75px
+    down). The card's centre is on the line; the bbox midpoint drifts. That is
+    the projection, not a placement bug.
+- **Spacing is solved against the projection, not set as an offset.**
+  `CARD_GAP_PX` (45) is the gap between neighbours *as it lands on screen*, in
+  the card's own authoring pixels, and `solveRowCentres()` walks outward from
+  the middle bisecting for each next centre until the gap comes out right.
+  A closed form is not worth writing — the yaw depends on the position being
+  solved for — and it runs a handful of times at startup and never again.
+  - This is the only way to get an even row here: a card projects wider the
+    further off-axis it stands, and on top of that the five are different sizes
+    (392px wide at the ends against 180px in the middle), so spacing evenly in
+    **angle** spread the outer gaps to ~2.3x the inner ones and spacing evenly
+    in **x** did the same the other way. Neither is an even row. Don't replace
+    the solve with a constant step.
+  - Both cards' own sizes go into each step, which is what holds the gaps even
+    (measured 26–28px) under `CARD_SIZE_TIERS`.
+- **Facing the camera is what foreshortens a card, not what flattens it**, and
+  believing the opposite is what once made the arc read as five rotated
+  rectangles. The projection is onto a *plane*, so a card's on-screen size comes
+  from its depth (its `-z`), not its distance from the camera. Turning a card to
+  face the viewpoint equalises its two edges' *distances* while pushing them to
+  very different *depths*: the spread is `w * sin(angle * CARD_FACE)`. So
+  `CARD_FACE` 0 lays the card parallel to the image plane, both edges share one
+  depth, and it draws as a perfect rectangle however far off-axis it sits; 1 is
+  the maximum. Don't lower it "to add tilt".
+- Measured on the rendered page at 1536x849 (drop a zero-size marker at each of
+  the card's four corners and read their `getBoundingClientRect()`): the end
+  cards draw about **195px on the near edge against 128px on the far one — a
+  ~1.52 ratio**, the inner pair 127/107 for ~1.19, and the middle card **1.00**.
+  Gaps run an even 26–28px. Two things to re-check together after touching any
+  of these constants: the trapezoid gradient (nothing at the centre, obvious at
+  the ends) and each card's centre landing on its tier's line.
+- **The row deliberately overruns the frame**, and nothing tries to fit it. The
+  window's visible half-width is `tan(fov / 2) * aspect` less the inset, about
+  `0.818 * aspect` in tangent units, against the row's fixed reach — so at 16:10
+  the end cards touch the hairline almost exactly, and they cross it on anything
+  narrower. This is on purpose: the cards are sized to be legible, and this is a
+  scene you look around in.
+- **What actually limits the outermost tier is the VIEW button, and only when
+  hovered.** At rest the button is `opacity: 0` and inert, so its resting
+  position past the frame costs nothing — ignore it. Hovered is what counts, and
+  there the end cards grow *inward* (see the `data-arc-end` note), which pulls
+  the button back by about 6% of the card's width before the frame gets a say.
+  - Measured hovered at 1536x849: 90x31px on the middle card up to **252x60px on
+    Naelj, whose right-hand ~36px (14%) now sits past the frame** — the trailing
+    padding and the outer edge of the icon. The word and the mark both still
+    read, and the whole button is still clickable, but this is the ceiling: the
+    outer tier cannot go much past 1.26 without eating into the mark itself.
+  - `CARD_GAP_PX` is the only other knob on that reach, and it is a weak one —
+    dropping it 45 → 32 buys back ~24px while costing a third of the spacing.
+    Re-measure the *hovered* button after touching either.
+  - 43x14px was the size that once read as broken — keep the smallest card's
+    button well clear of that.
+- **The row rises into place once per open** — the entrance cascade. Armed in
+  `open()` (before anything is painted) and released on the same 620ms timer
+  that hands over the look-around, so the cards do not rise behind a mask that
+  is still a sliver of the screen. `armCardEntrance()` / `playCardEntrance()`
+  live in `ui/project-cards.ts`; the window calls them, and the browser runs the
+  rest.
+  - **Arming happens on open, not on close.** That is what makes it play exactly
+    once per open, and it leaves the cards standing while the window shrinks
+    back into its word rather than blinking out from under it.
+  - **It rides on `translate`, not `transform`, and that is load-bearing.**
+    `transform` is the hover's scale, and the two would overwrite each other on
+    a card entered mid-cascade. The individual transform properties compose with
+    `transform` instead of replacing it, and `translate` is the outer one, so
+    the rise is unaffected by the hover. `.pcard`'s resting value is a literal
+    `translate: 0 0`, stated rather than left implicit, so the row lands
+    pixel-exact with nothing to drift — verified `0px` / opacity 1 on every card
+    after every open.
+  - `--pcard-enter-rise` is **90px in the card's own authoring pixels**, so it
+    is shrunk into the world with everything else and lands at a constant ~39%
+    of each card's own height: 78px on screen at the ends, 39px in the middle.
+    That proportionality is the point — a fixed screen distance would read
+    differently on each tier.
+  - Order is **right to left** (Naelj, AGB Media, Datassert, TTU Clinic, REJOX),
+    at `ENTER_STAGGER_MS` 320 — half of `--pcard-enter-dur` (640ms), so each
+    card leaves as the one beside it passes its halfway point. Only the stagger
+    is duplicated in JS; the duration, distance and curve are the stylesheet's.
+  - The delay is written **inline per slot** as `--pcard-enter-delay`, and it
+    cannot be an `nth-child` rule: the hovered card is moved into a layer of its
+    own, which renumbers everything left behind.
+  - `--pcard-enter-ease` is expo-out, deliberately *not* `--pcard-ease`. A card
+    arriving wants to shed its speed hard at the end; a card growing under the
+    cursor wants the gentler curve.
+  - The armed state carries `transition: none`, so arming is a snap and never an
+    animation of its own — dropping the class is the whole of the entrance.
+    It also carries `pointer-events: none`, since an opacity-0 card is still a
+    hit target; that rule has to name `.reveal-window.is-open` too, or it loses
+    to the rule that turns the row on. It covers the armed hold only, not the
+    rise.
+- **Hover grows the card only** — `transform: scale(var(--pcard-hover))`; each
+  card is its own object on the arc, so no neighbour moves or resizes. It runs
+  on the card's own tokens (`--pcard-ease`, `--pcard-grow`, `--pcard-reveal`),
+  a gentler curve than the window's expo-out `--reveal-ease`, which starts too
+  fast to read as a card easing open. The growth, the stack line and the button
+  are **staggered by `transition-delay` on the way in only** (0 / 70 / 140ms),
+  so they arrive as one move and collapse cleanly together on the way out.
+- **The hovered card is moved into a second CSS3D layer of its own** on
+  `pointerenter`/`focusin`, by `raise()` in `three/reveal.ts` — which card is
+  drawn where is a fact about where it stands, so it is the scene's business,
+  not the card's. That is the whole of the stacking rule, and it holds whatever
+  the card's depth on the arc.
+  - **It has to be a separate layer.** CSS3DRenderer puts every card in one
+    `preserve-3d` element, which makes them a single 3D rendering context — and
+    there the browser paints by *depth*, not by document order and not by
+    `z-index`. Both were measured and both failed: a turned card's inner edge
+    lies several units behind the card beside it, so reordering it last or
+    giving it `z-index: 10` each left it behind its neighbour. `translateZ` does
+    win, but only at a distance that draws the card 60% larger.
+  - `.reveal-cards-raised` is a second `CSS3DRenderer` on the **same camera and
+    the same box**, so a card moved into it does not shift by a pixel; it is
+    simply a second 3D context, which paints after the row. Document order alone
+    stacks them, so keep `raised` after `cards` in `reveal-window.ts`.
+  - Only ever one card is up there — the previous one goes back to the row
+    first, so the raised layer never has to sort two cards against each other.
+    A raised card stays raised across a close and reopen; that is harmless,
+    since its geometry is identical either way.
+- **The two end cards grow inward, not about their centres.** They are the most
+  turned, so they project widest, and they already run past the window's frame;
+  scaled about the middle they would carry their outer edge — and with it the
+  right-hand card's VIEW button — further out of sight. `three/reveal.ts` marks
+  them `data-arc-end="left|right"` (it is what knows the row order) and style.css
+  anchors `transform-origin` to the outer edge, which pins it where it already
+  is and spends the growth on the inward side. The three inner cards stay
+  centred. This is about keeping the button reachable, **not** about fitting the
+  cards to the frame — the row is sized to overrun it.
+- At rest a card shows **only its name**, large (56px in the card's own box).
+  The stack line is collapsed (`max-height: 0`) rather than removed, and the
+  VIEW button is `opacity: 0` *and* `pointer-events: none`, so neither is
+  reachable until the card is entered or focused. The stack's font size is
+  picked so the longest one stays on **one line** — two lines run into the VIEW
+  button — and `.pcard`'s padding is deeper at the foot than the head for the
+  same reason.
+- The card face is a **soft off-white** (`--pcard-surface`), deliberately not
+  pure `#ffffff`, with a 2px edge: at this shrink into world units a 1px border
+  lands under a screen pixel and vanishes.
+- **VIEW is a real `<a target="_blank">`**, bottom-right, black on the white
+  face. Its mark says where it lands: GitHub's Invertocat for a repo (REJOX),
+  Material's `open_in_new` for the four live sites, both flattened to one white
+  per the palette rule. `kind` in the `PROJECTS` entry picks it. Verified live:
+  clicking it opens the project's own URL in a new tab.
+- **Taking VIEW puts the card straight back to rest.** Neither state that holds
+  a card open lapses on its own once the link has opened its tab: the cursor is
+  still inside the card so `:hover` stays true, and the link keeps focus so
+  `:focus-within` does too. `ui/project-cards.ts` blurs the link on click and
+  adds `is-dismissed`, which style.css uses to force the resting look; the class
+  is cleared on the slot's `pointerleave`, so leaving and coming back is a fresh
+  hover. Keyboard activation is exempt — a click synthesised from Enter or Space
+  reports `detail` 0, and there the focus ring is still on VIEW, so closing the
+  card would hide the element holding it.
+  - **The dismissed rules name `:hover` and `:focus-within` explicitly**, and
+    that is not decoration. `.pcard.is-dismissed .pcard-view` only *ties* with
+    `.pcard:hover .pcard-view` — a pseudo-class counts the same as a class — so
+    the hover rule won on source order and the card's scale collapsed while its
+    stack line and button stayed open. This shipped broken once in this form;
+    keep the three-selector shape.
+- **`raise()` must not move the card while a click is in flight**, and its
+  early return is what guarantees that. Raising re-appends the slot, which
+  detaches and re-inserts the whole card — and `focusin` fires on *mousedown*
+  when the VIEW link takes focus. Unguarded, that moved the anchor between
+  mousedown and mouseup and Chrome then fired **no `click` at all**: the link
+  was reachable, `pointerdown`/`mousedown`/`mouseup` all landed on it, nothing
+  called `preventDefault`, and VIEW still did nothing. A mouse has always
+  raised the card on `pointerenter` before it reaches the link, so the guard
+  makes the focus path a no-op exactly when it matters.
+- **The VIEW button is deliberately oversized in the card's own box** (26px
+  type, 14/22px padding). The card is shrunk hard into world units, so it draws
+  at roughly half those numbers on screen even while hovered. At the earlier
+  19px/9px it rendered a **43x14px** target on the farthest card, which is
+  small enough to read as broken. Size it against what it measures on screen,
+  not against the 420x230 box.
+- **The cards are inert while the window is shut.** `CSS3DObject` stamps
+  `pointer-events: auto` inline, which would outrank any stylesheet rule and
+  leave an opacity-0 card clickable over Scene 2 — `reveal.ts` clears that
+  inline value so `.reveal-window.is-open .pcard-slot` is what decides. Don't
+  put the inline value back.
+
+## Model spin
+The model spins slowly clockwise about its own vertical axis, forever.
+
+- The model is parented to a **pivot `Group`** that sits at the origin. Only
+  `pivot.rotation.y` is ever touched; the centring offset lives on the child.
+  This is load-bearing: `fitModel()` centres the GLB by writing a translation
+  onto the model itself, and Three applies translation *after* rotation, so
+  spinning the model directly would swing it around the GLB's own origin —
+  an orbit, not a spin. Keep the model inside the pivot.
+- `SPIN_SPEED` is **negative** (`-MODEL_SPIN_RATE`, 0.09 rad/s, ~70s per
+  revolution). From this bird's-eye camera a positive Y rotation reads
+  counter-clockwise, so clockwise needs a negative rate. Flip the sign if the
+  direction is ever meant to change.
+- `MODEL_SPIN_RATE` is **exported** and the starfield's speed tiers are
+  multiples of it, so changing it re-paces the site's stars too. That coupling
+  is deliberate — see **Starfield**.
+- During the scroll transition the model makes `TRANSITION_TURNS` extra
+  revolutions **on top of** the idle spin: `rotation.y = idleAngle -
+  TURNS * 2pi * progress`. The idle part is time-accumulated, the transition
+  part is a pure function of progress — that split is what lands it on a whole
+  number of turns however fast the page is scrolled. A time-integrated speed
+  boost was tried first and cannot do this, since the total then depends on how
+  long the user took to scroll. The term is negative to match `SPIN_SPEED`, so
+  the scroll turn continues in the idle direction rather than fighting it.
+- It advances by `delta` seconds, not per frame, so the speed is frame-rate
+  independent. `delta` is clamped to 0.1s in `scene.ts`, so a throttled
+  background tab animates slower than wall-clock — expected, same as the
+  starfield.
+
+## Starfield
+The site's stars **orbit the model's centre** on roughly the model's own
+orbital plane, so they read as one system with the stars embedded in the model.
+There is no toward-camera dolly any more — that was removed deliberately
+because it clashed with the model's rotating stars. Do not reintroduce it.
+
+There are **two star layers**, both built by `createStarLayer` and advanced by
+`advance()`, sharing one motion style — they differ only in where their stars
+sit and how big the dots draw:
+
+1. **the wide cloud** (`PARTICLE_COUNT`) — the ambient full-screen field.
+2. **the close-in band** (`BAND_*`) — the orbits that stay on screen for a
+   whole revolution. See **Why the wide field only shows arcs** below.
+
+- Each star stores its own `radius` / `angle` / `speed`; per frame only the
+  angle advances and x/z are recomputed as `cos/sin * radius`. Height is
+  written once at init and never touched, which is what keeps every star on a
+  level circle around the model's axis.
+- With `x = cos`, `z = sin`, an **increasing** angle reads clockwise from the
+  bird's-eye camera — matching the model's spin, which gets there via a
+  *negative* `rotation.y`. The two conventions differ; don't "fix" one to match
+  the other.
+- Speeds come from `SPEED_TIERS`: ~78% slow, ~18% medium, ~4% fast, randomised
+  within each tier so the motion is not uniform. **The tier bounds are
+  multiples of `MODEL_SPIN_RATE`** (exported from `world.ts`), which is the rate
+  the model's own embedded stars travel at. The slow tier starts at 0.8x that
+  rate, so no site star ever crawls while the model's stars sweep past it —
+  that mismatch is what made the two look like separate layers. Keep the tiers
+  as multiples; don't hard-code rad/s back in.
+- `POLAR_LIMIT` caps how near the poles a star may sit. A star close to the
+  rotation axis has a near-zero orbit radius, so it turns on the spot and reads
+  as frozen however fast it spins. Removing those was a big part of making the
+  orbiting legible — don't raise this back toward 1.
+- The cloud is a **flattened ball** (`CLOUD_RADIUS`, `CLOUD_FLATTEN`), not a
+  thin disc. The camera pitches ~63° down, so its frustum passes through a thin
+  disc and out the underside within ~25 units, leaving the frame empty. This
+  was tried and rejected — keep the ball flattened, not flat.
+- `PARTICLE_COUNT` is high (~20k) because only a narrow cone of the cloud is
+  ever on screen, and it scales with `CLOUD_RADIUS`^3 — widening the cloud
+  thins the visible field out fast. Count and `size` are tuned together against
+  the original on-screen star density (~93 stars/megapixel, median dot area
+  3px, median peak brightness 60); re-measure if either changes.
+- The mouse tilt is applied to the **wide cloud only**. Tilting the band would
+  break its full-loop visibility (5° is enough to push its near side off frame).
+- Per-layer appearance goes through `createStarLayer`'s `look` argument
+  (brightness range, opacity, boost), not hard-coded values. The band is
+  deliberately brighter and whiter than the ambient field — `BAND_BRIGHT_*` /
+  `BAND_OPACITY` vs `STAR_BRIGHT_*` / `STAR_OPACITY`, about 1.3x the ambient.
+- A random `BAND_BOOST_CHANCE` (~30%) of band stars are lifted brighter still,
+  rolled per star at build time so the pattern differs every load. **Their
+  vertex colour deliberately exceeds 1.** The band's base is already near-pure
+  white at full opacity, so there is no headroom inside 0..1; with additive
+  blending and the soft radial sprite, an over-1 colour drives more of the dot's
+  falloff to full white, which is what reads as brighter. `Color.setRGB` does
+  not clamp when the colour space matches the working space, so the value
+  survives into the buffer — don't "fix" it by clamping to 1.
+- All star colours stay pure grayscale (r = g = b), so the white/black/silver
+  palette holds regardless of brightness.
+- Three sizes points as `size * 0.5 * drawingBufferHeight / distance` — **fov
+  plays no part**. Any change to the cloud's scale needs `size` rescaled by the
+  same factor or the dots change apparent size.
+- **`Float32BufferAttribute` copies the array you hand it** (`super(new
+  Float32Array(array), ...)`). Each layer's `positions` is therefore read back
+  off the attribute (`posAttr.array`) and never kept from the array that filled
+  it. Holding the pre-fill array writes to an orphan copy while flagging the
+  real one, and every layer freezes — obviously for the band, silently for the
+  cloud, whose mouse tilt is a rotation on the `Points` object and keeps moving
+  either way. This has been shipped broken once; don't reintroduce it.
+
+### Why the wide field only shows arcs (this is not a bug)
+Stars in the wide cloud sweep a partial arc on screen, not a visible full loop.
+**The orbit maths is already a true endless 360° circle** — `angle` is unbounded
+and only increases, with no clamp, wrap or easing. Do not go looking for one.
+
+The arc is camera geometry: the camera sits *inside* the cloud, 10.4 units from
+the model's centre, while orbit radii run to 62. Most of any orbit therefore
+passes beside or behind the camera. Measured against the frustum: the median
+ever-visible star is on screen for **11.7% of its orbit** (~42°), and **no** star
+in the wide cloud keeps a full orbit on screen.
+
+For a full loop to be visible the orbit must fit the view cone, which caps it at
+radius **~2.85** at the model's plane — barely wider than the model. That is
+what the close-in band is, and why it is a separate layer rather than a tweak to
+the cloud. Its window is genuinely tight and was solved against the frustum:
+
+- **inner bound 2.47** — the model's slab is *square*, so its corners reach
+  `MODEL_SPAN * √2/2`. Inside that the model draws over the band (the world
+  layer renders after a depth clear) and the loop visibly breaks.
+- **outer bound ~2.85** at y=0, ~3.00 at y=+1.
+- **height** — the window closes entirely below y=−0.5 and above y=+1.5.
+
+Known limitation: the band clips on **portrait** windows (aspect below ~0.85).
+It cannot be fixed by shrinking the band, because anything under 2.47 disappears
+behind the model's slab — it would need a different camera.
+
+## Scroll transition (Scene 1 → Scene 2)
+Scrolling drives four things **simultaneously off one value**. `state.scroll` is
+raw page scroll 0..1; `scene.ts` smooths it into `progress` (`SCROLL_LERP`) once
+per frame and every part reads that same number. Keep it that way — anything
+driven off raw scroll, or off its own timer, will drift out of sync.
+
+The scroll range comes from `body { min-height: 300vh }` in style.css. Everything
+on screen is `position: fixed`, so the page has no content of its own to scroll;
+that rule is the only reason a scroll range exists. Scene 2 does not exist yet —
+progress 1 is simply the end state.
+
+| what | where | at progress 1 |
+| --- | --- | --- |
+| band scatters outward | `BAND_SCATTER_*` in `scene.ts` | orbit radius 2.7 → ~11–29 |
+| ambient stars fly past camera | `FLY_DISTANCE_*` in `scene.ts` | all past the camera, gone |
+| camera dollies in and levels off | `SCENE2_CAMERA_*` in `world.ts` | dist 10.2 → 4.3, +63° → 0° |
+| model turns one extra revolution | `TRANSITION_TURNS` in `world.ts` | exactly 360°, idle direction |
+
+- Displacements are computed **from** `progress`, never accumulated frame to
+  frame, so scrubbing back up rewinds exactly. It is also why the fly-past needs
+  no wrap: a star that passes the camera keeps going and nothing returns it.
+- Each layer has its own `ease` exponent (`FLY_EASE`, `BAND_SCATTER_EASE`) —
+  same driver, different response curve. **These are load-bearing.** The first
+  attempt used linear travel of 95–190 units and emptied the frame by scroll
+  0.25, leaving nothing to watch for the remaining 75%. The travel is sized just
+  under the 72.2 units that separates the far edge of the cloud from the camera,
+  so deeper stars keep sweeping into view as the scroll runs. Re-check on-screen
+  star counts across progress before retuning any of these.
+- Star layers set `frustumCulled = false`. Three computes a geometry's bounding
+  sphere once, and the transition moves stars far outside their initial bounds —
+  with culling on, whole layers pop out of view mid-scroll.
+- The fly direction is converted into each layer's local space before use,
+  because the mouse tilt rotates the wide cloud's buffer.
+- `SCENE2_CAMERA_POS.y` and `SCENE2_CAMERA_TARGET.y` are **equal**, which is what
+  makes the end view exactly level. Keep them equal, and keep them above `y = 0`:
+  the model's slab sits at 0 with all its detail on top, so a camera below that
+  plane looks at the underside and hides the rings, planets and figure.
+
+## Render passes
+`renderer.autoClear` is **false**. Every frame, `scene.ts` does:
+`clear()` → render starfield → `clearDepth()` → render world layer. **Both
+passes use the world layer's bird's-eye camera** (`world.camera`) — sharing one
+vantage is what makes the star orbits line up with the model's own plane, and
+the starfield's old origin camera was removed for that reason. The two layers
+still have separate scenes so the depth clear can guarantee the model always
+draws in front of the stars, whatever their real depth. Keep this ordering.
+
+## Animation loop
+One single `requestAnimationFrame` loop lives in `src/main.ts`:
+`scene.update(time, state)` runs every frame, reading `state` (mouse position
+and scroll) and rendering both passes. It **returns the smoothed scroll
+progress**, which `main.ts` uses to drive the DOM side of the transition (the
+intro line out, the Scene 2 row in) off exactly the same value as the 3D
+side — do not read `state.scroll` directly for animation, or it will drift out
+of sync.
+
+While the reveal window is open the loop keeps running but skips everything
+belonging to the covered page — `scene.update()`, the intro, the row and the
+portrait — and advances only the window's own scene. See **Taking the page
+over** above, including the `scene.resync()` that keeps the model from jumping
+on the first frame back.
+
+Do not create a second animation loop — any new per-frame logic (camera motion,
+model animation, etc.) should hook into this same loop, ideally inside
+`scene.ts`'s `update()` before the render calls. UI features do the same the
+other way round: `src/ui/reveal-window.ts` and `src/ui/mark.ts` each expose an
+`update()` that this loop calls once a frame. The window's 3D scene has its own
+renderer but no loop of its own — the window calls into it only while it is
+open — and the portrait's animation is a plain function of that loop's `time`,
+not SMIL, a CSS animation or a timer.
+
+## Removed (do not assume these exist)
+The following existed in an earlier version of this project and were
+deliberately deleted; do not reference them or recreate them without being
+asked: `src/lib/depth.ts` (depth-item/camera-Z navigation engine),
+`src/lib/projects.ts` (project data), `src/sections/` (hero/transition/work
+sections), Lenis smooth-scroll, GSAP, the HUD (fps/coord/scroll-hint
+overlay), and the red+wine accent palette / Polaroid-style project cards.
+
+Also gone, more recently: the **two flush Scene 2 cards** (`.scene2-cards` /
+`.scene2-card`, their `--card-*` tokens, the 1px boundary and collapsed
+divider, and the hover scale that grew card and window together), and the
+reveal window's **closed-state canvas tilt**. The Scene 2 row is bare type and
+one image now — see **Scene 2 row** above before adding any box back.
