@@ -115,8 +115,16 @@ function buildElements(): {
  * That order is load-bearing: the scene draws exactly one still frame at
  * startup and then renders on demand, so its canvas has to be in the page
  * already for that frame to reach the screen.
+ *
+ * `onOpenChange` is how the rest of the page finds out: the window covers the
+ * screen when it is open, so the page behind it has no business still scrolling
+ * or animating. It fires once per real change, on both edges, and this module
+ * stays ignorant of what anyone does with it.
  */
-export function createRevealWindow(parent: HTMLElement): RevealWindow {
+export function createRevealWindow(
+  parent: HTMLElement,
+  onOpenChange?: (open: boolean) => void,
+): RevealWindow {
   const { root, canvas, cards, raised, close } = buildElements()
   parent.append(root)
 
@@ -199,6 +207,8 @@ export function createRevealWindow(parent: HTMLElement): RevealWindow {
       scene.setActive(true)
       playCardEntrance(projectCards)
     }, OPEN_MS)
+
+    onOpenChange?.(true)
   }
 
   function closeWindow(): void {
@@ -220,6 +230,10 @@ export function createRevealWindow(parent: HTMLElement): RevealWindow {
     clearTimeout(lookTimer)
     isLookLive = false
     scene.setActive(false)
+
+    // Last, so whatever hands the page back its scroll and its loop does it
+    // only once this window is genuinely done with them.
+    onOpenChange?.(false)
   }
 
   function bindTrigger(trigger: HTMLElement): void {
