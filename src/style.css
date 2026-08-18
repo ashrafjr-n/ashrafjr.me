@@ -302,8 +302,8 @@ body {
    Tablets and desktop — 768px and up
 
    Keeps the base rule's horizontal flanking line (SYSTEM — portrait —
-   PROJECTS, centred on each other and on the screen) and only re-anchors it
-   to the *top* of the viewport, because Scene 2 now stands the model itself
+   PROJECTS, centred on each other and on the screen) and re-anchors it to
+   the *top* of the viewport, because Scene 2 now stands the model itself
    centred and bottom-anchored underneath it (MODEL_SCALE_* and
    solveBottomRise() in three/world.ts, gated on the same 767.98px breakpoint
    via matchMedia there). The two halves are one composition: the model rests
