@@ -61,6 +61,19 @@
   --pcard-ease: cubic-bezier(0.22, 0.68, 0.24, 1);
   --pcard-grow: 460ms;
   --pcard-reveal: 380ms;
+  /* The entrance cascade: each card rises into its resting place when the
+     window opens, from the right of the row to the left. The rise is in the
+     card's own authoring pixels (the 420x230 box), so it is shrunk into the
+     world along with everything else and lands at ~40% of the card's height
+     whatever tier it is. Expo-out here rather than --pcard-ease: a card
+     arriving wants to shed its speed hard at the end, where a card growing
+     under the cursor wants the gentler curve.
+     The per-card delay is written inline from ui/project-cards.ts — the row's
+     order cannot be an nth-child rule, because the hovered card is moved into
+     a layer of its own and would renumber the rest. */
+  --pcard-enter-rise: 90px;
+  --pcard-enter-dur: 640ms;
+  --pcard-enter-ease: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 /* ===========================================================
@@ -383,7 +396,32 @@ body {
   /* About its own centre: the card grows in place, and since every card is its
      own object out in the row, none of the others move or resize with it. */
   transform-origin: 50% 50%;
-  transition: transform var(--pcard-grow) var(--pcard-ease);
+  /* The entrance rides on `translate`, not on `transform`, and that is
+     load-bearing: `transform` is the hover's, and the two would overwrite each
+     other on any card entered mid-cascade. The individual transform properties
+     compose with `transform` instead of replacing it, and `translate` is the
+     outer one, so the rise is unaffected by the hover's scale. `0 0` is the
+     resting value, stated rather than left implicit so the property the
+     entrance interpolates is always the same one. */
+  translate: 0 0;
+  transition: transform var(--pcard-grow) var(--pcard-ease),
+    translate var(--pcard-enter-dur) var(--pcard-enter-ease)
+      var(--pcard-enter-delay, 0ms),
+    opacity var(--pcard-enter-dur) var(--pcard-enter-ease)
+      var(--pcard-enter-delay, 0ms);
+}
+
+/* Armed, ready to rise: below its place and invisible, with no transition, so
+   arming is a snap and never an animation of its own. Dropping the class is the
+   whole of the entrance — the base rule above is what the card then transitions
+   back to, delay and all, and its resting value is a literal `0 0` / opacity 1,
+   so the row lands exactly where it stood with nothing left to drift.
+   Set from ui/reveal-window.ts on every open, released once the window has
+   finished growing. */
+.pcard-slot.is-entering .pcard {
+  translate: 0 var(--pcard-enter-rise);
+  opacity: 0;
+  transition: none;
 }
 
 /* Grown. The hovered card is also moved to the end of its parent from
