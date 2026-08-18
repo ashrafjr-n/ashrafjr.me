@@ -322,8 +322,9 @@ body {
        move the artwork down the screen. */
     --row-mark-h: clamp(160px, 28vh, 280px);
     --row-bottom: 3vh;
-    /* In a column this is vertical spacing, not the horizontal gulf it is on
-       one line, so it comes right down. */
+    /* Inert now — the portrait is the row's only in-flow child, so there is
+       nothing left for a flex gap to space out. Left in place rather than
+       unset. */
     --row-gap: 1.5rem;
     /* A bit smaller than the base clamp(1.4rem, 3.4vw, 3rem). */
     --row-word-size: clamp(1.2rem, 2.9vw, 3rem);
@@ -335,31 +336,32 @@ body {
      row's only in-flow child, still centred by justify-content: center on a
      full-width box — which lands it exactly where it sat before. */
   .scene2-row {
-    flex-direction: column;
     width: 100vw;
     max-width: 100vw;
   }
 
-  /* Ordered by name rather than by position in the DOM — the markup order is
-     SYSTEM, portrait, PROJECTS (the portrait is the centrepiece on desktop),
-     which is not the order wanted here. */
-  /* Extra air between the two words. It is a margin rather than a bigger
-     --row-gap because that gap also sets the distance from SYSTEM down to the
-     portrait, and only the space *between the words* is meant to grow. `order`
-     draws PROJECTS first, so its bottom margin is what lands between the two;
-     it stacks with the row's gap, making the pair sit 1.5rem + 1.25rem apart
-     while SYSTEM stays 1.5rem clear of the artwork. */
+  /* Pulled out of the flex flow entirely and pinned to the row's left/right
+     edges, vertically centred on the portrait (the row's height now equals
+     the portrait's, since it's the only in-flow child left, so top: 50% here
+     lands exactly on its centre line) — the same vertical relationship
+     align-items: center gives the desktop row, adapted to opposite screen
+     edges instead of flanking the artwork. Taking them out of flow this way
+     is also what leaves the portrait's own bottom-anchored position
+     untouched: it no longer has their height above it to push it down. */
+  .scene2-word--system,
   .scene2-word--projects {
-    order: 1;
-    margin-bottom: 1.25rem;
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    margin: 0;
   }
 
   .scene2-word--system {
-    order: 2;
+    left: clamp(1rem, 4vw, 1.75rem);
   }
 
-  .scene2-mark {
-    order: 3;
+  .scene2-word--projects {
+    right: clamp(1rem, 4vw, 1.75rem);
   }
 
   /* The card row inside the reveal window is wider than a phone frame, so it
