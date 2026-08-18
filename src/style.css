@@ -329,11 +329,15 @@ body {
     --row-word-size: clamp(1.2rem, 2.9vw, 3rem);
   }
 
-  /* The row stacks instead of running left-to-right: both words above the
-     portrait, one over the other. `align-items: center` still applies and now
-     centres them horizontally. */
+  /* The row spans the full viewport width here (overriding the base rule's
+     max-width: 94vw), so the two words below have a box whose left/right
+     edges are the screen's own edges to dock to. The portrait stays the
+     row's only in-flow child, still centred by justify-content: center on a
+     full-width box — which lands it exactly where it sat before. */
   .scene2-row {
     flex-direction: column;
+    width: 100vw;
+    max-width: 100vw;
   }
 
   /* Ordered by name rather than by position in the DOM — the markup order is
