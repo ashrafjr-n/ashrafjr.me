@@ -30,6 +30,17 @@ import {
  */
 const OPEN_MS = 620
 
+/**
+ * How long after opening the row starts rising, in ms. Near-immediate on
+ * purpose: the cascade used to be released on the same OPEN_MS beat as the
+ * look-around, which read as a pause with nothing happening in it. The cards
+ * now start from below the frame and take well over a second to land, so they
+ * are still climbing long after the mask has finished growing — there is
+ * nothing left to wait for. It is not zero only so the window is visibly on its
+ * way before the row sets off; the armed state also wants a paint of its own.
+ */
+const CARDS_MS = 100
+
 export interface RevealWindow {
   /** Make `trigger` open the window, growing the view out of its own box. */
   bindTrigger(trigger: HTMLElement): void
@@ -147,6 +158,8 @@ export function createRevealWindow(
   /** True only once the window has finished growing; the mouse is ignored until then. */
   let isLookLive = false
   let lookTimer = 0
+  /** The row's release, on its own much shorter beat than the look-around. */
+  let cardsTimer = 0
 
   function applyBox(box: Box): void {
     root.style.left = `${box.left}px`
@@ -197,15 +210,20 @@ export function createRevealWindow(
     trigger.setAttribute('aria-expanded', 'true')
     applyOpenBox()
 
-    // Hand the view over only when the window has finished growing, and start
-    // the cascade on the same beat: the mask is still a sliver of the screen
-    // until then, so a row rising behind it would be over before it could be
-    // seen. The cards' own transitions carry it from here — nothing per-frame.
+    // The row goes almost at once, on its own beat — the cards climb from below
+    // the frame, so they are still on their way up long after the mask has
+    // finished growing, and holding them back only bought an empty pause. Their
+    // own transitions carry it from here; nothing per-frame.
+    clearTimeout(cardsTimer)
+    cardsTimer = window.setTimeout(() => playCardEntrance(projectCards), CARDS_MS)
+
+    // The view is handed over only when the window has finished growing: the
+    // mask is a sliver of the screen until then, and a look-around inside it
+    // would be aiming a frame nobody can see.
     clearTimeout(lookTimer)
     lookTimer = window.setTimeout(() => {
       isLookLive = true
       scene.setActive(true)
-      playCardEntrance(projectCards)
     }, OPEN_MS)
 
     onOpenChange?.(true)
@@ -226,7 +244,9 @@ export function createRevealWindow(
     }
 
     // Stop rendering at once. The scene recentres its camera and leaves one
-    // still frame on the canvas, ready for the next open.
+    // still frame on the canvas, ready for the next open. A row that has not
+    // been released yet stays armed — the next open arms it again anyway.
+    clearTimeout(cardsTimer)
     clearTimeout(lookTimer)
     isLookLive = false
     scene.setActive(false)
