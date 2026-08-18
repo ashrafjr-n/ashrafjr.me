@@ -43,6 +43,22 @@ const OPEN_MS = 620
  */
 const CARDS_MS = 100
 
+/**
+ * How long the window waits on the drop before it starts closing, in ms.
+ *
+ * Not the whole of `CARD_EXIT_MS`: waiting for the drop's last frame left a
+ * beat of nothing between an empty frame and the window moving. The exit curve
+ * is a hard ease-in, so the cards spend that tail whipping out of frame and
+ * fading — at 85% they are ~63% of the way down and a third opaque, which is as
+ * good as gone. Handing over there tightens the seam without cutting anything
+ * short: the drop is a CSS transition and keeps running underneath, so the last
+ * of it simply plays behind the shrinking mask.
+ *
+ * Neither animation changes with this number — it is only where one ends and
+ * the other begins.
+ */
+const EXIT_HANDOVER_MS = Math.round(CARD_EXIT_MS * 0.85)
+
 export interface RevealWindow {
   /** Make `trigger` open the window, growing the view out of its own box. */
   bindTrigger(trigger: HTMLElement): void
@@ -267,7 +283,7 @@ export function createRevealWindow(
     dropCards(projectCards)
 
     clearTimeout(exitTimer)
-    exitTimer = window.setTimeout(finishClose, CARD_EXIT_MS)
+    exitTimer = window.setTimeout(finishClose, EXIT_HANDOVER_MS)
   }
 
   /** The window's own close, exactly as it was — now on the far side of the drop. */
