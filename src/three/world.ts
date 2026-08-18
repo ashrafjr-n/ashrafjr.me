@@ -37,8 +37,42 @@ const CAMERA_TARGET = { x: 0, y: 0.25, z: 0 } // model's own mid-height: centers
 // exactly 0° — a straight-on view of the model rather than the ~63° overhead of
 // Scene 1. Keep these two `y` values equal to keep the view level.
 // The height is the model's own mid-height, which centres it in frame.
+// This is the phone framing — see MOBILE below. Desktop/tablet get the WIDE
+// variants instead.
 const SCENE2_CAMERA_POS = { x: 0, y: 0.3, z: 4.3 }
 const SCENE2_CAMERA_TARGET = { x: 0, y: 0.3, z: 0 }
+
+/**
+ * Desktop/tablet-only Scene 2 recomposition. The eye sits well above the
+ * target while the target's own height is untouched, which is what raises
+ * the camera without re-leveling it flat: pitch = atan((1.3 - 0.3) / 4.3) ≈
+ * 13° of look-down, a moderate step up from dead level and nowhere near
+ * Scene 1's ~63° overhead. Paired with the model's own left shift and
+ * scale-up below, so style.css's `min-width: 768px` block has room on the
+ * right for the reworked word/portrait stack.
+ *
+ * Gated on the same 767.98px breakpoint as the rest of the site (see MOBILE
+ * below) — mobile keeps the level, centred framing above completely
+ * untouched.
+ */
+const SCENE2_CAMERA_POS_WIDE = { x: 0, y: 1.3, z: 4.3 }
+const SCENE2_CAMERA_TARGET_WIDE = { x: 0, y: 0.3, z: 0 }
+
+/**
+ * Desktop/tablet only: how far left the model's pivot shifts by Scene 2, and
+ * how much it scales up over the same span. Both are applied to the pivot
+ * Group, not the model's own fitted scale/position from fitModel() — see
+ * update() for why that composes safely (the pivot's local origin already
+ * sits on the model's ground-centre point, so scaling it in place doesn't
+ * lift the model off y = 0 or shift its x/z centre, and translating it
+ * afterward moves the whole already-scaled group by a fixed world offset
+ * regardless of that scale).
+ *
+ * Negative x is screen-left for this camera rig (world +x reads as screen
+ * right here — see the camera basis note where this is used).
+ */
+const MODEL_X_WIDE = -1.3
+const MODEL_SCALE_WIDE = 1.3
 
 /**
  * Full turns the model makes across the scroll transition, on top of its idle
@@ -109,6 +143,13 @@ export interface WorldLayer {
 export function createWorld(aspect: number): WorldLayer {
   const scene = new Scene()
 
+  // Same breakpoint style.css's phone block and ui/reveal-window.ts's card
+  // drag both use. `.matches` is read fresh in update() every frame rather
+  // than cached from a resize listener, so the Scene 2 composition tracks the
+  // live viewport the same way the CSS does — including a window resized
+  // across the boundary mid-session, not just at load.
+  const MOBILE = window.matchMedia('(max-width: 767.98px)')
+
   const camera = new PerspectiveCamera(CAMERA_FOV, aspect, 0.1, 200)
   camera.position.set(CAMERA_POS.x, CAMERA_POS.y, CAMERA_POS.z)
   camera.lookAt(CAMERA_TARGET.x, CAMERA_TARGET.y, CAMERA_TARGET.z)
@@ -154,16 +195,31 @@ export function createWorld(aspect: number): WorldLayer {
 
     // Dolly in and drop the angle. Both the eye and the look-at point blend, so
     // the camera arcs down and forward together instead of just pitching.
+    // Desktop/tablet blend toward the WIDE rig instead of the phone one —
+    // mobile's target is untouched by this branch. Scene 1 (progress 0) is
+    // identical either way, since both blends start from the same CAMERA_POS/
+    // CAMERA_TARGET.
+    const wide = !MOBILE.matches
+    const scene2Pos = wide ? SCENE2_CAMERA_POS_WIDE : SCENE2_CAMERA_POS
+    const scene2Target = wide ? SCENE2_CAMERA_TARGET_WIDE : SCENE2_CAMERA_TARGET
+
     camera.position.set(
-      mix(CAMERA_POS.x, SCENE2_CAMERA_POS.x, progress),
-      mix(CAMERA_POS.y, SCENE2_CAMERA_POS.y, progress),
-      mix(CAMERA_POS.z, SCENE2_CAMERA_POS.z, progress),
+      mix(CAMERA_POS.x, scene2Pos.x, progress),
+      mix(CAMERA_POS.y, scene2Pos.y, progress),
+      mix(CAMERA_POS.z, scene2Pos.z, progress),
     )
     camera.lookAt(
-      mix(CAMERA_TARGET.x, SCENE2_CAMERA_TARGET.x, progress),
-      mix(CAMERA_TARGET.y, SCENE2_CAMERA_TARGET.y, progress),
-      mix(CAMERA_TARGET.z, SCENE2_CAMERA_TARGET.z, progress),
+      mix(CAMERA_TARGET.x, scene2Target.x, progress),
+      mix(CAMERA_TARGET.y, scene2Target.y, progress),
+      mix(CAMERA_TARGET.z, scene2Target.z, progress),
     )
+
+    // The model's own left shift and scale-up, desktop/tablet only — mixed by
+    // the same progress as the camera so it arrives exactly as Scene 2 does.
+    // Explicitly reset on mobile rather than left alone, so a viewport resized
+    // across the breakpoint mid-session can't strand the pivot off-centre.
+    pivot.position.x = wide ? mix(0, MODEL_X_WIDE, progress) : 0
+    pivot.scale.setScalar(wide ? mix(1, MODEL_SCALE_WIDE, progress) : 1)
   }
 
   function resize(nextAspect: number): void {
