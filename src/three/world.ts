@@ -87,17 +87,18 @@ const SCENE2_CAMERA_TARGET_WIDE = { x: 0, y: 0.3, z: 0 }
  * tablet portrait sees barely over half the horizontal span a 16:10 desktop
  * does at CAMERA_FOV 35.
  *
- * MODEL_FIT_PER_ASPECT is the guard under both: measured against this rig,
- * the model's widest visible feature (its particle shell) spans the whole
- * frame at roughly `0.93 * aspect` on a tall frame, so capping the scale at
- * `0.83 * aspect` keeps it clear of both side edges at any window shape —
- * including the viewports that sit in the desktop band but are portrait
- * anyway (an iPad Pro 12.9" is 1024 x 1366). Without it the tiers alone are
- * only correct for their band's *typical* aspect.
+ * MODEL_FIT_PER_ASPECT is the guard under both: measured against this rig by
+ * projecting the model's own white geometry, the widest scale that keeps it
+ * inside both side edges runs from `0.84 * aspect` on a tall frame down to
+ * `0.80 * aspect` at 1.2, so capping at `0.80 * aspect` clears the sides at
+ * any window shape — including the viewports that sit in the desktop band but
+ * are portrait anyway (an iPad Pro 12.9" is 1024 x 1366, where the cap holds
+ * the model to 0.60). Without it the tiers alone are only correct for their
+ * band's *typical* aspect.
  */
-const MODEL_SCALE_TABLET = 0.62
-const MODEL_SCALE_DESKTOP = 0.85
-const MODEL_FIT_PER_ASPECT = 0.83
+const MODEL_SCALE_TABLET = 0.7
+const MODEL_SCALE_DESKTOP = 0.95
+const MODEL_FIT_PER_ASPECT = 0.8
 
 /**
  * Full turns the model makes across the scroll transition, on top of its idle
@@ -120,11 +121,18 @@ const MODEL_SPAN = 3.5
  * a pure black page, so it never reads as an edge: the white ring plane on top
  * of it is what the eye takes for the bottom of the model, and it is what
  * Scene 2 rests on the bottom of the frame. Measured off the GLB — the ring
- * plane sits at y 0.33 with a radius of 1.30; keep these in step with the file
- * if it is ever replaced.
+ * plane sits at y 0.33 with a rim at radius 1.33; keep these in step with the
+ * file if it is ever replaced.
+ *
+ * The radius is written as 1.35 rather than that literal 1.33, so this
+ * one-point solve lands where the *whole* white silhouette actually bottoms
+ * out: swept through the spin, the geometry just above and outside the rim
+ * (it flares to radius 1.57 by y 1.06) comes marginally lower on screen than
+ * the rim itself does, and 1.35 is the value that reproduces the real low
+ * point across the scale range.
  */
 const MODEL_RING_Y = 0.33
-const MODEL_RING_RADIUS = 1.3
+const MODEL_RING_RADIUS = 1.35
 
 /**
  * How far down the frame that ring's near edge is put in Scene 2, as a
