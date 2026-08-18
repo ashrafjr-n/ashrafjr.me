@@ -138,11 +138,16 @@ function buildProjectCard({ name, stack, href, kind }: Project): HTMLDivElement 
 
 /**
  * How far behind its right-hand neighbour each card sets off, in ms. Half of
- * --pcard-enter-dur in style.css (1100ms), so a card leaves the ground as the
+ * --pcard-enter-dur in style.css (1300ms), so a card leaves the ground as the
  * one beside it passes its own halfway point and the row arrives as one wave
  * rather than five separate moves. Keep the halves relation if either number is
- * retuned; the whole cascade is 3.3s and unhurried on purpose, since each card
- * now climbs from below the frame rather than from just under its place.
+ * retuned; the whole cascade is 3.9s and unhurried on purpose, since each card
+ * climbs from below the frame rather than from just under its place.
+ *
+ * Halfway in *time* is only halfway in *motion* if the curve cooperates: under
+ * the front-loaded easing this row used to carry, a card was ~90% of the way
+ * home when its neighbour set off, and the overlap was invisible. That is a
+ * --pcard-enter-ease question, not a stagger one — see style.css.
  *
  * Only the stagger is duplicated here; the duration, distance and curve are all
  * the stylesheet's. This is written per card as an inline
@@ -150,7 +155,7 @@ function buildProjectCard({ name, stack, href, kind }: Project): HTMLDivElement 
  * the hovered card is moved into a layer of its own (three/reveal.ts), which
  * would renumber everything left behind.
  */
-const ENTER_STAGGER_MS = 550
+const ENTER_STAGGER_MS = 650
 
 /** Every card, in row order, ready to be placed in the 3D scene. */
 export function buildProjectCards(): HTMLDivElement[] {
