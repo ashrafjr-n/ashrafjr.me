@@ -76,16 +76,25 @@
      viewport height), so every card starts off screen at any window size, the
      two ends furthest down. Anything under ~1200 leaves the middle card
      visible at rest.
-     The curve is a gentle ease-in-out-ish glide, deliberately *not* the
-     expo-out that was here when the rise was 90px: over this distance expo-out
-     fires the card up the screen and stops it dead, where this one leans in
-     and lets the last third coast. --pcard-ease stays the hover's.
+     The curve leaves at **linear speed and spends its slowdown at the very
+     end**: the first control point sits on the diagonal (0.25, 0.25), so the
+     card sets off at an even pace, and the second at (0.6, 1) pins the finish
+     with zero velocity. It covers ~59% of the rise in the first half of the
+     time and only the last ~2% in the final eighth, so the arrival is a long
+     settle rather than a stop.
+     Two curves have been rejected here. Expo-out (0.16, 1, 0.3, 1) suited the
+     old 90px rise but over a viewport-height travel it fires the card up the
+     screen and stops it dead. (0.4, 0.9, 0.2, 1) was the same fault by degrees:
+     ~90% of the distance was gone by the halfway mark, which is why the
+     50%-overlapped cascade still read as five cards moving one at a time. The
+     stagger did not change to fix that; the curve did. --pcard-ease stays the
+     hover's.
      The per-card delay is written inline from ui/project-cards.ts — the row's
      order cannot be an nth-child rule, because the hovered card is moved into
      a layer of its own and would renumber the rest. */
   --pcard-enter-rise: 1280px;
-  --pcard-enter-dur: 1100ms;
-  --pcard-enter-ease: cubic-bezier(0.4, 0.9, 0.2, 1);
+  --pcard-enter-dur: 1300ms;
+  --pcard-enter-ease: cubic-bezier(0.25, 0.25, 0.6, 1);
 }
 
 /* ===========================================================
