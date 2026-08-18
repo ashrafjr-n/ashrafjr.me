@@ -657,10 +657,27 @@ export function createRevealScene(
    * Dragging left looks right, so the row travels with the finger. The sign
    * follows the mouse's convention above, where looking right is a negative
    * yaw.
+   *
+   * **The drag deliberately bypasses the spring and moves the view itself.**
+   * The spring is what gives the mouse look-around its weight — it trails the
+   * pointer and coasts — but a drag is direct manipulation, and there the same
+   * lag reads as the row sticking to the glass: with the spring in the way, a
+   * full swipe took seconds to arrive and the finger was long gone. Writing
+   * `yaw` here instead makes the row track the finger, and `DRAG_PER_PX` is
+   * scaled so it tracks it at roughly 1:1 on a phone.
+   *
+   * `dragYaw` is still updated, and the spring's target is built from it, so
+   * the two agree the moment the finger lifts and there is nothing to snap
+   * back to. Zeroing the velocity is what stops a leftover coast from the
+   * previous gesture carrying on through this one.
    */
   function dragBy(dxPx: number): void {
     if (!active) return
     dragYaw = clamp(dragYaw + dxPx * DRAG_PER_PX, -DRAG_MAX_YAW, DRAG_MAX_YAW)
+    yaw = dragYaw
+    yawVel = 0
+    camera.rotation.set(pitch, yaw, 0)
+    render()
   }
 
   function setActive(next: boolean): void {
