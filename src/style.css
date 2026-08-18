@@ -216,6 +216,18 @@ body {
   height: 100%;
 }
 
+/* The portrait runs larger on desktop, where there is room either side of it
+   for the two words to stay on one line. Only --row-mark-h moves: the box
+   keeps the artwork's aspect-ratio, so the width follows, and nothing else in
+   the row is touched. Narrow viewports keep the base clamp above — the row is
+   already close to its 94vw there, and a taller portrait would push the words
+   out of the line. */
+@media (min-width: 900px) {
+  :root {
+    --row-mark-h: clamp(300px, 50vh, 540px);
+  }
+}
+
 /* The flanking words. A <button> reset back to plain type: the affordance is
    the type itself, not a box around it. */
 .scene2-word {
