@@ -95,6 +95,17 @@
   --pcard-enter-rise: 1280px;
   --pcard-enter-dur: 1300ms;
   --pcard-enter-ease: cubic-bezier(0.25, 0.25, 0.6, 1);
+  /* The exit: the row drops back down the way it rose, and the window only
+     starts shrinking once it has gone. Deliberately NOT the entrance in
+     reverse — all five leave at once, with no --pcard-enter-delay in the
+     leaving transition, because a staggered exit makes the close wait on the
+     last card. One move, 600ms, then the window's own 620ms close.
+     Ease-in rather than ease-out: an arriving card settles, a leaving one
+     should pick up speed and be gone. --pcard-exit-dur is the one timing in
+     this file that JS also knows (CARD_EXIT_MS in ui/project-cards.ts, which is
+     what sequences the two halves of the close) — change both together. */
+  --pcard-exit-dur: 600ms;
+  --pcard-exit-ease: cubic-bezier(0.45, 0, 0.75, 0.25);
 }
 
 /* ===========================================================
@@ -439,9 +450,10 @@ body {
    so the row lands exactly where it stood with nothing left to drift.
    Set from ui/reveal-window.ts on every open, released once the window has
    finished growing. */
-/* Inert for the whole entrance: the armed hold (.is-entering) and the rise that
-   follows it (.is-arriving, dropped per card by ui/project-cards.ts when that
-   card's own `translate` transition ends).
+/* Inert whenever the row is moving of its own accord: the armed hold
+   (.is-entering), the rise that follows it (.is-arriving, dropped per card by
+   ui/project-cards.ts when that card's own `translate` transition ends) and the
+   drop out (.is-leaving).
    An armed card is at opacity 0, and an invisible card is still a hit target —
    the same reason .reveal-window.is-open gates the row at all. A climbing card
    is worse than surprising: hovering it raises it, and raising re-appends the
@@ -452,7 +464,8 @@ body {
    the row on, and a bare .pcard-slot class would lose to it on specificity
    rather than win on source order. */
 .reveal-window.is-open .pcard-slot.is-entering,
-.reveal-window.is-open .pcard-slot.is-arriving {
+.reveal-window.is-open .pcard-slot.is-arriving,
+.reveal-window.is-open .pcard-slot.is-leaving {
   pointer-events: none;
 }
 
@@ -460,6 +473,21 @@ body {
   translate: 0 var(--pcard-enter-rise);
   opacity: 0;
   transition: none;
+}
+
+/* Leaving: the same distance back down, all five together. The transition list
+   is restated here for one reason — it carries no --pcard-enter-delay, so the
+   row goes as one move instead of unwinding card by card and making the close
+   wait on the last of them. `transform` is left out of it deliberately: a card
+   caught mid-hover keeps whatever scale it has and simply falls with it.
+   Set from ui/reveal-window.ts when a close is asked for, and cleared by
+   armCardEntrance() on the next open. It outlives the close on purpose — the
+   cards stay down while the window shrinks back into its word. */
+.pcard-slot.is-leaving .pcard {
+  translate: 0 var(--pcard-enter-rise);
+  opacity: 0;
+  transition: translate var(--pcard-exit-dur) var(--pcard-exit-ease),
+    opacity var(--pcard-exit-dur) var(--pcard-exit-ease);
 }
 
 /* Grown. The hovered card is also moved to the end of its parent from
