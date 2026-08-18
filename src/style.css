@@ -13,6 +13,11 @@
 :root {
   --font-display: "Space Grotesk", sans-serif;
   --font-code: "JetBrains Mono", monospace;
+  /* The Scene 2 row's two words and nothing else. Deliberately scoped: it is
+     applied only by .scene2-word, so the rest of the site stays on
+     --font-code. Requested at 700 only in index.html, the one weight it is
+     rendered at. */
+  --font-row: "Space Mono", monospace;
 
   /* Pure black — the same value the model's own material renders, so the model
      reads as one continuous surface with the page. Must stay #000000. */
@@ -167,7 +172,7 @@ body {
 /* ===========================================================
    Scene 2 row (bottom-centre, below the model)
 
-   CONTACT — the portrait — PROJECTS, on one line and centred on each other.
+   SYSTEM — the portrait — PROJECTS, on one line and centred on each other.
    There are deliberately NO containers here: no card, no border, no divider,
    no background, no border-radius. The two flush bordered cards this replaced
    were removed on purpose; don't give these elements a box of any kind.
@@ -218,9 +223,14 @@ body {
   padding: 0;
   border: 0;
   background: none;
-  font-family: var(--font-code);
+  /* Space Mono, not the site's --font-code: these two words are the only
+     place it is used. */
+  font-family: var(--font-row);
   font-size: var(--row-word-size);
   font-weight: 700; /* requested in index.html — anything else synthesizes */
+  /* The labels are already authored in caps; this holds them there whatever
+     they are set to. */
+  text-transform: uppercase;
   letter-spacing: 0.08em;
   line-height: 1;
   white-space: nowrap;
