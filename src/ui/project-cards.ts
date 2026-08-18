@@ -136,7 +136,45 @@ function buildProjectCard({ name, stack, href, kind }: Project): HTMLDivElement 
   return slot
 }
 
+/**
+ * How far behind its right-hand neighbour each card sets off, in ms. Half of
+ * --pcard-enter-dur in style.css, so a card leaves the ground as the one beside
+ * it passes its own halfway point and the row arrives as one wave rather than
+ * five separate moves.
+ *
+ * Only the stagger is duplicated here; the duration, distance and curve are all
+ * the stylesheet's. This is written per card as an inline
+ * --pcard-enter-delay because the row's order cannot be an nth-child rule —
+ * the hovered card is moved into a layer of its own (three/reveal.ts), which
+ * would renumber everything left behind.
+ */
+const ENTER_STAGGER_MS = 320
+
 /** Every card, in row order, ready to be placed in the 3D scene. */
 export function buildProjectCards(): HTMLDivElement[] {
-  return PROJECTS.map(buildProjectCard)
+  const slots = PROJECTS.map(buildProjectCard)
+  // Right to left: the last card in the row goes first, so the cascade runs
+  // back toward the start of the row.
+  slots.forEach((slot, i) => {
+    const rank = slots.length - 1 - i
+    slot.style.setProperty('--pcard-enter-delay', `${rank * ENTER_STAGGER_MS}ms`)
+  })
+  return slots
+}
+
+/**
+ * Put the row back below its place, ready to rise. Snaps — the armed state
+ * carries no transition — so this is safe to call at the instant the window
+ * starts opening, before anything has been painted.
+ */
+export function armCardEntrance(slots: HTMLElement[]): void {
+  for (const slot of slots) slot.classList.add('is-entering')
+}
+
+/**
+ * Let the row go. Each card then takes its own --pcard-enter-delay, so one call
+ * plays the whole cascade; the browser runs it, not the RAF loop.
+ */
+export function playCardEntrance(slots: HTMLElement[]): void {
+  for (const slot of slots) slot.classList.remove('is-entering')
 }
