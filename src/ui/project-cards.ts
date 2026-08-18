@@ -250,8 +250,12 @@ export function playCardEntrance(slots: HTMLElement[]): void {
 /**
  * How long the row takes to drop out, in ms. This is `--pcard-exit-dur` in
  * style.css, and the one timing this module duplicates in both directions: the
- * window has to know when the cards have gone before it may start shrinking, so
- * the number has to exist here as well. Keep the two equal.
+ * window sequences its own close against the drop, so the number has to exist
+ * here as well. Keep the two equal.
+ *
+ * It is the drop's length, not the handover — the window takes over slightly
+ * before the last frame of it (`EXIT_HANDOVER_MS` in ui/reveal-window.ts), and
+ * the tail plays on behind the shrinking mask.
  *
  * It is a timer rather than a `transitionend` on the way out for a reason a
  * stuck class does not have on the way in: nothing else would ever close the
