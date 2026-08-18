@@ -288,18 +288,27 @@ body {
 }
 
 /* ===========================================================
-   Mobile only (below the 900px desktop breakpoint)
+   Phones only — 767.98px and below
 
-   The site has exactly one breakpoint, and these two blocks are the whole of
-   it: `min-width: 900px` above for desktop, `max-width: 899.98px` here. The
-   fractional bound is deliberate — `max-width: 899px` would leave a dead gap
-   at fractional widths between 899 and 900, where a zoomed or scaled viewport
-   can genuinely land and neither block would apply.
+   **This is deliberately not the 900px desktop breakpoint's other half.**
+   There are three bands, not two:
+     - 900px and up          desktop (the block above)
+     - 768px - 899.98px      tablets, which take the base values and are
+                             therefore untouched by either block
+     - 767.98px and below    phones, this block
+   iPads sit at 768-834px CSS wide in portrait (Mini 768, 10.9" 820, Pro 11"
+   834), which is *below* 900 — so bounding this at 899.98 would have restyled
+   every iPad along with the phones. 767.98 clears the narrowest of them, and
+   the tablet band keeps exactly the layout it had before this block existed.
 
-   Tablets and iPads sit at 900px and up, so they take the desktop side of
-   this and nothing here reaches them.
+   The fractional bound is the usual guard: an integer `max-width: 767px`
+   would leave a dead gap at fractional widths between 767 and 768, where a
+   zoomed or scaled viewport can genuinely land.
+
+   ui/reveal-window.ts matches this same query in JS for the card drag; the two
+   have to be changed together.
    =========================================================== */
-@media (max-width: 899.98px) {
+@media (max-width: 767.98px) {
   /* The intro line sits a little lower on a phone. Scene 1 only, and only the
      resting position: main.ts still drives its fade and its upward drift from
      the scroll, on top of whatever `top` is set here. */

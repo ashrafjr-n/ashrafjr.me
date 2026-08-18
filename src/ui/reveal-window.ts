@@ -359,12 +359,15 @@ export function createRevealWindow(
    * nothing about the cards themselves changes: not their size, their place on
    * the arc, their spacing or their tilt. The row is not moved; the view is.
    *
-   * Bound only below the desktop breakpoint, and matched to the stylesheet's
-   * own bound so the two can never disagree about what "mobile" is. It is not
-   * re-evaluated on resize: a device does not change its input model, and
-   * rebinding mid-session would risk a listener left behind on a rotate.
+   * Phones only, and this query is a copy of the stylesheet's own phone bound
+   * — change the two together. It stops short of 900 on purpose: iPads sit at
+   * 768-834px wide in portrait, and they keep the untouched tablet layout and
+   * the mouse-style look-around. See the note above that block in style.css.
+   *
+   * It is not re-evaluated on resize: a device does not change its input model,
+   * and rebinding mid-session would risk a listener left behind on a rotate.
    */
-  const MOBILE = window.matchMedia('(max-width: 899.98px)')
+  const MOBILE = window.matchMedia('(max-width: 767.98px)')
   /** Past this much travel the gesture is a drag, and not a tap on a card. */
   const DRAG_SLOP_PX = 8
 
