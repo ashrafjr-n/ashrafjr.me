@@ -253,9 +253,10 @@ export function playCardEntrance(slots: HTMLElement[]): void {
  * window sequences its own close against the drop, so the number has to exist
  * here as well. Keep the two equal.
  *
- * It is the drop's length, not the handover — the window takes over slightly
- * before the last frame of it (`EXIT_HANDOVER_MS` in ui/reveal-window.ts), and
- * the tail plays on behind the shrinking mask.
+ * The window does not wait on it — the drop and the window's own close run
+ * together. What is timed off it is `settleScene()` in ui/reveal-window.ts: the
+ * scene may only be stopped once the cards are gone, since stopping it
+ * recentres the camera and would snap the falling row sideways.
  *
  * It is a timer rather than a `transitionend` on the way out for a reason a
  * stuck class does not have on the way in: nothing else would ever close the
