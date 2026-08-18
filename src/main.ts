@@ -57,7 +57,7 @@ function buildRowWord(text: string): HTMLButtonElement {
 
 /**
  * Scene 2 row: bottom-centre, below the model in the levelled Scene 2 view.
- * CONTACT, the portrait, PROJECTS — three elements on one line, vertically
+ * SYSTEM, the portrait, PROJECTS — three elements on one line, vertically
  * centred on each other. No cards, no frames, no dividers: the two flush
  * bordered cards that used to be here were removed deliberately, so nothing in
  * this row may grow a background, border or rectangle of its own.
@@ -70,17 +70,17 @@ function buildScene2Row(): {
   const row = document.createElement('div')
   row.className = 'scene2-row'
 
-  // CONTACT is deliberately inert: it is built and styled exactly like
+  // SYSTEM is deliberately inert: it is built and styled exactly like
   // PROJECTS but nothing is bound to it, and it is not returned, so nothing
   // can. It gets its own behaviour later; until then it must not borrow the
   // projects window.
-  const contact = buildRowWord('CONTACT')
+  const system = buildRowWord('SYSTEM')
   const projects = buildRowWord('PROJECTS')
   // The portrait draws and wipes itself; it is advanced from the RAF loop below
   // and only runs while the row is on screen.
   const mark = createMark('ASCII-art portrait of Ashraf')
 
-  row.append(contact, mark.el, projects)
+  row.append(system, mark.el, projects)
   return { row, projects, mark }
 }
 
