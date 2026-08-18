@@ -148,7 +148,7 @@ function buildProjectCard({ name, stack, href, kind }: Project): HTMLDivElement 
  * the hovered card is moved into a layer of its own (three/reveal.ts), which
  * would renumber everything left behind.
  */
-const ENTER_STAGGER_MS = 320
+const ENTER_STAGGER_MS = 550
 
 /** Every card, in row order, ready to be placed in the 3D scene. */
 export function buildProjectCards(): HTMLDivElement[] {
