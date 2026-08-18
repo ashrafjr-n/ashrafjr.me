@@ -34,6 +34,12 @@ export interface SceneController {
   /** Advances and renders a frame. Returns the smoothed 0..1 scroll progress
    *  so DOM-side pieces of the transition stay on the exact same driver. */
   update(time: number, state: InputState): number
+  /**
+   * Re-anchor the frame clock to now, after a stretch of frames was skipped.
+   * Call it on the way back in, not on the way out — see the note on the
+   * implementation.
+   */
+  resync(): void
   resize(): void
 }
 
@@ -477,6 +483,25 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
     return progress
   }
 
+  /**
+   * Throw away the time that passed while this scene was not being updated.
+   *
+   * `update()` spends `time - prevTime` on the orbits and the model's spin, so
+   * a paused stretch — the reveal window covers the screen, and the loop stops
+   * calling in — would otherwise arrive as one enormous delta and jump the
+   * model forward the moment it came back. The 0.1s clamp in `update()` caps
+   * how bad that is, not whether it happens; this removes it. RAF timestamps
+   * share `performance.now()`'s origin, so re-anchoring here is exact to
+   * whatever fraction of a frame separates this call from the next one.
+   *
+   * Call it when frames resume, not when they stop: `prevTime` has to name the
+   * last moment that was actually spent, and until the pause ends nobody knows
+   * when that is.
+   */
+  function resync(): void {
+    prevTime = performance.now()
+  }
+
   function resize(): void {
     const w = window.innerWidth
     const h = window.innerHeight
@@ -485,5 +510,5 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
     renderer.setSize(w, h, false)
   }
 
-  return { update, resize }
+  return { update, resync, resize }
 }
