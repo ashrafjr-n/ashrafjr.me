@@ -36,7 +36,7 @@
   /* Tablet/desktop only (see the min-width: 768px block below): how far the
      row sits off the *top* edge there, since the bottom of the screen belongs
      to the model. Phones keep --row-bottom above and never read this. */
-  --row-top: 2vh;
+  --row-top: 1.5vh;
 
   /* Open/close easing for the reveal window: a long expo-out tail. */
   --reveal-ease: cubic-bezier(0.16, 1, 0.3, 1);
@@ -229,12 +229,13 @@ body {
    opposite of what it did under the old right-hand stack — and it is the
    model that decides it. Desktop takes the largest of the Scene 2 model
    tiers (MODEL_SCALE_DESKTOP in three/world.ts), which lands the top of its
-   particle cloud at ~35.6vh with the model bottomed out on the screen's
+   particle cloud at ~35.2vh with the model bottomed out on the screen's
    bottom edge; the row has the black band above that and nothing more. At
-   --row-top 2vh this clamp keeps the portrait's box ending by ~29vh on a
-   16:9 desktop and ~32vh on a short one (its 180px floor), so the artwork
-   never runs into the model. Only --row-mark-h moves: the box keeps the
-   artwork's own aspect-ratio, so the width follows.
+   --row-top 1.5vh this clamp ends the portrait's box at 31.5vh on anything
+   between ~600px and ~1333px tall, which is 22–40px of clear black under the
+   artwork — tightest on a short 1440x600 window, which is what stops this
+   clamp going higher. Only --row-mark-h moves: the box keeps the artwork's
+   own aspect-ratio, so the width follows.
 
    Tablets (768–899.98px) keep the base clamp above — their model tier is
    smaller again, so the band above it is deeper, not shallower.
@@ -248,7 +249,7 @@ body {
    still very much load-bearing for the phone breakpoint further down. */
 @media (min-width: 900px) {
   :root {
-    --row-mark-h: clamp(180px, 27vh, 340px);
+    --row-mark-h: clamp(180px, 30vh, 400px);
     --row-bottom: 4vh;
   }
 }
