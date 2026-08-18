@@ -348,6 +348,77 @@ export function createRevealWindow(
     closeWindow()
   })
 
+  // --- Touch drag: reaching the far cards on a phone ---
+  /**
+   * The card row is deliberately wider than the frame (see the note on the row
+   * overrunning it), which on desktop is fine — the mouse look-around covers
+   * the difference. A phone has no pointer to look around with and a much
+   * narrower frame, so without this the outer cards simply cannot be reached.
+   *
+   * It turns the *camera*, through the same sprung yaw the mouse drives, so
+   * nothing about the cards themselves changes: not their size, their place on
+   * the arc, their spacing or their tilt. The row is not moved; the view is.
+   *
+   * Bound only below the desktop breakpoint, and matched to the stylesheet's
+   * own bound so the two can never disagree about what "mobile" is. It is not
+   * re-evaluated on resize: a device does not change its input model, and
+   * rebinding mid-session would risk a listener left behind on a rotate.
+   */
+  const MOBILE = window.matchMedia('(max-width: 899.98px)')
+  /** Past this much travel the gesture is a drag, and not a tap on a card. */
+  const DRAG_SLOP_PX = 8
+
+  if (MOBILE.matches) {
+    let lastX = 0
+    let travelled = 0
+    let dragging = false
+
+    root.addEventListener(
+      'touchstart',
+      (e) => {
+        if (e.touches.length !== 1) return
+        lastX = e.touches[0].clientX
+        travelled = 0
+        dragging = true
+      },
+      { passive: true },
+    )
+
+    root.addEventListener(
+      'touchmove',
+      (e) => {
+        if (!dragging || e.touches.length !== 1) return
+        const x = e.touches[0].clientX
+        const dx = x - lastX
+        lastX = x
+        travelled += Math.abs(dx)
+        scene.dragBy(dx)
+      },
+      { passive: true },
+    )
+
+    const endDrag = (): void => {
+      dragging = false
+    }
+    root.addEventListener('touchend', endDrag, { passive: true })
+    root.addEventListener('touchcancel', endDrag, { passive: true })
+
+    // A drag that started on a card would otherwise finish as a tap on it, and
+    // on VIEW that opens a tab the reader never asked for. Capture, so it is
+    // settled before the card's own handlers see it. `travelled` is left as it
+    // is — the next touchstart resets it — so a genuine tap, which never
+    // accumulates any, always passes straight through.
+    root.addEventListener(
+      'click',
+      (e) => {
+        if (travelled <= DRAG_SLOP_PX) return
+        e.preventDefault()
+        e.stopPropagation()
+      },
+      true,
+    )
+  }
+
   // Click-away and Escape, the two patterns expected of an expanded preview.
   // One permanent listener each.
   document.addEventListener('click', (e) => {

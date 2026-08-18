@@ -40,7 +40,7 @@ import {
   CSS3DObject,
   CSS3DRenderer,
 } from 'three/examples/jsm/renderers/CSS3DRenderer.js'
-import { rand } from '../lib/math'
+import { clamp, rand } from '../lib/math'
 import type { InputState } from '../lib/state'
 import { createCircleTexture } from './sprite'
 
@@ -276,11 +276,37 @@ const SPRING_DAMPING = 0.82
 /** Below this much movement in radians there is nothing new to draw. */
 const REST_EPSILON = 0.00002
 
+/**
+ * How far a touch drag may swing the view, in radians (~46° each way) — well
+ * past `MAX_YAW`, because it is doing a different job. The mouse's ±17° is a
+ * look-around over a row that already fits; a phone frame is far narrower than
+ * the row is wide, so the drag has to reach the outermost cards rather than
+ * merely hint at them. Solved against the row's own reach: the frame's visible
+ * half-width is `tan(fov / 2) * aspect` in tangent units, which on a portrait
+ * phone is a small fraction of the row's fixed half-reach, and the shortfall is
+ * what this has to cover.
+ *
+ * It is only ever reached by dragging. Nothing binds a drag on desktop, so this
+ * stays at 0 there and the mouse look-around is untouched.
+ */
+const DRAG_MAX_YAW = 0.8
+/**
+ * Radians of turn per pixel dragged. Set so a swipe across a phone's width
+ * covers most of the range in one gesture — about 0.86 rad across 390px.
+ */
+const DRAG_PER_PX = 0.0022
+
 export interface RevealScene {
   /** Advance the look-around and draw. Called only while the window is open. */
   update(state: InputState): void
   /** Open/close. Closing recentres the view and leaves one still frame drawn. */
   setActive(active: boolean): void
+  /**
+   * Swing the view sideways by a horizontal drag, in pixels. Additive and
+   * clamped; the spring in `update()` is what actually carries the view there,
+   * so a drag feels the same weight as the mouse look-around.
+   */
+  dragBy(dxPx: number): void
   resize(): void
 }
 
@@ -568,6 +594,8 @@ export function createRevealScene(
   let pitch = 0
   let yawVel = 0
   let pitchVel = 0
+  /** Where the touch drag has swung the view to. Desktop never writes this. */
+  let dragYaw = 0
   let active = false
   /** The one card currently drawn in the layer above the row, if any. */
   let raised: CSS3DObject | null = null
@@ -608,7 +636,10 @@ export function createRevealScene(
 
     // Turn toward the pointer: mouse right looks right, which swings the space
     // itself the other way. Sprung, so the view lags and settles.
-    const targetYaw = -state.mouseX * MAX_YAW
+    // `dragYaw` is the touch drag's contribution, and it simply adds: on a
+    // phone there is no pointer so it is the whole target, and on desktop
+    // nothing binds a drag so it is always 0. No branch either way.
+    const targetYaw = -state.mouseX * MAX_YAW + dragYaw
     const targetPitch = -state.mouseY * MAX_PITCH
     yawVel = (yawVel + (targetYaw - yaw) * SPRING_STIFFNESS) * SPRING_DAMPING
     pitchVel = (pitchVel + (targetPitch - pitch) * SPRING_STIFFNESS) * SPRING_DAMPING
@@ -622,15 +653,27 @@ export function createRevealScene(
     render()
   }
 
+  /**
+   * Dragging left looks right, so the row travels with the finger. The sign
+   * follows the mouse's convention above, where looking right is a negative
+   * yaw.
+   */
+  function dragBy(dxPx: number): void {
+    if (!active) return
+    dragYaw = clamp(dragYaw + dxPx * DRAG_PER_PX, -DRAG_MAX_YAW, DRAG_MAX_YAW)
+  }
+
   function setActive(next: boolean): void {
     active = next
     if (next) return
     // Closed: recentre and leave one still frame behind, ready for the next
-    // open — the window is invisible until then.
+    // open — the window is invisible until then. The drag is part of that:
+    // without clearing it the next open would start wherever it was left.
     yaw = 0
     pitch = 0
     yawVel = 0
     pitchVel = 0
+    dragYaw = 0
     camera.rotation.set(0, 0, 0)
     render()
   }
@@ -645,5 +688,5 @@ export function createRevealScene(
   }
 
   render() // the frame the window opens onto the first time
-  return { update, setActive, resize }
+  return { update, setActive, dragBy, resize }
 }
