@@ -16,6 +16,7 @@
 import {
   AdditiveBlending,
   BufferGeometry,
+  CanvasTexture,
   Color,
   Float32BufferAttribute,
   Points,
@@ -292,7 +293,20 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
   // world layer's own scene, which is rendered separately below.
   const starfield = new Scene()
 
+  /**
+   * The ambient cloud's sprite. Its points range from ~2px out at the cloud's
+   * far edge to ~9px close in, so it keeps mipmaps — see `sprite.ts`.
+   */
   const sprite = createCircleTexture()
+  /**
+   * The band's own sprite, without mipmaps. Every band star sits at the same
+   * ~10 units and draws ~2.1 device pixels wide, so all 600 of them landed on
+   * the smallest mips at once and the whole ring rendered at a few 255ths —
+   * which is what made its stars read as uniformly dim whatever colour they
+   * carried. Same artwork, same size on screen; only the minification filter
+   * differs. It is a second 64x64 upload and nothing more.
+   */
+  const bandSprite = createCircleTexture({ mipmaps: false })
 
   /**
    * Build a layer of orbiting stars. `place` supplies each star's orbit radius
@@ -309,6 +323,8 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
       opacity?: number
       clearChance?: number
       clearLevel?: number
+      /** Defaults to the mipmapped cloud sprite; the band passes its own. */
+      sprite?: CanvasTexture
     } = {},
     transition: { scatter?: () => number; fly?: () => number; ease?: number } = {},
   ): StarLayer {
@@ -361,7 +377,7 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
     const material = new PointsMaterial({
       size: pointSize,
       sizeAttenuation: true,
-      map: sprite,
+      map: look.sprite ?? sprite,
       vertexColors: true,
       transparent: true,
       depthWrite: false,
@@ -424,6 +440,7 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
     opacity: BAND_OPACITY,
     clearChance: BAND_CLEAR_CHANCE,
     clearLevel: BAND_CLEAR_LEVEL,
+    sprite: bandSprite,
   }, {
     // On scroll these widen out of their tight orbit and scatter away.
     scatter: () => rand(BAND_SCATTER_MIN, BAND_SCATTER_MAX),
