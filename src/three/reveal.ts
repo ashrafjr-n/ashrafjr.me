@@ -305,11 +305,16 @@ const DRAG_PER_PX = 0.0022
  * (REJOX) — looking right is a negative yaw, as above — so it ends exactly
  * where a full leftward swipe would, and a drag simply carries on from there.
  *
- * 2600ms over that 1.6 rad is a little quicker than a moderate pan: the row
- * covers about 2.9 screen widths, so this is roughly 1.1 screens a second —
- * brisk enough not to drag, slow enough to read each card on the way past.
+ * It now starts in the same tick as the entrance cascade (see `open()` in
+ * `ui/reveal-window.ts`), not after the cascade lands, so `SWEEP_MS` is solved
+ * against the cascade's own length rather than picked for feel: five cards at
+ * `ENTER_STAGGER_MS` (650ms) apart plus one `--pcard-enter-dur` (1300ms) puts
+ * REJOX, the last card, down at 3900ms after release — so the pan ends exactly
+ * as REJOX lands, with both running the whole time in between. This is what
+ * keeps the combined open feeling as quick as the old sequential one (cascade
+ * then a further 2600ms sweep, ~6500ms) while running to completion in 3900.
  */
-const SWEEP_MS = 2600
+const SWEEP_MS = 3900
 const SWEEP_FROM = -DRAG_MAX_YAW
 const SWEEP_TO = DRAG_MAX_YAW
 
@@ -330,7 +335,7 @@ export interface RevealScene {
    * still below the frame, so there is nothing on screen to jump.
    */
   parkAtSweepStart(): void
-  /** Start the one-off intro sweep. Called once the entrance cascade lands. */
+  /** Start the one-off intro sweep. Called as the entrance cascade is released, so the two run together. */
   playIntroSweep(): void
   resize(): void
 }
