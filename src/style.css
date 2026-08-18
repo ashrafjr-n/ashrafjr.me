@@ -439,14 +439,20 @@ body {
    so the row lands exactly where it stood with nothing left to drift.
    Set from ui/reveal-window.ts on every open, released once the window has
    finished growing. */
-/* An armed card is at opacity 0, and an invisible card is still a hit target —
-   the same reason .reveal-window.is-open gates the row at all. It has to name
-   .reveal-window.is-open too: that rule is what turns the row on, and a bare
-   .pcard-slot.is-entering would lose to it on specificity rather than win on
-   source order. This covers only the armed hold, not the rise — once a card is
-   on its way in it is visibly arriving, and there is nothing surprising about
-   hovering it then. */
-.reveal-window.is-open .pcard-slot.is-entering {
+/* Inert for the whole entrance: the armed hold (.is-entering) and the rise that
+   follows it (.is-arriving, dropped per card by ui/project-cards.ts when that
+   card's own `translate` transition ends).
+   An armed card is at opacity 0, and an invisible card is still a hit target —
+   the same reason .reveal-window.is-open gates the row at all. A climbing card
+   is worse than surprising: hovering it raises it, and raising re-appends the
+   slot into the other CSS3D layer, which cancels the running transition and
+   drops the card at its resting place mid-cascade. A cursor already sitting
+   where a card will land was enough to do it.
+   Both selectors have to name .reveal-window.is-open: that rule is what turns
+   the row on, and a bare .pcard-slot class would lose to it on specificity
+   rather than win on source order. */
+.reveal-window.is-open .pcard-slot.is-entering,
+.reveal-window.is-open .pcard-slot.is-arriving {
   pointer-events: none;
 }
 

@@ -170,18 +170,74 @@ export function buildProjectCards(): HTMLDivElement[] {
 }
 
 /**
+ * The watcher that will take a card out of `is-arriving`, per slot, so that
+ * re-arming mid-cascade can drop one that will never finish.
+ */
+const arrivalWatchers = new WeakMap<HTMLElement, () => void>()
+
+/**
+ * Hold a card inert until its own rise has landed, then hand it to the hover.
+ *
+ * A card must not be hoverable while it is still climbing, and the reason is
+ * sharper than a transform clash: entering a card raises it, and raising it
+ * re-appends the slot into the other CSS3D layer (`raise()` in
+ * three/reveal.ts). Taking an element out of the tree cancels its running
+ * transitions, so the card reappears at its resting value — it snaps into
+ * place, mid-cascade, wherever the cursor happened to be waiting. Gating the
+ * pointer for the length of the rise is what makes that unreachable, and it has
+ * to be per card, since each one lands on its own --pcard-enter-delay.
+ *
+ * The signal is the card's own `transitionend` for `translate` (it bubbles to
+ * the slot), not a timer: the duration and the delay both live in style.css and
+ * neither is worth duplicating here. `transitioncancel` settles it too — a card
+ * whose rise was interrupted must not be left permanently untouchable.
+ */
+function watchArrival(slot: HTMLElement): void {
+  const stop = (): void => {
+    slot.removeEventListener('transitionend', onEnd)
+    slot.removeEventListener('transitioncancel', onEnd)
+    arrivalWatchers.delete(slot)
+  }
+  const onEnd = (event: TransitionEvent): void => {
+    // The rise is `translate`. The hover's `transform` and the entrance's own
+    // `opacity` also end on this element and say nothing about landing.
+    if (event.propertyName !== 'translate') return
+    stop()
+    slot.classList.remove('is-arriving')
+  }
+  slot.addEventListener('transitionend', onEnd)
+  slot.addEventListener('transitioncancel', onEnd)
+  arrivalWatchers.set(slot, stop)
+}
+
+/**
  * Put the row back below its place, ready to rise. Snaps — the armed state
  * carries no transition — so this is safe to call at the instant the window
  * starts opening, before anything has been painted.
+ *
+ * Any watcher still waiting on the previous cascade is dropped first: the rise
+ * it was listening for is about to be replaced by an untransitioned jump, so
+ * its `transitionend` would never arrive.
  */
 export function armCardEntrance(slots: HTMLElement[]): void {
-  for (const slot of slots) slot.classList.add('is-entering')
+  for (const slot of slots) {
+    arrivalWatchers.get(slot)?.()
+    slot.classList.remove('is-arriving')
+    slot.classList.add('is-entering')
+  }
 }
 
 /**
  * Let the row go. Each card then takes its own --pcard-enter-delay, so one call
  * plays the whole cascade; the browser runs it, not the RAF loop.
+ *
+ * `is-arriving` rides along from here until each card lands, keeping it out of
+ * the pointer's reach for exactly as long as it is moving.
  */
 export function playCardEntrance(slots: HTMLElement[]): void {
-  for (const slot of slots) slot.classList.remove('is-entering')
+  for (const slot of slots) {
+    slot.classList.add('is-arriving')
+    watchArrival(slot)
+    slot.classList.remove('is-entering')
+  }
 }
