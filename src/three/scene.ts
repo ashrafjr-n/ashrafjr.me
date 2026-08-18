@@ -124,19 +124,24 @@ const BAND_BRIGHT_MAX = 1.0
 const BAND_OPACITY = 1.0
 
 /**
- * A random ~30% of band stars are lifted brighter still, so the ring reads as
- * mixed rather than uniform. Rolled per star, so it is a different scattering
- * of stars on every load rather than a fixed pattern.
+ * A random ~35% of band stars are taken to full, clear white, so the ring reads
+ * as mixed rather than uniformly faint. Rolled per star, so it is a different
+ * scattering of stars on every load rather than a fixed pattern. The other ~65%
+ * keep their BAND_BRIGHT_* roll untouched.
  *
- * The multiplier deliberately pushes the vertex colour **above 1**. The band's
- * base is already near-pure white at full opacity, so there is no headroom left
- * inside 0..1; with additive blending and the soft radial sprite, an over-1
- * colour drives more of each dot's falloff to full white, which is what reads
- * as a brighter, whiter star. It stays grayscale, so the palette holds.
+ * `BAND_CLEAR_LEVEL` deliberately pushes the vertex colour **far above 1**. The
+ * band's base is already near-pure white at full opacity, so there is no
+ * headroom left inside 0..1; with additive blending and the soft radial sprite,
+ * an over-1 colour drives more of each dot's falloff to full white, which is
+ * what makes a dot read as a clear point rather than a dim smudge. It stays
+ * grayscale, so the palette holds.
+ *
+ * It is one flat value, not a range: the chosen stars are meant to be fully
+ * bright, and a random multiplier left some of them only part of the way there.
+ * Brightness only — count, motion, orbit and scatter are untouched by these.
  */
-const BAND_BOOST_CHANCE = 0.3
-const BAND_BOOST_MIN = 2.4
-const BAND_BOOST_MAX = 3.6
+const BAND_CLEAR_CHANCE = 0.35
+const BAND_CLEAR_LEVEL = 4.0
 
 // Default star shading — grayscale brightness from pure white down to a
 // slightly dimmer silver-white, no color tint. Used by the ambient field.
@@ -417,9 +422,8 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
     brightMin: BAND_BRIGHT_MIN,
     brightMax: BAND_BRIGHT_MAX,
     opacity: BAND_OPACITY,
-    boostChance: BAND_BOOST_CHANCE,
-    boostMin: BAND_BOOST_MIN,
-    boostMax: BAND_BOOST_MAX,
+    clearChance: BAND_CLEAR_CHANCE,
+    clearLevel: BAND_CLEAR_LEVEL,
   }, {
     // On scroll these widen out of their tight orbit and scatter away.
     scatter: () => rand(BAND_SCATTER_MIN, BAND_SCATTER_MAX),
