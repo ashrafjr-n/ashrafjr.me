@@ -40,6 +40,9 @@ const OPEN_MS = 620
  * are still climbing long after the mask has finished growing — there is
  * nothing left to wait for. It is not zero only so the window is visibly on its
  * way before the row sets off; the armed state also wants a paint of its own.
+ *
+ * On a phone this same beat is also when the camera's intro pan starts — see
+ * the sweep note in three/reveal.ts.
  */
 const CARDS_MS = 100
 
@@ -263,20 +266,31 @@ export function createRevealWindow(
     clearTimeout(cardsTimer)
     cardsTimer = window.setTimeout(() => {
       areCardsUp = true
-      // On a phone the sweep follows the cascade, started by the last card
-      // landing rather than by a clock — see playCardEntrance. Passing nothing
-      // on desktop is what keeps the sweep off it entirely.
-      playCardEntrance(projectCards, MOBILE.matches ? scene.playIntroSweep : undefined)
+      playCardEntrance(projectCards)
+      // On a phone the camera's own pan starts in this same tick, alongside
+      // the first card's rise, rather than waiting for the whole cascade to
+      // land — see SWEEP_MS in three/reveal.ts for how its length is solved
+      // against the cascade's. `setActive` has to run first: `playIntroSweep`
+      // is a silent no-op while the scene is still inactive.
+      if (MOBILE.matches) {
+        isLookLive = true
+        scene.setActive(true)
+        scene.playIntroSweep()
+      }
     }, CARDS_MS)
 
     // The view is handed over only when the window has finished growing: the
     // mask is a sliver of the screen until then, and a look-around inside it
-    // would be aiming a frame nobody can see.
-    clearTimeout(lookTimer)
-    lookTimer = window.setTimeout(() => {
-      isLookLive = true
-      scene.setActive(true)
-    }, OPEN_MS)
+    // would be aiming a frame nobody can see. Phones are the exception — the
+    // block above hands it over at CARDS_MS instead, in step with the cascade
+    // and the sweep, so this timer is desktop/tablet only.
+    if (!MOBILE.matches) {
+      clearTimeout(lookTimer)
+      lookTimer = window.setTimeout(() => {
+        isLookLive = true
+        scene.setActive(true)
+      }, OPEN_MS)
+    }
 
     onOpenChange?.(true)
   }
