@@ -10,6 +10,7 @@
 import './style.css'
 import { clamp } from './lib/math'
 import { initScene } from './three/scene'
+import { lockScroll, unlockScroll } from './lib/scroll-lock'
 import { state, initPointer, initScroll } from './lib/state'
 import { buildSocialBadges } from './ui/social'
 import { createMark, type Mark } from './ui/mark'
@@ -97,10 +98,44 @@ app.append(canvas, intro, scene2Row)
 // --- Starfield + model, and the input they read ---
 const scene = initScene(canvas)
 
+/**
+ * Whether the site behind the reveal window is standing still.
+ *
+ * The window covers the screen, so while it is open there is nothing back there
+ * to see: Scene 1's starfield, model and transition are all paused, and only
+ * the window's own scene keeps drawing. It is one flag rather than a second
+ * loop — see `raf()` below.
+ */
+let isPaused = false
+
+/**
+ * Hand the page over to the window, and take it back.
+ *
+ * Two things go with it. The scroll, because the transition underneath is
+ * driven by scroll position and nothing in the covered page would show it
+ * moving — the viewer would close the window to find themselves somewhere else
+ * entirely. And the loop, because every frame it spends on a scene nobody can
+ * see is wasted, and because a spin that kept turning behind the window would
+ * be a jump on the way back rather than continuity.
+ */
+function setPageTakenOver(open: boolean): void {
+  if (open) {
+    lockScroll()
+    isPaused = true
+    return
+  }
+  // Order matters on the way back: the clock is re-anchored before any frame
+  // can run, so the paused stretch is never spent, and the scroll is handed
+  // back at exactly the position it was taken at.
+  scene.resync()
+  isPaused = false
+  unlockScroll()
+}
+
 // The reveal window mounts itself here and brings its own 3D layer with it. It
 // has no resting box on screen: it grows out of the word that opened it, and
 // PROJECTS is the only word that opens it.
-const revealWindow = createRevealWindow(app)
+const revealWindow = createRevealWindow(app, setPageTakenOver)
 revealWindow.bindTrigger(projects)
 app.append(buildSocialBadges())
 
@@ -143,13 +178,21 @@ function updateScene2Row(progress: number): void {
 }
 
 // --- Single RAF loop: the only one in the app; hook new per-frame work in here
+//
+// It keeps running while the reveal window is open — it is still the only loop
+// in the app — but everything belonging to the covered page is skipped, and
+// only the window's own scene is advanced. The scroll is frozen while that is
+// true, so `progress` could not have moved anyway; skipping it is what also
+// stops the model's spin and the portrait's cycle from running unseen.
 function raf(time: number) {
-  const progress = scene.update(time, state)
-  updateIntro(progress)
-  updateScene2Row(progress)
-  // `rowShown` is the row's own fade, so the portrait animates exactly while
-  // Scene 2 is on screen and rewinds whenever it is scrolled away.
-  mark.update(time, rowShown > 0)
+  if (!isPaused) {
+    const progress = scene.update(time, state)
+    updateIntro(progress)
+    updateScene2Row(progress)
+    // `rowShown` is the row's own fade, so the portrait animates exactly while
+    // Scene 2 is on screen and rewinds whenever it is scrolled away.
+    mark.update(time, rowShown > 0)
+  }
   revealWindow.update(state)
   requestAnimationFrame(raf)
 }
