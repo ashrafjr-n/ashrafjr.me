@@ -46,10 +46,16 @@ function buildIntro(): HTMLParagraphElement {
   return intro
 }
 
-/** One of the row's words. A real button, so Enter/Space come for free. */
-function buildRowWord(text: string): HTMLButtonElement {
+/**
+ * One of the row's words. A real button, so Enter/Space come for free.
+ *
+ * `modifier` names the word for CSS. It carries nothing on desktop; the mobile
+ * layout stacks the two in a column and needs to order them by identity, and
+ * `nth-of-type` would tie that to where they happen to sit in the DOM.
+ */
+function buildRowWord(text: string, modifier: string): HTMLButtonElement {
   const word = document.createElement('button')
-  word.className = 'scene2-word'
+  word.className = `scene2-word scene2-word--${modifier}`
   word.type = 'button'
   word.textContent = text
   return word
@@ -74,8 +80,8 @@ function buildScene2Row(): {
   // PROJECTS but nothing is bound to it, and it is not returned, so nothing
   // can. It gets its own behaviour later; until then it must not borrow the
   // projects window.
-  const system = buildRowWord('SYSTEM')
-  const projects = buildRowWord('PROJECTS')
+  const system = buildRowWord('SYSTEM', 'system')
+  const projects = buildRowWord('PROJECTS', 'projects')
   // The portrait draws and wipes itself; it is advanced from the RAF loop below
   // and only runs while the row is on screen.
   const mark = createMark('ASCII-art portrait of Ashraf')

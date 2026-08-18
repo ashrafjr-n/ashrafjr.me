@@ -288,6 +288,69 @@ body {
 }
 
 /* ===========================================================
+   Mobile only (below the 900px desktop breakpoint)
+
+   The site has exactly one breakpoint, and these two blocks are the whole of
+   it: `min-width: 900px` above for desktop, `max-width: 899.98px` here. The
+   fractional bound is deliberate — `max-width: 899px` would leave a dead gap
+   at fractional widths between 899 and 900, where a zoomed or scaled viewport
+   can genuinely land and neither block would apply.
+
+   Tablets and iPads sit at 900px and up, so they take the desktop side of
+   this and nothing here reaches them.
+   =========================================================== */
+@media (max-width: 899.98px) {
+  /* The intro line sits a little lower on a phone. Scene 1 only, and only the
+     resting position: main.ts still drives its fade and its upward drift from
+     the scroll, on top of whatever `top` is set here. */
+  .intro {
+    top: 15vh;
+  }
+
+  :root {
+    /* Smaller portrait, and closer to the bottom edge than the base 9vh. The
+       row is bottom-anchored, so the smaller box and the smaller offset both
+       move the artwork down the screen. */
+    --row-mark-h: clamp(160px, 28vh, 280px);
+    --row-bottom: 3vh;
+    /* In a column this is vertical spacing, not the horizontal gulf it is on
+       one line, so it comes right down. */
+    --row-gap: 1.5rem;
+  }
+
+  /* The row stacks instead of running left-to-right: both words above the
+     portrait, one over the other. `align-items: center` still applies and now
+     centres them horizontally. */
+  .scene2-row {
+    flex-direction: column;
+  }
+
+  /* Ordered by name rather than by position in the DOM — the markup order is
+     SYSTEM, portrait, PROJECTS (the portrait is the centrepiece on desktop),
+     which is not the order wanted here. */
+  .scene2-word--projects {
+    order: 1;
+  }
+
+  .scene2-word--system {
+    order: 2;
+  }
+
+  .scene2-mark {
+    order: 3;
+  }
+
+  /* The card row inside the reveal window is wider than a phone frame, so it
+     is dragged sideways to reach the far cards (see ui/reveal-window.ts).
+     Without this the browser claims the horizontal gesture for its own
+     panning and the drag never reaches us. Touch only: the desktop
+     look-around is a mouse-move and is not affected. */
+  .reveal-window {
+    touch-action: none;
+  }
+}
+
+/* ===========================================================
    Scene 2 reveal window (opened by the row's words)
 
    This is a MASK, not a viewport of its own. The 3D canvas inside is always
