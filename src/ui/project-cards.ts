@@ -138,9 +138,11 @@ function buildProjectCard({ name, stack, href, kind }: Project): HTMLDivElement 
 
 /**
  * How far behind its right-hand neighbour each card sets off, in ms. Half of
- * --pcard-enter-dur in style.css, so a card leaves the ground as the one beside
- * it passes its own halfway point and the row arrives as one wave rather than
- * five separate moves.
+ * --pcard-enter-dur in style.css (1100ms), so a card leaves the ground as the
+ * one beside it passes its own halfway point and the row arrives as one wave
+ * rather than five separate moves. Keep the halves relation if either number is
+ * retuned; the whole cascade is 3.3s and unhurried on purpose, since each card
+ * now climbs from below the frame rather than from just under its place.
  *
  * Only the stagger is duplicated here; the duration, distance and curve are all
  * the stylesheet's. This is written per card as an inline
