@@ -340,6 +340,27 @@ body {
        min-width: 900px block above), which is untouched here. */
     bottom: auto;
     top: var(--row-top);
+    /* Three columns, the outer two equal, rather than the base rule's
+       centred flex line — and this is what puts the portrait on the *same*
+       vertical axis as the model below it. Centring a flex row centres the
+       whole line, so the portrait lands off-centre by half the difference
+       between the two words' widths: PROJECTS is two characters longer than
+       SYSTEM, which pushed the artwork ~33px left of the screen's centre at
+       1536px while the model sat dead centre. Equal `1fr` cheeks make the
+       middle column centred by construction, whatever the labels say. */
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+  }
+
+  /* Each word is pulled to the inner edge of its own cheek, so the visible
+     space either side of the portrait is exactly --row-gap and the leftover
+     `1fr` slack falls outside the words, where nothing reads it. */
+  .scene2-word--system {
+    justify-self: end;
+  }
+
+  .scene2-word--projects {
+    justify-self: start;
   }
 }
 
