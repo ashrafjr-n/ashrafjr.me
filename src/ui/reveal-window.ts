@@ -44,20 +44,16 @@ const OPEN_MS = 620
 const CARDS_MS = 100
 
 /**
- * How long the window waits on the drop before it starts closing, in ms.
+ * The window no longer waits on the drop at all: `closeWindow()` starts the
+ * cards down and the window into its word in the same tick, and the two play
+ * over each other. They are independent animations — the drop is the cards' own
+ * CSS transition, the shrink is the window's — so running them together takes
+ * nothing but starting them together, and the drop finishing after the mask has
+ * gone costs nothing either.
  *
- * Not the whole of `CARD_EXIT_MS`: waiting for the drop's last frame left a
- * beat of nothing between an empty frame and the window moving. The exit curve
- * is a hard ease-in, so the cards spend that tail whipping out of frame and
- * fading — at 85% they are ~63% of the way down and a third opaque, which is as
- * good as gone. Handing over there tightens the seam without cutting anything
- * short: the drop is a CSS transition and keeps running underneath, so the last
- * of it simply plays behind the shrinking mask.
- *
- * Neither animation changes with this number — it is only where one ends and
- * the other begins.
+ * `CARD_EXIT_MS` is still imported, for the one thing that genuinely cannot
+ * happen until the cards are gone — see `settleScene()`.
  */
-const EXIT_HANDOVER_MS = Math.round(CARD_EXIT_MS * 0.85)
 
 export interface RevealWindow {
   /** Make `trigger` open the window, growing the view out of its own box. */
@@ -180,9 +176,10 @@ export function createRevealWindow(
   let cardsTimer = 0
   /** True once the row has actually been let go, so a close knows whether there is anything to drop. */
   let areCardsUp = false
-  /** True for the drop that runs ahead of the window's own close. */
+  /** True from the moment a close is asked for until the window is closed. */
   let isClosing = false
-  let exitTimer = 0
+  /** The scene's own stop, held back until the cards have finished dropping. */
+  let settleTimer = 0
 
   function applyBox(box: Box): void {
     root.style.left = `${box.left}px`
@@ -214,6 +211,11 @@ export function createRevealWindow(
     isClosing = false
     areCardsUp = false
     openedFrom = trigger
+
+    // Reopened before the last close's scene stop came due — run it now rather
+    // than let it fire into the new open and recentre a live view. It is
+    // idempotent, and its end state is exactly what an open starts from.
+    settleScene()
 
     // Before anything is painted: the row drops back below its place, ready to
     // rise. Arming on open rather than on close is what makes the cascade play
@@ -259,35 +261,48 @@ export function createRevealWindow(
 
   /**
    * Asked to close, from anywhere — the ×, a click away, Escape, or the row
-   * going out of reach. The row drops out first and the window follows it: two
-   * moves in sequence, not one.
+   * going out of reach. **The row drops and the window closes together**: both
+   * are started here, in the same tick, and play over each other.
    *
-   * The window's own close is untouched below; all this adds is the wait in
-   * front of it. Every trigger comes through here, so the drop cannot be
-   * skipped by closing some other way, and `isClosing` is what stops a second
-   * Escape (or the click that dismissed the ×) restarting it mid-drop.
+   * Neither animation is the other's business — the drop is the cards' own CSS
+   * transition and the shrink is the window's — so the only thing sequencing
+   * them was the timer that used to sit between, and it is gone. Every trigger
+   * comes through here, so the drop cannot be skipped by closing some other
+   * way, and `isClosing` is what stops a second Escape (or the click that
+   * dismissed the ×) firing the close twice.
    */
   function closeWindow(): void {
     if (!isOpen || isClosing) return
     isClosing = true
 
-    // Closed inside the first CARDS_MS, before the row was ever let go: there
-    // is nothing on screen to drop, so don't hold an empty window open for it.
-    if (!areCardsUp) {
-      finishClose()
-      return
-    }
-
-    // A release still in flight would put the row back up under the drop.
+    // A release still in flight would put the row back up under the close.
+    // Nothing to drop if it never went out at all — closed inside the first
+    // CARDS_MS, while the row was still armed below the frame.
     clearTimeout(cardsTimer)
-    dropCards(projectCards)
+    const dropping = areCardsUp
+    if (dropping) dropCards(projectCards)
 
-    clearTimeout(exitTimer)
-    exitTimer = window.setTimeout(finishClose, EXIT_HANDOVER_MS)
+    finishClose(dropping ? CARD_EXIT_MS : 0)
   }
 
-  /** The window's own close, exactly as it was — now on the far side of the drop. */
-  function finishClose(): void {
+  /**
+   * Put the scene away: recentre the camera and leave one still frame on the
+   * canvas, ready for the next open.
+   *
+   * This is the one part of the close that cannot happen at once. `setActive`
+   * recentres *instantly* and repaints, so with cards still on screen a view
+   * that had been turned would snap the whole row sideways as it closed. It
+   * waits out the drop instead, and lands on an empty frame the way it always
+   * did.
+   */
+  function settleScene(): void {
+    clearTimeout(settleTimer)
+    isLookLive = false
+    scene.setActive(false)
+  }
+
+  /** The window's own close, unchanged — now running alongside the drop. */
+  function finishClose(settleAfter: number): void {
     isOpen = false
     isClosing = false
     areCardsUp = false
@@ -302,15 +317,15 @@ export function createRevealWindow(
       if (root.contains(document.activeElement)) openedFrom.focus()
     }
 
-    // Stop rendering at once. The scene recentres its camera and leaves one
-    // still frame on the canvas, ready for the next open. A row that has not
-    // been released yet stays armed — the next open arms it again anyway, and
-    // one that has just dropped stays down until then too.
+    // A row that has not been released yet stays armed — the next open arms it
+    // again anyway — and one that is on its way down stays down until then too.
+    // The scene keeps drawing for as long as those cards are still falling, so
+    // the drop is not left playing over a frozen frame.
     clearTimeout(cardsTimer)
-    clearTimeout(exitTimer)
     clearTimeout(lookTimer)
-    isLookLive = false
-    scene.setActive(false)
+    clearTimeout(settleTimer)
+    if (settleAfter > 0) settleTimer = window.setTimeout(settleScene, settleAfter)
+    else settleScene()
 
     // Last, so whatever hands the page back its scroll and its loop does it
     // only once this window is genuinely done with them.
