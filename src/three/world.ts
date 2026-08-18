@@ -47,9 +47,14 @@ const SCENE2_CAMERA_TARGET = { x: 0, y: 0.3, z: 0 }
  * target while the target's own height is untouched, which is what raises
  * the camera without re-leveling it flat: pitch = atan((1.3 - 0.3) / 4.3) ≈
  * 13° of look-down, a moderate step up from dead level and nowhere near
- * Scene 1's ~63° overhead. Paired with the model's own left shift and
- * scale-up below, so style.css's `min-width: 768px` block has room on the
- * right for the reworked word/portrait stack.
+ * Scene 1's ~63° overhead.
+ *
+ * These two are the *angle* only. The whole rig is then lifted by
+ * solveBottomRise() below — the same amount added to both the eye and the
+ * target, so the 13° pitch is untouched and the model simply slides down the
+ * frame until it rests on its bottom edge. Paired with style.css's
+ * `min-width: 768px` block, which puts the portrait/PROJECTS/SYSTEM row in
+ * the space the model leaves above it.
  *
  * Gated on the same 767.98px breakpoint as the rest of the site (see MOBILE
  * below) — mobile keeps the level, centred framing above completely
@@ -59,31 +64,35 @@ const SCENE2_CAMERA_POS_WIDE = { x: 0, y: 1.3, z: 4.3 }
 const SCENE2_CAMERA_TARGET_WIDE = { x: 0, y: 0.3, z: 0 }
 
 /**
- * Desktop/tablet only: how far left the model's pivot shifts by Scene 2, and
- * how much it scales up over the same span. Both are applied to the pivot
- * Group, not the model's own fitted scale/position from fitModel() — see
- * update() for why that composes safely (the pivot's local origin already
- * sits on the model's ground-centre point, so scaling it in place doesn't
- * lift the model off y = 0 or shift its x/z centre, and translating it
- * afterward moves the whole already-scaled group by a fixed world offset
- * regardless of that scale).
+ * Desktop/tablet only: how large the model runs by Scene 2. It stays centred
+ * on x (the pivot is never moved off the origin) and is dropped to the bottom
+ * edge of the frame by the camera rise below, so the whole diorama reads as
+ * one large object anchored to the foot of the viewport with the Scene 2 row
+ * above it.
  *
- * Negative x is screen-left for this camera rig (world +x reads as screen
- * right here — see the camera basis note where this is used).
+ * Applied to the pivot Group, not to the model's own fitted scale from
+ * fitModel() — the pivot's local origin already sits on the model's
+ * ground-centre point, so scaling it in place doesn't lift the model off
+ * y = 0 or shift its x/z centre, and uniform scale commutes with the Y-axis
+ * spin.
  *
- * Two tiers, not one: at CAMERA_FOV 35 and SCENE2_CAMERA_POS_WIDE's distance,
- * the visible width at the model's own plane is set by the *horizontal* FOV,
- * which shrinks with aspect — a tall tablet portrait (~0.73–0.78) sees barely
- * over half the horizontal span a 16:10 desktop does. The full DESKTOP shift
- * pushed the model's near edge off the left of the frame on an iPad-width
- * tablet, so it is gated behind the same min-width: 900px boundary
- * style.css's own desktop block uses (see DESKTOP below); tablets (768–
- * 899.98px) get the milder TABLET tier instead.
+ * Two tiers, for the same reason the rest of the site has three bands:
+ * desktop (min-width: 900px, the boundary style.css's own desktop block uses)
+ * gets the larger model, tablets (768–899.98px) the smaller one, since a tall
+ * tablet portrait sees barely over half the horizontal span a 16:10 desktop
+ * does at CAMERA_FOV 35.
+ *
+ * MODEL_FIT_PER_ASPECT is the guard under both: measured against this rig,
+ * the model's widest visible feature (its particle shell) spans the whole
+ * frame at roughly `0.93 * aspect` on a tall frame, so capping the scale at
+ * `0.83 * aspect` keeps it clear of both side edges at any window shape —
+ * including the viewports that sit in the desktop band but are portrait
+ * anyway (an iPad Pro 12.9" is 1024 x 1366). Without it the tiers alone are
+ * only correct for their band's *typical* aspect.
  */
-const MODEL_X_TABLET = -0.65
-const MODEL_SCALE_TABLET = 1.12
-const MODEL_X_DESKTOP = -1.3
-const MODEL_SCALE_DESKTOP = 1.3
+const MODEL_SCALE_TABLET = 0.62
+const MODEL_SCALE_DESKTOP = 0.85
+const MODEL_FIT_PER_ASPECT = 0.83
 
 /**
  * Full turns the model makes across the scroll transition, on top of its idle
@@ -99,6 +108,25 @@ const MODEL_URL = '/models/space_boi.glb'
  * fitting by height would blow the footprint far past the viewport.
  */
 const MODEL_SPAN = 3.5
+
+/**
+ * The lowest thing in the model that is actually *visible*, in fitted units
+ * (i.e. after fitModel(), pivot scale 1). The GLB's base slab is pure black on
+ * a pure black page, so it never reads as an edge: the white ring plane on top
+ * of it is what the eye takes for the bottom of the model, and it is what
+ * Scene 2 rests on the bottom of the frame. Measured off the GLB — the ring
+ * plane sits at y 0.33 with a radius of 1.30; keep these in step with the file
+ * if it is ever replaced.
+ */
+const MODEL_RING_Y = 0.33
+const MODEL_RING_RADIUS = 1.3
+
+/**
+ * How far down the frame that ring's near edge is put in Scene 2, as a
+ * fraction of the half-height: 1 is exactly the bottom edge, so 0.98 leaves a
+ * sliver of black under it rather than bleeding the model off the screen.
+ */
+const SCENE2_BOTTOM_NDC = 0.98
 
 /**
  * Radians per second the model turns about its own Y axis — and therefore the
@@ -138,6 +166,39 @@ function fitModel(model: Object3D): void {
 /** Linear blend, used to walk the camera from its Scene 1 rig to its Scene 2 one. */
 function mix(a: number, b: number, t: number): number {
   return a + (b - a) * t
+}
+
+/**
+ * How far the desktop/tablet Scene 2 rig is lifted so the model comes to rest
+ * on the bottom edge of the frame, for a given pivot scale.
+ *
+ * Solved rather than authored, because the two ends of it move together: the
+ * model's size is capped by the frame's own width (see MODEL_FIT_PER_ASPECT),
+ * and a smaller model has to be met by a lower camera to stay bottom-anchored.
+ *
+ * The rise is added to the eye *and* the target, so the view direction — and
+ * with it the ~13° look-down of SCENE2_CAMERA_*_WIDE — is untouched; only the
+ * height changes, which slides the whole scene down the frame.
+ *
+ * The point being landed is the ring plane's near edge, (0, ringY, ringR),
+ * which is the model's lowest visible point from a camera on +z. Writing the
+ * eye as (0, ey + rise, ez) and the view direction as d = (0, dy, dz), the
+ * camera's own up axis is (0, -dz, dy) / |d|, so the vertical/depth ratio the
+ * projection divides out is linear in the rise and inverts in one step.
+ */
+function solveBottomRise(scale: number): number {
+  const dy = SCENE2_CAMERA_TARGET_WIDE.y - SCENE2_CAMERA_POS_WIDE.y
+  const dz = -SCENE2_CAMERA_POS_WIDE.z
+  // The half-height the point is aimed at, in tangent units.
+  const t = SCENE2_BOTTOM_NDC * Math.tan((CAMERA_FOV / 2) * (Math.PI / 180))
+
+  const pointY = MODEL_RING_Y * scale
+  // The point's z relative to the eye — unaffected by the rise, which is y only.
+  const b = MODEL_RING_RADIUS * scale - SCENE2_CAMERA_POS_WIDE.z
+  // Its y relative to the risen eye, solved from `ndcY = -SCENE2_BOTTOM_NDC`.
+  const a = (-b * (dy + t * dz)) / (t * dy - dz)
+
+  return pointY - SCENE2_CAMERA_POS_WIDE.y - a
 }
 
 export interface WorldLayer {
@@ -216,25 +277,29 @@ export function createWorld(aspect: number): WorldLayer {
     const scene2Pos = wide ? SCENE2_CAMERA_POS_WIDE : SCENE2_CAMERA_POS
     const scene2Target = wide ? SCENE2_CAMERA_TARGET_WIDE : SCENE2_CAMERA_TARGET
 
+    // Desktop/tablet only: how large the model runs by Scene 2, capped by the
+    // frame's own width so it never runs off the sides, and the rise that
+    // drops it onto the bottom edge of that frame — which follows from
+    // whatever scale the cap leaves. Both are mixed by the same progress as
+    // everything else, so they arrive exactly as Scene 2 does, and both are
+    // explicitly neutral on mobile rather than left alone, so a viewport
+    // resized across a breakpoint mid-session can't strand the pivot
+    // over-scaled or the camera off its level phone framing.
+    const tier = DESKTOP.matches ? MODEL_SCALE_DESKTOP : MODEL_SCALE_TABLET
+    const modelScale = Math.min(tier, MODEL_FIT_PER_ASPECT * camera.aspect)
+    const rise = wide ? solveBottomRise(modelScale) : 0
+
     camera.position.set(
       mix(CAMERA_POS.x, scene2Pos.x, progress),
-      mix(CAMERA_POS.y, scene2Pos.y, progress),
+      mix(CAMERA_POS.y, scene2Pos.y + rise, progress),
       mix(CAMERA_POS.z, scene2Pos.z, progress),
     )
     camera.lookAt(
       mix(CAMERA_TARGET.x, scene2Target.x, progress),
-      mix(CAMERA_TARGET.y, scene2Target.y, progress),
+      mix(CAMERA_TARGET.y, scene2Target.y + rise, progress),
       mix(CAMERA_TARGET.z, scene2Target.z, progress),
     )
 
-    // The model's own left shift and scale-up, desktop/tablet only — mixed by
-    // the same progress as the camera so it arrives exactly as Scene 2 does.
-    // Explicitly reset on mobile rather than left alone, so a viewport resized
-    // across a breakpoint mid-session can't strand the pivot off-centre or
-    // over-scaled.
-    const modelX = DESKTOP.matches ? MODEL_X_DESKTOP : MODEL_X_TABLET
-    const modelScale = DESKTOP.matches ? MODEL_SCALE_DESKTOP : MODEL_SCALE_TABLET
-    pivot.position.x = wide ? mix(0, modelX, progress) : 0
     pivot.scale.setScalar(wide ? mix(1, modelScale, progress) : 1)
   }
 
