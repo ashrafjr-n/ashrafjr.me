@@ -302,9 +302,8 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
       brightMin?: number
       brightMax?: number
       opacity?: number
-      boostChance?: number
-      boostMin?: number
-      boostMax?: number
+      clearChance?: number
+      clearLevel?: number
     } = {},
     transition: { scatter?: () => number; fly?: () => number; ease?: number } = {},
   ): StarLayer {
@@ -335,10 +334,14 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
       positions[i3 + 2] = Math.sin(angle) * radius
 
       // White/silver only — grayscale, no color tint whatever the range.
-      let v = rand(look.brightMin ?? STAR_BRIGHT_MIN, look.brightMax ?? STAR_BRIGHT_MAX)
-      if (look.boostChance && Math.random() < look.boostChance) {
-        v *= rand(look.boostMin ?? 1, look.boostMax ?? 1)
-      }
+      // A rolled subset is taken to one flat `clearLevel` rather than being
+      // multiplied by a random factor: "fully bright" is a single definite
+      // value, so every chosen star reads the same clear white instead of
+      // spreading over a range of brightnesses. The rest keep their own roll.
+      const v =
+        look.clearChance && Math.random() < look.clearChance
+          ? look.clearLevel ?? 1
+          : rand(look.brightMin ?? STAR_BRIGHT_MIN, look.brightMax ?? STAR_BRIGHT_MAX)
       c.setRGB(v, v, v)
       colors[i3] = c.r
       colors[i3 + 1] = c.g
