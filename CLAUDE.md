@@ -40,8 +40,11 @@ back. What exists today:
   intro line and the Scene 2 row, initializes the Three.js scene
   (`src/three/scene.ts`), starts input tracking (`src/lib/state.ts`), mounts
   the social row and the reveal window, hands the window its triggers, and runs
-  the single RAF loop with the DOM side of the scroll transition. Feature
-  markup and behaviour live in `src/ui/`, not here.
+  the single RAF loop with the DOM side of the scroll transition. It also owns
+  `setPageTakenOver()`, which the reveal window calls on open and close — that
+  is what freezes the page's scroll and pauses the covered site (see **Taking
+  the page over** below). Feature markup and behaviour live in `src/ui/`, not
+  here.
 - `src/ui/social.ts` — the social icon row: the three inline SVGs, the
   `SOCIAL_LINKS` data and the one factory that builds them.
 - `src/ui/mark.ts` — the Scene 2 portrait and its draw/hold/wipe cycle (see
@@ -77,6 +80,9 @@ back. What exists today:
   to `MODEL_SPAN` wants `CAMERA_TARGET` nudged to keep the framing centred.
 - `src/lib/state.ts` — shared `InputState` (`mouseX`, `mouseY`, `scroll`)
   written by `initPointer()` and `initScroll()`, read every frame by the scene.
+- `src/lib/scroll-lock.ts` — `lockScroll()` / `unlockScroll()`, the freeze the
+  reveal window holds the page with. See **Taking the page over** below; the
+  short version is that it deliberately never touches `overflow`.
 - `src/lib/math.ts` (`rand`, `clamp`) and `src/three/sprite.ts`
   (`createCircleTexture`) — the handful of helpers both 3D scenes need. They
   were duplicated verbatim in `scene.ts` and `reveal.ts`; keep them shared.
@@ -255,8 +261,15 @@ put that back without being asked.
   harmless — the button doesn't clip. Retune the font-size, not the box.
 - It is gated by hand from `updateScene2Row()` in `main.ts` via
   `setInteractive()`, off the same `progress` as the row: below `ROW_ACTIVE_AT`
-  the words are not live and an open window is put away, so scrolling back
-  toward Scene 1 closes it.
+  the words are not live and an open window is put away. **The "scrolling back
+  toward Scene 1 closes it" half of that is now unreachable and is kept as a
+  guard, not as behaviour** — the scroll is frozen while the window is open and
+  `updateScene2Row()` is not called at all then, so `progress` cannot fall
+  under an open window in the first place. It still matters closed.
+- It reports every open and close through the `onOpenChange` callback
+  `createRevealWindow()` takes. That is the whole of its coupling to the rest of
+  the page: the window knows nothing about what happens on the other end, and
+  `main.ts` is where the page is actually frozen and paused.
 - There is **no closed-state tilt any more**. The canvas used to rotate under
   the mouse while the window sat in the right card; with nothing visible while
   closed there is nothing to tilt, and that code and its CSS were removed.
@@ -264,6 +277,57 @@ put that back without being asked.
   That order is load-bearing: the scene draws exactly one still frame at
   startup and then renders on demand, so its canvas has to be in the page for
   that frame to reach the screen.
+
+### Taking the page over (while the window is open)
+The window covers the screen, so the site behind it is frozen for as long as it
+is up. `main.ts`'s `setPageTakenOver()` is the one place that happens, driven by
+the window's `onOpenChange`, and it does exactly two things.
+
+- **The scroll is locked** (`src/lib/scroll-lock.ts`). Everything on screen is
+  `position: fixed`, so scrolling with the window open showed nothing while
+  silently advancing the Scene 1 → Scene 2 transition underneath; closing it
+  then dropped the viewer somewhere they never chose.
+  - **It must not touch `overflow`, and this was measured rather than assumed.**
+    `html { overflow: hidden }` takes the scrollbar out of the layout, which
+    widens the initial containing block every fixed element resolves against.
+    In Chrome with a classic 15px scrollbar forced on, the window's own
+    `calc(100% - 2 * inset)` box went **1481px → 1496px** the instant overflow
+    was hidden, and the viewport-sized canvas centred in it would jump 7.5px
+    sideways on open and back on close. `scrollbar-gutter: stable` does **not**
+    rescue it — Chrome drops the gutter as soon as the root stops scrolling,
+    giving the same 1481 → 1496. The window's percentage sizing exists to
+    survive a scrollbar; a lock that reintroduced the shift would undo it.
+  - So no box changes. `wheel` and `touchmove` are refused with
+    `preventDefault` (hence `{ passive: false }` — those default to passive on
+    `window`), and the `scroll` listener is only the catch-all behind them, for
+    a dragged scrollbar thumb or a programmatic scroll.
+  - **The scrolling keys are refused too, and that is not belt-and-braces.**
+    Chrome scrolls a keypress *smoothly*, over frames, and the catch-all only
+    runs a frame later — so a PageUp started an animation the snap-back fought
+    frame by frame and that simply carried on after the lock was released. This
+    shipped once in that form: the page was handed back at 1680 and drifted to
+    811 a moment after the window closed. Refusing the `keydown` means no
+    animation is ever started. Space is exempt **on a focused `<button>`** only
+    — there it activates the control and the page does not move, and the
+    window's `×` needs it. A focused *link* is not exempt: Space scrolls from an
+    anchor, where Enter is what follows it. `Enter` and `Tab` are not in the set
+    at all.
+- **The main RAF loop's work is skipped.** `raf()` in `main.ts` still runs — it
+  is still the only loop in the app — but behind an `isPaused` flag it skips
+  `scene.update()`, the intro, the row and the portrait, and calls only
+  `revealWindow.update()`. **The window's own 3D scene keeps running normally**;
+  that is the entire point, and it is why this is a flag inside the one loop
+  rather than a second loop or a stopped one.
+  - `scene.resync()` (in `src/three/scene.ts`) is called on the way back, before
+    the flag clears. `update()` spends `time - prevTime` on the star orbits and
+    the model's spin, so the paused stretch would otherwise arrive as one
+    enormous delta. The existing 0.1s clamp bounded how bad that looked, not
+    whether it happened; `resync()` drops the span entirely. Call it when frames
+    **resume**, never when they stop — `prevTime` has to name the last moment
+    actually spent, and until the pause ends nobody knows when that is.
+  - The portrait (`ui/mark.ts`) is deliberately *not* resynced. It is a pure
+    function of the loop's `time`, so it simply resumes at the phase it would
+    have reached anyway — and it is behind the opaque window throughout.
 
 ### The 3D layer (`src/three/reveal.ts`)
 Its own renderer, scene and camera, owned by `src/ui/reveal-window.ts` — no
@@ -476,6 +540,44 @@ where it *stands*.
     Re-measure the *hovered* button after touching either.
   - 43x14px was the size that once read as broken — keep the smallest card's
     button well clear of that.
+- **The row rises into place once per open** — the entrance cascade. Armed in
+  `open()` (before anything is painted) and released on the same 620ms timer
+  that hands over the look-around, so the cards do not rise behind a mask that
+  is still a sliver of the screen. `armCardEntrance()` / `playCardEntrance()`
+  live in `ui/project-cards.ts`; the window calls them, and the browser runs the
+  rest.
+  - **Arming happens on open, not on close.** That is what makes it play exactly
+    once per open, and it leaves the cards standing while the window shrinks
+    back into its word rather than blinking out from under it.
+  - **It rides on `translate`, not `transform`, and that is load-bearing.**
+    `transform` is the hover's scale, and the two would overwrite each other on
+    a card entered mid-cascade. The individual transform properties compose with
+    `transform` instead of replacing it, and `translate` is the outer one, so
+    the rise is unaffected by the hover. `.pcard`'s resting value is a literal
+    `translate: 0 0`, stated rather than left implicit, so the row lands
+    pixel-exact with nothing to drift — verified `0px` / opacity 1 on every card
+    after every open.
+  - `--pcard-enter-rise` is **90px in the card's own authoring pixels**, so it
+    is shrunk into the world with everything else and lands at a constant ~39%
+    of each card's own height: 78px on screen at the ends, 39px in the middle.
+    That proportionality is the point — a fixed screen distance would read
+    differently on each tier.
+  - Order is **right to left** (Naelj, AGB Media, Datassert, TTU Clinic, REJOX),
+    at `ENTER_STAGGER_MS` 320 — half of `--pcard-enter-dur` (640ms), so each
+    card leaves as the one beside it passes its halfway point. Only the stagger
+    is duplicated in JS; the duration, distance and curve are the stylesheet's.
+  - The delay is written **inline per slot** as `--pcard-enter-delay`, and it
+    cannot be an `nth-child` rule: the hovered card is moved into a layer of its
+    own, which renumbers everything left behind.
+  - `--pcard-enter-ease` is expo-out, deliberately *not* `--pcard-ease`. A card
+    arriving wants to shed its speed hard at the end; a card growing under the
+    cursor wants the gentler curve.
+  - The armed state carries `transition: none`, so arming is a snap and never an
+    animation of its own — dropping the class is the whole of the entrance.
+    It also carries `pointer-events: none`, since an opacity-0 card is still a
+    hit target; that rule has to name `.reveal-window.is-open` too, or it loses
+    to the rule that turns the row on. It covers the armed hold only, not the
+    rise.
 - **Hover grows the card only** — `transform: scale(var(--pcard-hover))`; each
   card is its own object on the arc, so no neighbour moves or resizes. It runs
   on the card's own tokens (`--pcard-ease`, `--pcard-grow`, `--pcard-reveal`),
@@ -483,14 +585,26 @@ where it *stands*.
   fast to read as a card easing open. The growth, the stack line and the button
   are **staggered by `transition-delay` on the way in only** (0 / 70 / 140ms),
   so they arrive as one move and collapse cleanly together on the way out.
-- **The hovered card is moved to the end of its parent** on
-  `pointerenter`/`focusin` (`ui/project-cards.ts`). That is the whole of the
-  stacking rule, and it holds whatever the card's depth on the arc: inside a
-  `preserve-3d` container paint order *and hit testing* follow document order,
-  and `z-index` does not apply. Verified for all five positions — including the
-  far middle card covering its nearer neighbours, and an inner card covering
-  the much nearer end card. CSS3DRenderer re-appends an element only when it is
-  not already a child of its camera element, so it will not shuffle them back.
+- **The hovered card is moved into a second CSS3D layer of its own** on
+  `pointerenter`/`focusin`, by `raise()` in `three/reveal.ts` — which card is
+  drawn where is a fact about where it stands, so it is the scene's business,
+  not the card's. That is the whole of the stacking rule, and it holds whatever
+  the card's depth on the arc.
+  - **It has to be a separate layer.** CSS3DRenderer puts every card in one
+    `preserve-3d` element, which makes them a single 3D rendering context — and
+    there the browser paints by *depth*, not by document order and not by
+    `z-index`. Both were measured and both failed: a turned card's inner edge
+    lies several units behind the card beside it, so reordering it last or
+    giving it `z-index: 10` each left it behind its neighbour. `translateZ` does
+    win, but only at a distance that draws the card 60% larger.
+  - `.reveal-cards-raised` is a second `CSS3DRenderer` on the **same camera and
+    the same box**, so a card moved into it does not shift by a pixel; it is
+    simply a second 3D context, which paints after the row. Document order alone
+    stacks them, so keep `raised` after `cards` in `reveal-window.ts`.
+  - Only ever one card is up there — the previous one goes back to the row
+    first, so the raised layer never has to sort two cards against each other.
+    A raised card stays raised across a close and reopen; that is harmless,
+    since its geometry is identical either way.
 - **The two end cards grow inward, not about their centres.** They are the most
   turned, so they project widest, and they already run past the window's frame;
   scaled about the middle they would carry their outer edge — and with it the
@@ -730,6 +844,12 @@ progress**, which `main.ts` uses to drive the DOM side of the transition (the
 intro line out, the Scene 2 row in) off exactly the same value as the 3D
 side — do not read `state.scroll` directly for animation, or it will drift out
 of sync.
+
+While the reveal window is open the loop keeps running but skips everything
+belonging to the covered page — `scene.update()`, the intro, the row and the
+portrait — and advances only the window's own scene. See **Taking the page
+over** above, including the `scene.resync()` that keeps the model from jumping
+on the first frame back.
 
 Do not create a second animation loop — any new per-frame logic (camera motion,
 model animation, etc.) should hook into this same loop, ideally inside
