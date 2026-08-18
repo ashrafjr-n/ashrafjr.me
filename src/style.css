@@ -325,6 +325,8 @@ body {
     /* In a column this is vertical spacing, not the horizontal gulf it is on
        one line, so it comes right down. */
     --row-gap: 1.5rem;
+    /* A bit smaller than the base clamp(1.4rem, 3.4vw, 3rem). */
+    --row-word-size: clamp(1.2rem, 2.9vw, 3rem);
   }
 
   /* The row stacks instead of running left-to-right: both words above the
