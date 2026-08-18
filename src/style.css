@@ -221,10 +221,25 @@ body {
    keeps the artwork's aspect-ratio, so the width follows, and nothing else in
    the row is touched. Narrow viewports keep the base clamp above — the row is
    already close to its 94vw there, and a taller portrait would push the words
-   out of the line. */
+   out of the line.
+
+   --row-bottom drops with it, and the two are solved together against the
+   model above. The row is anchored at the bottom, so a taller portrait grows
+   *upward* into the model — at 50vh on the base 9vh the artwork's top ran into
+   the model's base plane. Measured at 1536x797, in fractions of the viewport
+   height so they hold at any size:
+     - the levelled Scene 2 model bottoms out at ~48.7vh (its ring plane, seen
+       edge-on) and nothing of it draws below that;
+     - the portrait's own ink starts 11.4% into its box — the artwork has empty
+       rows at the top — so its ink lands at 100vh - row-bottom - 0.886 * mark-h.
+   At 50vh and 4vh that is ~51.7vh: about 24px of clear black under the model
+   before the portrait starts, with ~36px still under the portrait's feet.
+   Raising --row-bottom back toward 9vh pushes the artwork into the model
+   again; the two numbers only make sense as a pair. */
 @media (min-width: 900px) {
   :root {
     --row-mark-h: clamp(300px, 50vh, 540px);
+    --row-bottom: 4vh;
   }
 }
 
