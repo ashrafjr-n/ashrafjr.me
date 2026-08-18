@@ -418,6 +418,17 @@ body {
    so the row lands exactly where it stood with nothing left to drift.
    Set from ui/reveal-window.ts on every open, released once the window has
    finished growing. */
+/* An armed card is at opacity 0, and an invisible card is still a hit target —
+   the same reason .reveal-window.is-open gates the row at all. It has to name
+   .reveal-window.is-open too: that rule is what turns the row on, and a bare
+   .pcard-slot.is-entering would lose to it on specificity rather than win on
+   source order. This covers only the armed hold, not the rise — once a card is
+   on its way in it is visibly arriving, and there is nothing surprising about
+   hovering it then. */
+.reveal-window.is-open .pcard-slot.is-entering {
+  pointer-events: none;
+}
+
 .pcard-slot.is-entering .pcard {
   translate: 0 var(--pcard-enter-rise);
   opacity: 0;
