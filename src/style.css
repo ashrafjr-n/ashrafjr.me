@@ -174,11 +174,13 @@ body {
 }
 
 /* ===========================================================
-   Scene 2 row — base rules, in force as written on phones (767.98px and
-   below): SYSTEM — the portrait — PROJECTS, on one line, bottom-centred and
-   centred on each other. Tablets and desktop (768px and up) restack this
-   into a vertical column on the right instead — see the min-width: 768px
-   block further down, which is additive on top of these base rules.
+   Scene 2 row — base rules: SYSTEM — the portrait — PROJECTS, on one line,
+   centred on each other and on the screen. Every band uses that line; only
+   the anchoring differs. Phones (767.98px and below) keep it bottom-centred
+   as written here and dock the two words to the screen's own edges; tablets
+   and desktop (768px and up) re-anchor it to the top, above the
+   bottom-anchored model — see the min-width: 768px block further down, which
+   is additive on top of these base rules.
 
    There are deliberately NO containers here: no card, no border, no divider,
    no background, no border-radius. The two flush bordered cards this replaced

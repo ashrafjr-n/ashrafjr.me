@@ -62,9 +62,11 @@ function buildRowWord(text: string, modifier: string): HTMLButtonElement {
 }
 
 /**
- * Scene 2 row: bottom-centre, below the model in the levelled Scene 2 view.
- * SYSTEM, the portrait, PROJECTS — three elements on one line, vertically
- * centred on each other. No cards, no frames, no dividers: the two flush
+ * Scene 2 row: SYSTEM, the portrait, PROJECTS — three elements on one line,
+ * vertically centred on each other. Horizontally centred on the screen too,
+ * below the model in the levelled phone view and above the bottom-anchored
+ * model from 768px up (style.css decides which). No cards, no frames, no
+ * dividers: the two flush
  * bordered cards that used to be here were removed deliberately, so nothing in
  * this row may grow a background, border or rectangle of its own.
  */
