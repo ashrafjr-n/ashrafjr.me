@@ -176,9 +176,12 @@ body {
 }
 
 /* ===========================================================
-   Scene 2 row (bottom-centre, below the model)
+   Scene 2 row — base rules, in force as written on phones (767.98px and
+   below): SYSTEM — the portrait — PROJECTS, on one line, bottom-centred and
+   centred on each other. Tablets and desktop (768px and up) restack this
+   into a vertical column on the right instead — see the min-width: 768px
+   block further down, which is additive on top of these base rules.
 
-   SYSTEM — the portrait — PROJECTS, on one line and centred on each other.
    There are deliberately NO containers here: no card, no border, no divider,
    no background, no border-radius. The two flush bordered cards this replaced
    were removed on purpose; don't give these elements a box of any kind.
@@ -222,26 +225,21 @@ body {
   height: 100%;
 }
 
-/* The portrait runs larger on desktop, where there is room either side of it
-   for the two words to stay on one line. Only --row-mark-h moves: the box
-   keeps the artwork's aspect-ratio, so the width follows, and nothing else in
-   the row is touched. Narrow viewports keep the base clamp above — the row is
-   already close to its 94vw there, and a taller portrait would push the words
-   out of the line.
+/* The portrait runs larger on desktop, where the right-anchored vertical
+   stack (see the min-width: 768px block below) has room to grow without
+   competing with words on either side, the way the old horizontal flanking
+   layout did. Only --row-mark-h moves: the box keeps the artwork's own
+   aspect-ratio, so the width follows, and nothing else in the row is
+   touched. Narrower (tablet) viewports keep the base clamp above.
 
-   --row-bottom drops with it, and the two are solved together against the
-   model above. The row is anchored at the bottom, so a taller portrait grows
-   *upward* into the model — at 50vh on the base 9vh the artwork's top ran into
-   the model's base plane. Measured at 1536x797, in fractions of the viewport
-   height so they hold at any size:
-     - the levelled Scene 2 model bottoms out at ~48.7vh (its ring plane, seen
-       edge-on) and nothing of it draws below that;
-     - the portrait's own ink starts 11.4% into its box — the artwork has empty
-       rows at the top — so its ink lands at 100vh - row-bottom - 0.886 * mark-h.
-   At 50vh and 4vh that is ~51.7vh: about 24px of clear black under the model
-   before the portrait starts, with ~36px still under the portrait's feet.
-   Raising --row-bottom back toward 9vh pushes the artwork into the model
-   again; the two numbers only make sense as a pair. */
+   --row-bottom no longer positions .scene2-row at this breakpoint — the
+   min-width: 768px block below anchors the row with top/right instead, not
+   bottom. Its 4vh value here now only still reaches .reveal-window's
+   pre-open resting box, which is invisible (opacity: 0, and JS repositions
+   it the instant a word is actually clicked), so this is effectively
+   vestigial. Left in place rather than deleted, since removing it buys
+   nothing and --row-bottom is still very much load-bearing for the phone
+   breakpoint further down. */
 @media (min-width: 900px) {
   :root {
     --row-mark-h: clamp(300px, 50vh, 540px);
@@ -291,6 +289,61 @@ body {
 .scene2-word:focus-visible {
   outline: 1px solid rgba(255, 255, 255, 0.45);
   outline-offset: 8px;
+}
+
+/* ===========================================================
+   Tablets and desktop — 768px and up
+
+   Restacks the row from the horizontal flanking above (SYSTEM — portrait —
+   PROJECTS, all centred on one line) into a vertical column — portrait,
+   PROJECTS, SYSTEM, top to bottom — anchored to the right side of the
+   screen. This is the CSS half of the Scene 2 recomposition; the other half
+   is the model itself shifting left and scaling up in three/world.ts, gated
+   on the same 767.98px breakpoint via matchMedia there. The two are meant to
+   read as one recomposed scene, with the stack standing in the space the
+   model vacates on the right.
+
+   Deliberately a separate block from the phone query below, not its
+   inverse — and it has to be, since phones sit *outside* this query
+   entirely (max-width: 767.98px vs. min-width: 768px here). The phone block
+   never touches flex-direction (it pulls the words out of flow with
+   position: absolute instead), so nothing here reaches into the phone
+   layout and the phone block needs no changes to stay clear of it.
+   =========================================================== */
+@media (min-width: 768px) {
+  .scene2-row {
+    /* Right-anchored and vertically centred in the viewport, replacing the
+       base rule's bottom-anchored, horizontally-centred position.
+       --row-bottom no longer positions the row at this breakpoint — it
+       still moves the reveal window's own pre-open resting box (see the
+       min-width: 900px block above), which is untouched here. */
+    left: auto;
+    right: var(--row-right);
+    bottom: auto;
+    top: 50%;
+    transform: translateY(-50%);
+    flex-direction: column;
+    /* Vertical spacing between the three stacked elements. The base
+       --row-gap is sized for the horizontal gulf either side of the
+       portrait in the flanking layout and would blow this stack apart used
+       as-is. */
+    gap: var(--row-stack-gap);
+  }
+
+  /* Visual order only — the DOM order (SYSTEM, portrait, PROJECTS; see
+     buildScene2Row() in main.ts) is untouched, since the flanking layout at
+     narrower widths never needed reordering. */
+  .scene2-mark {
+    order: 1;
+  }
+
+  .scene2-word--projects {
+    order: 2;
+  }
+
+  .scene2-word--system {
+    order: 3;
+  }
 }
 
 /* ===========================================================
