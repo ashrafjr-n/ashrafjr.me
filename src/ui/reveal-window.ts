@@ -20,6 +20,8 @@ import { createRevealScene } from '../three/reveal'
 import {
   armCardEntrance,
   buildProjectCards,
+  CARD_EXIT_MS,
+  dropCards,
   playCardEntrance,
 } from './project-cards'
 
@@ -160,6 +162,11 @@ export function createRevealWindow(
   let lookTimer = 0
   /** The row's release, on its own much shorter beat than the look-around. */
   let cardsTimer = 0
+  /** True once the row has actually been let go, so a close knows whether there is anything to drop. */
+  let areCardsUp = false
+  /** True for the drop that runs ahead of the window's own close. */
+  let isClosing = false
+  let exitTimer = 0
 
   function applyBox(box: Box): void {
     root.style.left = `${box.left}px`
@@ -188,13 +195,15 @@ export function createRevealWindow(
   function open(trigger: HTMLElement): void {
     if (isOpen) return
     isOpen = true
+    isClosing = false
+    areCardsUp = false
     openedFrom = trigger
 
     // Before anything is painted: the row drops back below its place, ready to
     // rise. Arming on open rather than on close is what makes the cascade play
-    // exactly once per open — and it leaves the cards standing while the window
-    // shrinks back into its word, so they go with it rather than blinking out
-    // from under it.
+    // exactly once per open — and it is also what leaves the cards lying below
+    // the frame after a close, where the exit drop put them, instead of
+    // snapping them back up behind the shrinking window.
     armCardEntrance(projectCards)
 
     // Sit on the word first, with transitions suppressed so that jump is not
@@ -215,7 +224,10 @@ export function createRevealWindow(
     // finished growing, and holding them back only bought an empty pause. Their
     // own transitions carry it from here; nothing per-frame.
     clearTimeout(cardsTimer)
-    cardsTimer = window.setTimeout(() => playCardEntrance(projectCards), CARDS_MS)
+    cardsTimer = window.setTimeout(() => {
+      areCardsUp = true
+      playCardEntrance(projectCards)
+    }, CARDS_MS)
 
     // The view is handed over only when the window has finished growing: the
     // mask is a sliver of the screen until then, and a look-around inside it
@@ -229,9 +241,40 @@ export function createRevealWindow(
     onOpenChange?.(true)
   }
 
+  /**
+   * Asked to close, from anywhere — the ×, a click away, Escape, or the row
+   * going out of reach. The row drops out first and the window follows it: two
+   * moves in sequence, not one.
+   *
+   * The window's own close is untouched below; all this adds is the wait in
+   * front of it. Every trigger comes through here, so the drop cannot be
+   * skipped by closing some other way, and `isClosing` is what stops a second
+   * Escape (or the click that dismissed the ×) restarting it mid-drop.
+   */
   function closeWindow(): void {
-    if (!isOpen) return
+    if (!isOpen || isClosing) return
+    isClosing = true
+
+    // Closed inside the first CARDS_MS, before the row was ever let go: there
+    // is nothing on screen to drop, so don't hold an empty window open for it.
+    if (!areCardsUp) {
+      finishClose()
+      return
+    }
+
+    // A release still in flight would put the row back up under the drop.
+    clearTimeout(cardsTimer)
+    dropCards(projectCards)
+
+    clearTimeout(exitTimer)
+    exitTimer = window.setTimeout(finishClose, CARD_EXIT_MS)
+  }
+
+  /** The window's own close, exactly as it was — now on the far side of the drop. */
+  function finishClose(): void {
     isOpen = false
+    isClosing = false
+    areCardsUp = false
     root.classList.remove('is-open')
     root.setAttribute('aria-hidden', 'true')
 
@@ -245,8 +288,10 @@ export function createRevealWindow(
 
     // Stop rendering at once. The scene recentres its camera and leaves one
     // still frame on the canvas, ready for the next open. A row that has not
-    // been released yet stays armed — the next open arms it again anyway.
+    // been released yet stays armed — the next open arms it again anyway, and
+    // one that has just dropped stays down until then too.
     clearTimeout(cardsTimer)
+    clearTimeout(exitTimer)
     clearTimeout(lookTimer)
     isLookLive = false
     scene.setActive(false)
