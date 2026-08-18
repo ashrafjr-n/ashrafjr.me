@@ -34,11 +34,9 @@
   --row-mark-h: clamp(235px, 40vh, 440px);
   --row-word-size: clamp(1.4rem, 3.4vw, 3rem);
   /* Tablet/desktop only (see the min-width: 768px block below): how far the
-     right-anchored vertical stack sits off the right edge, and the vertical
-     gap between its three elements — unrelated to --row-gap above, which is
-     sized for the old horizontal flanking layout. */
-  --row-right: 8vw;
-  --row-stack-gap: 1.25rem;
+     row sits off the *top* edge there, since the bottom of the screen belongs
+     to the model. Phones keep --row-bottom above and never read this. */
+  --row-top: 2vh;
 
   /* Open/close easing for the reveal window: a long expo-out tail. */
   --reveal-ease: cubic-bezier(0.16, 1, 0.3, 1);
@@ -294,55 +292,46 @@ body {
 /* ===========================================================
    Tablets and desktop — 768px and up
 
-   Restacks the row from the horizontal flanking above (SYSTEM — portrait —
-   PROJECTS, all centred on one line) into a vertical column — portrait,
-   PROJECTS, SYSTEM, top to bottom — anchored to the right side of the
-   screen. This is the CSS half of the Scene 2 recomposition; the other half
-   is the model itself shifting left and scaling up in three/world.ts, gated
-   on the same 767.98px breakpoint via matchMedia there. The two are meant to
-   read as one recomposed scene, with the stack standing in the space the
-   model vacates on the right.
+   Keeps the base rule's horizontal flanking line (SYSTEM — portrait —
+   PROJECTS, centred on each other and on the screen) and only re-anchors it
+   to the *top* of the viewport, because Scene 2 now stands the model itself
+   centred and bottom-anchored underneath it (MODEL_SCALE_* and
+   solveBottomRise() in three/world.ts, gated on the same 767.98px breakpoint
+   via matchMedia there). The two halves are one composition: the model rests
+   on the bottom edge of the frame, the row occupies the band of black it
+   leaves above. Retuning either — the model's scale tiers, --row-top,
+   --row-mark-h — wants the other re-checked, or the portrait's feet run into
+   the model's particle cloud.
+
+   This replaced a right-anchored vertical stack (portrait, PROJECTS, SYSTEM,
+   top to bottom) paired with the model shifted off to the left; nothing of
+   that layout is left, including the `order` rules it needed.
 
    Deliberately a separate block from the phone query below, not its
    inverse — and it has to be, since phones sit *outside* this query
    entirely (max-width: 767.98px vs. min-width: 768px here). The phone block
-   never touches flex-direction (it pulls the words out of flow with
-   position: absolute instead), so nothing here reaches into the phone
-   layout and the phone block needs no changes to stay clear of it.
+   pulls the words out of flow with position: absolute and docks them to the
+   screen's edges, so nothing here reaches into the phone layout and the
+   phone block needs no changes to stay clear of it.
    =========================================================== */
 @media (min-width: 768px) {
+  :root {
+    /* The gulf either side of the portrait. Tighter than the base clamp,
+       which is sized for a phone's much smaller artwork and would push
+       PROJECTS past the row's 94vw at tablet widths once the portrait is at
+       its full height. */
+    --row-gap: clamp(2rem, 6vw, 7rem);
+  }
+
   .scene2-row {
-    /* Right-anchored and vertically centred in the viewport, replacing the
-       base rule's bottom-anchored, horizontally-centred position.
-       --row-bottom no longer positions the row at this breakpoint — it
-       still moves the reveal window's own pre-open resting box (see the
+    /* Top-anchored, replacing the base rule's bottom anchoring — the bottom
+       of the screen is the model's now. left: 50% and the centring
+       translateX come from the base rule and are deliberately left alone.
+       --row-bottom no longer positions the row at this breakpoint; it still
+       moves the reveal window's own pre-open resting box (see the
        min-width: 900px block above), which is untouched here. */
-    left: auto;
-    right: var(--row-right);
     bottom: auto;
-    top: 50%;
-    transform: translateY(-50%);
-    flex-direction: column;
-    /* Vertical spacing between the three stacked elements. The base
-       --row-gap is sized for the horizontal gulf either side of the
-       portrait in the flanking layout and would blow this stack apart used
-       as-is. */
-    gap: var(--row-stack-gap);
-  }
-
-  /* Visual order only — the DOM order (SYSTEM, portrait, PROJECTS; see
-     buildScene2Row() in main.ts) is untouched, since the flanking layout at
-     narrower widths never needed reordering. */
-  .scene2-mark {
-    order: 1;
-  }
-
-  .scene2-word--projects {
-    order: 2;
-  }
-
-  .scene2-word--system {
-    order: 3;
+    top: var(--row-top);
   }
 }
 
