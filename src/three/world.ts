@@ -43,11 +43,16 @@ const SCENE2_CAMERA_POS = { x: 0, y: 0.3, z: 4.3 }
 const SCENE2_CAMERA_TARGET = { x: 0, y: 0.3, z: 0 }
 
 /**
- * Desktop/tablet-only Scene 2 recomposition. The eye sits well above the
- * target while the target's own height is untouched, which is what raises
- * the camera without re-leveling it flat: pitch = atan((1.3 - 0.3) / 4.3) ≈
- * 13° of look-down, a moderate step up from dead level and nowhere near
- * Scene 1's ~63° overhead.
+ * Desktop/tablet-only Scene 2 recomposition. The eye sits above the target
+ * while the target's own height is untouched, which is what keeps the view
+ * off dead level without re-pitching it: pitch = atan((0.8 - 0.3) / 4.3) ≈
+ * 6.6° of look-down, a hint of elevation and nowhere near Scene 1's ~63°
+ * overhead.
+ *
+ * It was 13° (eye at 1.3) until the model was enlarged. A shallower camera
+ * sees the ring plane more edge-on, so the diorama covers less of the frame's
+ * height at the same scale — that is what paid for the larger
+ * MODEL_SCALE_DESKTOP without eating into the row's band above it.
  *
  * These two are the *angle* only. The whole rig is then lifted by
  * solveBottomRise() below — the same amount added to both the eye and the
@@ -60,7 +65,7 @@ const SCENE2_CAMERA_TARGET = { x: 0, y: 0.3, z: 0 }
  * below) — mobile keeps the level, centred framing above completely
  * untouched.
  */
-const SCENE2_CAMERA_POS_WIDE = { x: 0, y: 1.3, z: 4.3 }
+const SCENE2_CAMERA_POS_WIDE = { x: 0, y: 0.8, z: 4.3 }
 const SCENE2_CAMERA_TARGET_WIDE = { x: 0, y: 0.3, z: 0 }
 
 /**
