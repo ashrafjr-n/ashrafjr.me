@@ -324,11 +324,13 @@ body {
    =========================================================== */
 @media (min-width: 768px) {
   :root {
-    /* The gulf either side of the portrait. Tighter than the base clamp,
-       which is sized for a phone's much smaller artwork and would push
-       PROJECTS past the row's 94vw at tablet widths once the portrait is at
-       its full height. */
-    --row-gap: clamp(2rem, 6vw, 7rem);
+    /* The gulf either side of the portrait — the words stand well clear of
+       the artwork rather than crowding it. Measured against the row's
+       `max-width: 94vw`, which is what caps it: at 768px the widest case
+       (a 440px portrait) leaves ~24px spare, so this is close to as wide as
+       the tablet band can carry. Re-check that spare width before raising
+       it, or the two words start pushing out past the row's box. */
+    --row-gap: clamp(3rem, 9vw, 11rem);
   }
 
   .scene2-row {
