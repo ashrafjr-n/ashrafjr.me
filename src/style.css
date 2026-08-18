@@ -337,8 +337,15 @@ body {
   /* Ordered by name rather than by position in the DOM — the markup order is
      SYSTEM, portrait, PROJECTS (the portrait is the centrepiece on desktop),
      which is not the order wanted here. */
+  /* Extra air between the two words. It is a margin rather than a bigger
+     --row-gap because that gap also sets the distance from SYSTEM down to the
+     portrait, and only the space *between the words* is meant to grow. `order`
+     draws PROJECTS first, so its bottom margin is what lands between the two;
+     it stacks with the row's gap, making the pair sit 1.5rem + 1.25rem apart
+     while SYSTEM stays 1.5rem clear of the artwork. */
   .scene2-word--projects {
     order: 1;
+    margin-bottom: 1.25rem;
   }
 
   .scene2-word--system {

@@ -296,6 +296,23 @@ const DRAG_MAX_YAW = 0.8
  */
 const DRAG_PER_PX = 0.0022
 
+/**
+ * The phone's one-off intro sweep: having opened the window, the view starts on
+ * the rightmost card and travels across to the leftmost, so the row is shown to
+ * be wider than the frame instead of leaving the reader to discover it.
+ *
+ * It runs the full drag range, `-DRAG_MAX_YAW` (Naelj) to `+DRAG_MAX_YAW`
+ * (REJOX) — looking right is a negative yaw, as above — so it ends exactly
+ * where a full leftward swipe would, and a drag simply carries on from there.
+ *
+ * 2600ms over that 1.6 rad is a little quicker than a moderate pan: the row
+ * covers about 2.9 screen widths, so this is roughly 1.1 screens a second —
+ * brisk enough not to drag, slow enough to read each card on the way past.
+ */
+const SWEEP_MS = 2600
+const SWEEP_FROM = -DRAG_MAX_YAW
+const SWEEP_TO = DRAG_MAX_YAW
+
 export interface RevealScene {
   /** Advance the look-around and draw. Called only while the window is open. */
   update(state: InputState): void
@@ -307,6 +324,14 @@ export interface RevealScene {
    * so a drag feels the same weight as the mouse look-around.
    */
   dragBy(dxPx: number): void
+  /**
+   * Put the view on the card the intro sweep starts from, without animating.
+   * Called as the window opens, while the mask is still a sliver and the row is
+   * still below the frame, so there is nothing on screen to jump.
+   */
+  parkAtSweepStart(): void
+  /** Start the one-off intro sweep. Called once the entrance cascade lands. */
+  playIntroSweep(): void
   resize(): void
 }
 
@@ -596,6 +621,9 @@ export function createRevealScene(
   let pitchVel = 0
   /** Where the touch drag has swung the view to. Desktop never writes this. */
   let dragYaw = 0
+  /** Running the intro sweep, and the clock it started on. Phones only. */
+  let sweeping = false
+  let sweepAt = 0
   let active = false
   /** The one card currently drawn in the layer above the row, if any. */
   let raised: CSS3DObject | null = null
@@ -631,8 +659,58 @@ export function createRevealScene(
     raisedRenderer.render(raisedScene, camera)
   }
 
+  /**
+   * Park the view where the sweep begins. Deliberately not gated on `active`:
+   * the window calls this the moment it starts opening, which is `OPEN_MS`
+   * before the scene is handed the view, and the point is to have the frame
+   * already aimed by then.
+   */
+  function parkAtSweepStart(): void {
+    sweeping = false
+    dragYaw = SWEEP_FROM
+    yaw = SWEEP_FROM
+    yawVel = 0
+    camera.rotation.set(pitch, yaw, 0)
+    render()
+  }
+
+  function playIntroSweep(): void {
+    if (!active) return
+    sweepAt = performance.now()
+    sweeping = true
+  }
+
+  /**
+   * One frame of the intro sweep. Drives `yaw` outright, like `dragBy()` and
+   * for the same reason — this is a scripted move, and the spring would drag
+   * behind it and undershoot both ends. `dragYaw` is carried along so the
+   * spring's target matches when the sweep ends and a drag picks up from
+   * wherever it stopped.
+   *
+   * Eased in and out on a cosine, so it leaves and arrives at zero speed
+   * instead of starting and stopping dead.
+   */
+  function advanceSweep(): void {
+    const t = clamp((performance.now() - sweepAt) / SWEEP_MS, 0, 1)
+    const eased = 0.5 - 0.5 * Math.cos(Math.PI * t)
+    dragYaw = SWEEP_FROM + (SWEEP_TO - SWEEP_FROM) * eased
+    yaw = dragYaw
+    yawVel = 0
+    camera.rotation.set(pitch, yaw, 0)
+    render()
+    if (t >= 1) sweeping = false
+  }
+
   function update(state: InputState): void {
     if (!active) return
+
+    // The sweep owns the view for its 2.6s, then hands back to the spring on
+    // the very next frame — with `dragYaw` already where it left off, so there
+    // is nothing to spring toward and nothing snaps.
+    if (sweeping) {
+      advanceSweep()
+      return
+    }
 
     // Turn toward the pointer: mouse right looks right, which swings the space
     // itself the other way. Sprung, so the view lags and settles.
@@ -673,6 +751,10 @@ export function createRevealScene(
    */
   function dragBy(dxPx: number): void {
     if (!active) return
+    // A hand on the row wins: the sweep is there to show what is off frame, and
+    // once the reader is doing that themselves it has nothing left to say. It
+    // hands over mid-flight rather than fighting for the yaw.
+    sweeping = false
     dragYaw = clamp(dragYaw + dxPx * DRAG_PER_PX, -DRAG_MAX_YAW, DRAG_MAX_YAW)
     yaw = dragYaw
     yawVel = 0
@@ -691,6 +773,7 @@ export function createRevealScene(
     yawVel = 0
     pitchVel = 0
     dragYaw = 0
+    sweeping = false
     camera.rotation.set(0, 0, 0)
     render()
   }
@@ -705,5 +788,5 @@ export function createRevealScene(
   }
 
   render() // the frame the window opens onto the first time
-  return { update, setActive, dragBy, resize }
+  return { update, setActive, dragBy, parkAtSweepStart, playIntroSweep, resize }
 }

@@ -192,7 +192,7 @@ const arrivalWatchers = new WeakMap<HTMLElement, () => void>()
  * neither is worth duplicating here. `transitioncancel` settles it too — a card
  * whose rise was interrupted must not be left permanently untouchable.
  */
-function watchArrival(slot: HTMLElement): void {
+function watchArrival(slot: HTMLElement, onLanded?: () => void): void {
   const stop = (): void => {
     slot.removeEventListener('transitionend', onEnd)
     slot.removeEventListener('transitioncancel', onEnd)
@@ -204,6 +204,7 @@ function watchArrival(slot: HTMLElement): void {
     if (event.propertyName !== 'translate') return
     stop()
     slot.classList.remove('is-arriving')
+    onLanded?.()
   }
   slot.addEventListener('transitionend', onEnd)
   slot.addEventListener('transitioncancel', onEnd)
@@ -238,11 +239,26 @@ export function armCardEntrance(slots: HTMLElement[]): void {
  *
  * `is-arriving` rides along from here until each card lands, keeping it out of
  * the pointer's reach for exactly as long as it is moving.
+ *
+ * `onAllLanded` fires once, when the last of the five has settled — the phone's
+ * intro sweep starts on it. It rides the arrival watchers that already exist
+ * rather than a timer for the reason given on those: the cascade's length is
+ * `--pcard-enter-delay` plus `--pcard-enter-dur`, both of which live in
+ * style.css, and a timer here would be a third copy of numbers this module has
+ * gone out of its way not to duplicate. Re-arming drops the pending watchers
+ * without calling back, so a cascade cut short by a reopen never fires a stale
+ * one; and if a card's event never arrives the sweep simply does not play,
+ * which costs nothing standing.
  */
-export function playCardEntrance(slots: HTMLElement[]): void {
+export function playCardEntrance(slots: HTMLElement[], onAllLanded?: () => void): void {
+  let pending = slots.length
+  const landed = (): void => {
+    pending -= 1
+    if (pending === 0) onAllLanded?.()
+  }
   for (const slot of slots) {
     slot.classList.add('is-arriving')
-    watchArrival(slot)
+    watchArrival(slot, landed)
     slot.classList.remove('is-entering')
   }
 }

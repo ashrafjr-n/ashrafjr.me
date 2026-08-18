@@ -169,6 +169,19 @@ export function createRevealWindow(
   /** The word the window is currently out of — where it shrinks back to. */
   let openedFrom: HTMLElement | null = null
 
+  /**
+   * Phones only, and this query is a copy of the stylesheet's own phone bound
+   * — change the two together. It stops short of 900 on purpose: iPads sit at
+   * 768-834px wide in portrait, and they keep the untouched tablet layout, the
+   * mouse-style look-around and no intro sweep. See the note above that block
+   * in style.css.
+   *
+   * It is not re-evaluated on resize: a device does not change its input model,
+   * and rebinding mid-session would risk a listener left behind on a rotate.
+   * Both the card drag and the intro sweep hang off it.
+   */
+  const MOBILE = window.matchMedia('(max-width: 767.98px)')
+
   /** True only once the window has finished growing; the mouse is ignored until then. */
   let isLookLive = false
   let lookTimer = 0
@@ -224,6 +237,12 @@ export function createRevealWindow(
     // snapping them back up behind the shrinking window.
     armCardEntrance(projectCards)
 
+    // Phones open with the view already on the far right of the row, ready for
+    // the sweep back across it. It has to be aimed now, while the mask is a
+    // sliver and the cards are still below the frame — done any later it would
+    // read as the scene jerking sideways.
+    if (MOBILE.matches) scene.parkAtSweepStart()
+
     // Sit on the word first, with transitions suppressed so that jump is not
     // animated, and flush it — otherwise the growth would start from wherever
     // the window happened to be left, not from the word that was clicked.
@@ -244,7 +263,10 @@ export function createRevealWindow(
     clearTimeout(cardsTimer)
     cardsTimer = window.setTimeout(() => {
       areCardsUp = true
-      playCardEntrance(projectCards)
+      // On a phone the sweep follows the cascade, started by the last card
+      // landing rather than by a clock — see playCardEntrance. Passing nothing
+      // on desktop is what keeps the sweep off it entirely.
+      playCardEntrance(projectCards, MOBILE.matches ? scene.playIntroSweep : undefined)
     }, CARDS_MS)
 
     // The view is handed over only when the window has finished growing: the
@@ -359,15 +381,9 @@ export function createRevealWindow(
    * nothing about the cards themselves changes: not their size, their place on
    * the arc, their spacing or their tilt. The row is not moved; the view is.
    *
-   * Phones only, and this query is a copy of the stylesheet's own phone bound
-   * — change the two together. It stops short of 900 on purpose: iPads sit at
-   * 768-834px wide in portrait, and they keep the untouched tablet layout and
-   * the mouse-style look-around. See the note above that block in style.css.
-   *
-   * It is not re-evaluated on resize: a device does not change its input model,
-   * and rebinding mid-session would risk a listener left behind on a rotate.
+   * Bound by `MOBILE`, declared above with the rest of the window's state
+   * because `open()` needs it too, for the intro sweep.
    */
-  const MOBILE = window.matchMedia('(max-width: 767.98px)')
   /** Past this much travel the gesture is a drag, and not a tap on a card. */
   const DRAG_SLOP_PX = 8
 
