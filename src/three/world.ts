@@ -128,11 +128,11 @@ const SCENE2_CAMERA_TARGET_WIDE = { x: 0, y: 0.3, z: 0 }
  * row instead would cost most of the model's on-screen size.
  *
  * (The specific vh/px/% figures this paragraph used to carry — 33.8vh,
- * 31.5vh, 76%/64% of the half-frame — are stale as of this file's camera
- * work: SCENE2_CAMERA_POS_WIDE went to dead level and SCENE2_BOTTOM_NDC was
- * pushed past 1 in the same pass, both of which move where the model's
- * visible top and bottom land. Re-measure the rendered page before trusting
- * or reintroducing numbers here.)
+ * 31.5vh, 76%/64% of the half-frame — are stale across three rounds of
+ * camera work now: dead level, then tilted up to park the eye at ring
+ * height, with SCENE2_BOTTOM_NDC pushed past 1 alongside both. All of it
+ * moves where the model's visible top and bottom land. Re-measure the
+ * rendered page before trusting or reintroducing numbers here.)
  *
  * Camera pitch and distance were measured as **not** levers on the model's
  * on-screen *width* — flattening the old ~6.6° pitch to 2°, or dollying the
@@ -275,8 +275,9 @@ function mix(a: number, b: number, t: number): number {
  * and a smaller model has to be met by a lower camera to stay bottom-anchored.
  *
  * The rise is added to the eye *and* the target, so the view direction — and
- * with it the shallow look-down of SCENE2_CAMERA_*_WIDE — is untouched; only
- * the height changes, which slides the whole scene down the frame.
+ * with it the angle of SCENE2_CAMERA_*_WIDE (currently a look-*up*, eye below
+ * target — see that constant's own comment) — is untouched; only the height
+ * changes, which slides the whole scene down the frame.
  *
  * The point being landed is the ring plane's near edge, (0, ringY, ringR),
  * which is the model's lowest visible point from a camera on +z. Writing the
