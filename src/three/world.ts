@@ -168,7 +168,7 @@ const SCENE2_CAMERA_TARGET_WIDE = { x: 0, y: 0.3, z: 0 }
  * however far a tier is raised above it — raising a tier can only push the
  * applied scale up *to* the cap, never past it.
  */
-const MODEL_SCALE_TABLET = 1.1
+const MODEL_SCALE_TABLET = 1.13
 const MODEL_SCALE_DESKTOP = 1.38
 const MODEL_FIT_PER_ASPECT = 0.74
 
