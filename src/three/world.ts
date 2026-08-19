@@ -87,6 +87,24 @@ const SCENE2_CAMERA_TARGET_WIDE = { x: 0, y: 0.3, z: 0 }
  * tablet portrait sees barely over half the horizontal span a 16:10 desktop
  * does at CAMERA_FOV 35.
  *
+ * **What caps the desktop tier is the Scene 2 row, not the frame**, and it is
+ * worth knowing which part of the model does the touching. The diorama's
+ * *solid* mass — the white ring plane, the planets, the figure — stops at
+ * 33.8vh here, just under the portrait's box (31.5vh, see style.css), and
+ * that is the number 1.1 was solved against: 20px of clear black on a
+ * 1536x849 laptop, 14px on a short 1440x600 one. The model's own **particle
+ * cloud reaches much higher, to ~23vh, and deliberately shares the band with
+ * the row** — it is loose white dots, the page's starfield already lies
+ * behind the portrait, and holding the cloud below the row instead would cost
+ * most of the model's size (the on-screen width would drop back from 76% of
+ * the half-frame to 64%).
+ *
+ * Camera pitch and distance are **not** levers on any of this, which was
+ * measured rather than assumed: with the bottom anchored and the row fixed,
+ * flattening SCENE2_CAMERA_POS_WIDE from 6.6° to 2°, or dollying the eye from
+ * z 4.3 out to 6, moves the largest in-frame model from 78% to 79% of the
+ * half-frame. Only the row's own band changes the picture.
+ *
  * MODEL_FIT_PER_ASPECT is the guard under both: measured against this rig by
  * projecting the model's own white geometry, the widest scale that keeps it
  * inside both side edges runs from `0.84 * aspect` on a tall frame down to
