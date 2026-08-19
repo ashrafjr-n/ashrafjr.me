@@ -490,7 +490,7 @@ body {
     /* Smaller portrait, and closer to the bottom edge than the base 9vh. The
        row is bottom-anchored, so the smaller box and the smaller offset both
        move the artwork down the screen. */
-    --row-mark-h: clamp(160px, 30vh, 280px);
+    --row-mark-h: clamp(160px, 32vh, 280px);
     --row-bottom: 3vh;
     /* Inert now — the portrait is the row's only in-flow child, so there is
        nothing left for a flex gap to space out. Left in place rather than
