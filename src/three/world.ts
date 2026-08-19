@@ -133,18 +133,19 @@ const SCENE2_CAMERA_TARGET_WIDE = { x: 0, y: 0.3, z: 0 }
  * row instead would cost most of the model's on-screen size.
  *
  * (The specific vh/px/% figures this paragraph used to carry — 33.8vh,
- * 31.5vh, 76%/64% of the half-frame — are stale across three rounds of
- * camera work now: dead level, then tilted up to park the eye at ring
- * height, with SCENE2_BOTTOM_NDC pushed past 1 alongside both. All of it
+ * 31.5vh, 76%/64% of the half-frame — are stale across four rounds of camera
+ * work now: dead level, then tilted up to park the eye at ring height (with
+ * SCENE2_BOTTOM_NDC briefly pushed past 1 alongside it, then pulled back to
+ * 0.98 once that overshoot turned out to crop the model itself). All of it
  * moves where the model's visible top and bottom land. Re-measure the
  * rendered page before trusting or reintroducing numbers here.)
  *
  * Camera pitch and distance were measured as **not** levers on the model's
  * on-screen *width* — flattening the old ~6.6° pitch to 2°, or dollying the
- * eye from z 4.3 out to 6, barely moved it. That was measured before this
- * pass flattened the pitch the rest of the way to 0° and pushed
- * SCENE2_BOTTOM_NDC past the frame edge specifically to change what's
- * *vertically* visible (the base slab's wave lines) — a different axis than
+ * eye from z 4.3 out to 6, barely moved it. That was measured before the
+ * pitch was flattened to 0° and then tilted the other way to a look-up,
+ * specifically to change what's *vertically* visible (the base slab's wave
+ * lines) — a different axis than
  * the width claim above, but worth re-verifying together with the vh figures
  * above rather than assumed to still hold unchanged.
  *
@@ -192,9 +193,11 @@ const MODEL_SPAN = 3.5
  * treated as the model's true bottom edge on the assumption that the GLB's
  * black base slab beneath it was pure black on a pure black page and read as
  * nothing. That assumption turned out to be wrong: the slab carries visible
- * wave-like relief (see SCENE2_BOTTOM_NDC below), so the ring is now
- * deliberately pushed *past* the frame's bottom edge rather than rested on
- * it, taking the slab's own margin off screen with it. Measured off the GLB
+ * wave-like relief. Hiding it turned out to be a camera-*angle* problem (see
+ * SCENE2_CAMERA_POS_WIDE) rather than a crop problem — pushing the ring past
+ * the frame's bottom edge (SCENE2_BOTTOM_NDC, below) was tried first and
+ * cropped the ring itself along with the relief, so the ring is back to
+ * resting just inside the edge. Measured off the GLB
  * — the ring plane sits at y 0.33 with a rim at radius 1.33; keep these in
  * step with the file if it is ever replaced.
  *
@@ -266,7 +269,8 @@ function mix(a: number, b: number, t: number): number {
 
 /**
  * How far the desktop/tablet Scene 2 rig is lifted so the model's ring lands
- * at SCENE2_BOTTOM_NDC down the frame (past the bottom edge, currently), for
+ * at SCENE2_BOTTOM_NDC down the frame (just inside the bottom edge,
+ * currently), for
  * a given pivot scale.
  *
  * Solved rather than authored, because the two ends of it move together: the
