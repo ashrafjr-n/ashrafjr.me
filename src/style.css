@@ -228,14 +228,22 @@ body {
 /* The portrait runs *smaller* on desktop than the base clamp, which is the
    opposite of what it did under the old right-hand stack — and it is the
    model that decides it. Desktop takes the largest of the Scene 2 model
-   tiers (MODEL_SCALE_DESKTOP in three/world.ts), which lands the top of its
-   particle cloud at ~35.2vh with the model bottomed out on the screen's
-   bottom edge; the row has the black band above that and nothing more. At
-   --row-top 1.5vh this clamp ends the portrait's box at 31.5vh on anything
-   between ~600px and ~1333px tall, which is 22–40px of clear black under the
-   artwork — tightest on a short 1440x600 window, which is what stops this
-   clamp going higher. Only --row-mark-h moves: the box keeps the artwork's
-   own aspect-ratio, so the width follows.
+   tiers (MODEL_SCALE_DESKTOP in three/world.ts), which lands the top of the
+   model's *solid* mass — ring plane, planets, figure — at ~33.8vh with the
+   model bottomed out on the screen's bottom edge; the row has the black band
+   above that and nothing more. At --row-top 1.5vh this clamp ends the
+   portrait's box at 31.5vh on anything between ~600px and ~1333px tall,
+   which is 14–25px of clear black under the artwork — tightest on a short
+   1440x600 window, which is what stops this clamp going higher. Only
+   --row-mark-h moves: the box keeps the artwork's own aspect-ratio, so the
+   width follows.
+
+   The model's own particle cloud reaches higher than its solid mass, to
+   ~23vh, so the portrait's lower half has the model's loose white dots
+   behind it. That is deliberate — the page's starfield is already behind the
+   artwork, and holding the cloud under the row would cost the model most of
+   its size — but it is why the clearance above is measured against the solid
+   mass rather than the model's full silhouette.
 
    Tablets (768–899.98px) keep the base clamp above — their model tier is
    smaller again, so the band above it is deeper, not shallower.
