@@ -226,17 +226,19 @@ const MODEL_RING_RADIUS = 1.35
  * How far down the frame that ring's near edge is put in Scene 2, as a
  * fraction of the half-height: 1 is exactly the bottom edge.
  *
- * Went 0.98 → 1.08 to deliberately push the ring (and the model's base slab
- * beyond it, where the wave-line relief lives) past the bottom edge, back
- * when pitch alone wasn't hiding those lines. Once SCENE2_CAMERA_POS_WIDE was
- * re-solved to view the ring edge-on (see that constant's own comment) rather
- * than from above, the overshoot turned out to be redundant *and* too much:
- * it was cropping the model's own solid mass (the ring, meant to be visible)
- * along with the slab margin it was aimed at. Back to `0.98` — a 2% sliver of
- * clear black under the ring, fully in frame — now that the edge-on angle is
- * doing the actual work.
+ * History: 0.98 → 1.08 to deliberately push the ring (and the model's base
+ * slab beyond it, where the wave-line relief lives) past the bottom edge,
+ * back when pitch alone wasn't hiding those lines → back to 0.98 once
+ * SCENE2_CAMERA_POS_WIDE was re-solved to view the ring edge-on, since 1.08
+ * turned out to be cropping the model's own solid mass (the ring, meant to
+ * be visible) along with the slab margin it was aimed at → **now `1.03`**,
+ * because the wave line was still peeking out at 0.98 even with the edge-on
+ * angle doing most of the work. This is a real trade-off between two
+ * failure modes (crop the ring vs. show the wave line), not a value with a
+ * single correct answer — nudge it either direction and re-solve
+ * SCENE2_CAMERA_POS_WIDE.y to match if the balance needs to move again.
  */
-const SCENE2_BOTTOM_NDC = 0.98
+const SCENE2_BOTTOM_NDC = 1.03
 
 /**
  * Radians per second the model turns about its own Y axis — and therefore the
