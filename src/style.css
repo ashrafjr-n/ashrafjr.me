@@ -318,7 +318,9 @@ body {
    on the bottom edge of the frame, the row occupies the band of black it
    leaves above. Retuning either — the model's scale tiers, --row-top,
    --row-mark-h — wants the other re-checked, or the portrait's feet run into
-   the model's particle cloud.
+   the model's rings and planets. The model is sized right up against that
+   line (see the min-width: 900px block above), so there is no slack left in
+   this pairing to spend without moving one of the two.
 
    This replaced a right-anchored vertical stack (portrait, PROJECTS, SYSTEM,
    top to bottom) paired with the model shifted off to the left; nothing of
