@@ -14,7 +14,7 @@ import { lockScroll, unlockScroll } from './lib/scroll-lock'
 import { state, initPointer, initScroll } from './lib/state'
 import { buildSocialBadges } from './ui/social'
 import { createMark, type Mark } from './ui/mark'
-import { createFolderIcon } from './ui/folder'
+import { createFolderIcon, type FolderIcon } from './ui/folder'
 import { createRevealWindow } from './ui/reveal-window'
 
 /**
@@ -61,9 +61,11 @@ function buildIntro(): HTMLParagraphElement {
  * mobile's layout and behaviour are untouched. The label lives in its own
  * span rather than as the button's direct text so the icon can sit beside it;
  * it carries no styling of its own; every font/color rule still comes from
- * `.scene2-word` and is inherited.
+ * `.scene2-word` and is inherited. The folder icon draws itself in on the
+ * same schedule as the portrait (`ui/folder.ts`), so its `update()` is
+ * handed back alongside the button for the RAF loop to drive.
  */
-function buildRowWord(text: string, modifier: string): HTMLButtonElement {
+function buildRowWord(text: string, modifier: string): { word: HTMLButtonElement; folder: FolderIcon } {
   const word = document.createElement('button')
   word.className = `scene2-word scene2-word--${modifier}`
   word.type = 'button'
@@ -72,8 +74,9 @@ function buildRowWord(text: string, modifier: string): HTMLButtonElement {
   label.className = 'scene2-folder-label'
   label.textContent = text
 
-  word.append(createFolderIcon(), label)
-  return word
+  const folder = createFolderIcon()
+  word.append(folder.el, label)
+  return { word, folder }
 }
 
 /**
@@ -89,6 +92,7 @@ function buildScene2Row(): {
   row: HTMLDivElement
   projects: HTMLButtonElement
   mark: Mark
+  folders: FolderIcon[]
 } {
   const row = document.createElement('div')
   row.className = 'scene2-row'
@@ -99,17 +103,17 @@ function buildScene2Row(): {
   // plumbing PROJECTS gets from bindTrigger (stopPropagation, so a future
   // click-away listener doesn't fight it) so it is ready to be pointed at its
   // own target the moment one exists.
-  const system = buildRowWord('SYSTEM', 'system')
+  const { word: system, folder: systemFolder } = buildRowWord('SYSTEM', 'system')
   system.addEventListener('click', (e) => {
     e.stopPropagation()
   })
-  const projects = buildRowWord('PROJECTS', 'projects')
-  // The portrait draws and wipes itself; it is advanced from the RAF loop below
-  // and only runs while the row is on screen.
+  const { word: projects, folder: projectsFolder } = buildRowWord('PROJECTS', 'projects')
+  // The portrait draws itself in; it is advanced from the RAF loop below and
+  // only starts once the row is on screen.
   const mark = createMark('ASCII-art portrait of Ashraf')
 
   row.append(system, mark.el, projects)
-  return { row, projects, mark }
+  return { row, projects, mark, folders: [systemFolder, projectsFolder] }
 }
 
 // --- Mount ---
@@ -120,7 +124,7 @@ const canvas = document.createElement('canvas')
 canvas.id = 'scene'
 
 const intro = buildIntro()
-const { row: scene2Row, projects, mark } = buildScene2Row()
+const { row: scene2Row, projects, mark, folders } = buildScene2Row()
 app.append(canvas, intro, scene2Row)
 
 // --- Starfield + model, and the input they read ---
@@ -217,9 +221,12 @@ function raf(time: number) {
     const progress = scene.update(time, state)
     updateIntro(progress)
     updateScene2Row(progress)
-    // `rowShown` is the row's own fade, so the portrait animates exactly while
-    // Scene 2 is on screen and rewinds whenever it is scrolled away.
+    // `rowShown` is the row's own fade, so the portrait and the two folder
+    // icons start drawing exactly when Scene 2 is reached; each pauses (it
+    // does not rewind) if scrolled away before it finishes, and does nothing
+    // once fully drawn.
     mark.update(time, rowShown > 0)
+    for (const folder of folders) folder.update(time, rowShown > 0)
   }
   revealWindow.update(state)
   requestAnimationFrame(raf)
