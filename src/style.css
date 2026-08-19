@@ -413,15 +413,24 @@ body {
     gap: 0.5em;
   }
 
-  /* Sized as a fraction of the portrait's own height so it follows the same
-     tuning --row-mark-h already carries at each breakpoint (smaller on
-     desktop, where the model leaves a shallower band above it — see
-     "Scene 2 row" in CLAUDE.md) rather than needing a second clamp re-tuned
-     in step with it. 1036 / 977.4 is the file's own viewBox. */
+  /* Sized as a fraction of the portrait's own height — roughly comparable to
+     the portrait rather than a small accent — so it follows the same tuning
+     --row-mark-h already carries at each breakpoint (smaller on desktop,
+     where the model leaves a shallower band above it — see "Scene 2 row" in
+     CLAUDE.md) rather than needing a second clamp re-tuned in step with it.
+     1036 / 977.4 is the file's own viewBox. */
   .scene2-folder-icon {
     display: block;
-    height: calc(var(--row-mark-h) * 0.3);
+    height: calc(var(--row-mark-h) * 0.85);
     aspect-ratio: 1036 / 977.4;
+  }
+
+  /* Shrunk relative to the base clamp now that the icon above it is the
+     larger element — proportional to --row-word-size (not a fixed value) so
+     it keeps scaling with the token everything else in the row uses. Phones
+     are untouched: the base rule still sets the full --row-word-size there. */
+  .scene2-folder-label {
+    font-size: calc(var(--row-word-size) * 0.55);
   }
 }
 
