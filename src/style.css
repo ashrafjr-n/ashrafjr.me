@@ -225,6 +225,21 @@ body {
   height: 100%;
 }
 
+/* The folder icon above SYSTEM/PROJECTS's label (ui/folder.ts) — same inline
+   technique as the portrait above. Hidden by default: phones keep the two
+   words as plain text, untouched, and only the min-width: 768px block below
+   turns the icon back on. */
+.scene2-folder-icon {
+  display: none;
+  user-select: none;
+}
+
+.scene2-folder-icon svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
 /* The portrait runs *smaller* on desktop than the base clamp, which is the
    opposite of what it did under the old right-hand stack — and it is the
    model that decides it. Desktop takes the largest of the Scene 2 model
@@ -298,6 +313,16 @@ body {
 .scene2-word:hover,
 .scene2-word:focus-visible {
   color: #ffffff;
+}
+
+/* The folder icon's own hover dim lives inside folder.svg's inlined
+   stylesheet, scoped to when the <svg> itself is hovered. This extends that
+   same dim to the whole button — hovering the label text, not just the icon,
+   should still trigger it — by targeting the shared .glyphs class from here
+   instead. */
+.scene2-word:hover .glyphs,
+.scene2-word:focus-visible .glyphs {
+  opacity: 0.62;
 }
 
 /* Keyboard focus only: the pointer never sees this. */
