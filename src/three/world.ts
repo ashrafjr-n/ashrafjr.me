@@ -43,43 +43,60 @@ const SCENE2_CAMERA_POS = { x: 0, y: 0.3, z: 4.3 }
 const SCENE2_CAMERA_TARGET = { x: 0, y: 0.3, z: 0 }
 
 /**
- * Desktop/tablet-only Scene 2 recomposition. The eye now sits at the *same*
- * height as the target — pitch = atan((0.3 - 0.3) / 4.3) = 0°, dead level —
- * rather than above it, so there is no look-down left at all.
+ * Desktop/tablet-only Scene 2 recomposition.
  *
- * It went 13° (eye at 1.3) → 6.6° (eye at 0.8) → 3.3° (eye at 0.55) across
- * earlier passes, chasing the near-flat sweep lines moulded into the model's
- * own black base slab: they read the same way ripples in sand do, legible
- * from a steeper, more overhead angle and compressing toward invisible
- * edge-on. 3.3° still weren't edge-on enough — the ripples were still
- * legible and still read as curved rather than flat — so this pass drops the
- * angle the rest of the way to exactly level, which is also what makes any
- * remaining trace of them project as flat horizontal bands rather than
- * curved ones (a level camera on the model's own x=0 axis sees a
- * radially-symmetric ripple's iso-height contours edge-on and flat, where
- * any pitch skews them). The base-slab visibility itself is now finished by
- * SCENE2_BOTTOM_NDC below, which pushes the ring — and everything at or
- * beyond its radius, which the base slab's visible margin is — past the
- * frame's bottom edge outright, so what's left of the pitch is no longer
- * doing that job alone.
+ * Earlier passes chased the base slab's wave lines by flattening *pitch*
+ * toward 0° (13° → 6.6° → 3.3° → dead level), on the theory that a level
+ * camera sees a flat ground pattern edge-on. That theory was incomplete: at
+ * dead level the ring still rendered as a curve, because "pitch" here is the
+ * angle of the ray toward SCENE2_CAMERA_TARGET_WIDE (roughly screen centre),
+ * not the ray toward the ring — and the ring is deliberately parked down at
+ * SCENE2_BOTTOM_NDC, near/past the bottom edge, which is a ray angled a good
+ * chunk of the vertical half-FOV *below* the centre ray regardless of the
+ * camera's own pitch. What actually determines whether the ring looks edge-on
+ * is the camera's **height relative to the ring's own height** — a circle is
+ * only seen as a flat line from a viewpoint level with its own plane, the way
+ * a person standing sees rings on the ground in front of them edge-on, not
+ * the ellipse a bird's-eye view would show.
+ *
+ * Under dead level (POS_WIDE.y === TARGET_WIDE.y), solveBottomRise() was
+ * landing the eye at roughly ring-height + 0.87 in fitted units — well above
+ * the ring, hence the persisting curve. Fixing it means going the other way
+ * from the previous passes: **tilt the camera up** (target above eye, not
+ * below) so the *smaller* rise needed to still hit SCENE2_BOTTOM_NDC lands
+ * the eye essentially at the ring's own height instead of high above it.
+ *
+ * The tilt is solved, not guessed: solveBottomRise()'s `a` term is the gap
+ * between the eye's final height and the ring's, and — because MODEL_RING_Y
+ * cancels out of the condition — `a = 0` for *any* scale at exactly
+ * `dy = SCENE2_CAMERA_TARGET_WIDE.y - SCENE2_CAMERA_POS_WIDE.y
+ *     = -POS_WIDE.z * SCENE2_BOTTOM_NDC * tan(CAMERA_FOV/2 in rad)
+ *     ≈ 4.3 * 1.08 * tan(17.5°) ≈ 1.464`.
+ * TARGET_WIDE.y is left at 0.3 (unchanged from every earlier pass, still the
+ * point being aimed toward before the rise lifts it onto the model's upper
+ * body) and POS_WIDE.y is solved backwards from that: 0.3 - 1.464 ≈ -1.164.
+ * The eye's *pre-rise* value reading negative looks alarming but is not a bug
+ * — solveBottomRise() always lifts both by the same rise, and the resulting
+ * final eye height lands at the ring's own height (comfortably above y = 0,
+ * so this doesn't reopen the "camera below the model looks at the underside"
+ * problem — that was about the *final*, not the pre-rise, height).
  *
  * A shallower camera also sees the ring plane more edge-on, so the diorama
  * covers less of the frame's height at the same scale — that is what has
  * paid for MODEL_SCALE_DESKTOP growing across these same passes without
  * eating into the row's band above it.
  *
- * These two are the *angle* only. The whole rig is then lifted by
- * solveBottomRise() below — the same amount added to both the eye and the
- * target, so the 0° pitch is untouched and the model simply slides down the
- * frame until it rests on (now past) its bottom edge. Paired with
- * style.css's `min-width: 768px` block, which puts the
+ * The whole rig is then lifted by solveBottomRise() below — the same amount
+ * added to both the eye and the target, so this angle is untouched and the
+ * model simply slides down the frame until the ring rests past its bottom
+ * edge. Paired with style.css's `min-width: 768px` block, which puts the
  * portrait/PROJECTS/SYSTEM row in the space the model leaves above it.
  *
  * Gated on the same 767.98px breakpoint as the rest of the site (see MOBILE
  * below) — mobile keeps the level, centred framing above completely
  * untouched.
  */
-const SCENE2_CAMERA_POS_WIDE = { x: 0, y: 0.3, z: 4.3 }
+const SCENE2_CAMERA_POS_WIDE = { x: 0, y: -1.164, z: 4.3 }
 const SCENE2_CAMERA_TARGET_WIDE = { x: 0, y: 0.3, z: 0 }
 
 /**
