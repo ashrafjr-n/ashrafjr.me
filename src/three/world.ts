@@ -43,35 +43,43 @@ const SCENE2_CAMERA_POS = { x: 0, y: 0.3, z: 4.3 }
 const SCENE2_CAMERA_TARGET = { x: 0, y: 0.3, z: 0 }
 
 /**
- * Desktop/tablet-only Scene 2 recomposition. The eye sits above the target
- * while the target's own height is untouched, which is what keeps the view
- * off dead level without re-pitching it: pitch = atan((0.55 - 0.3) / 4.3) ≈
- * 3.3° of look-down, a shallow hint of elevation and nowhere near Scene 1's
- * ~63° overhead.
+ * Desktop/tablet-only Scene 2 recomposition. The eye now sits at the *same*
+ * height as the target — pitch = atan((0.3 - 0.3) / 4.3) = 0°, dead level —
+ * rather than above it, so there is no look-down left at all.
  *
- * It went 13° (eye at 1.3) → 6.6° (eye at 0.8) as the model was enlarged in
- * earlier passes, then down to this ~3.3° so the near-flat sweep lines
- * moulded into the model's own black base slab drop out of frame. Those
- * lines are only legible from a steeper, more overhead angle — the same
- * ripple-in-sand effect that makes surface undulation read from above and
- * vanish edge-on — so flattening the pitch further hides them without a
- * geometry change. A shallower camera also sees the ring plane more edge-on,
- * so the diorama covers less of the frame's height at the same scale — that
- * is what has paid for MODEL_SCALE_DESKTOP growing across these same passes
- * without eating into the row's band above it.
+ * It went 13° (eye at 1.3) → 6.6° (eye at 0.8) → 3.3° (eye at 0.55) across
+ * earlier passes, chasing the near-flat sweep lines moulded into the model's
+ * own black base slab: they read the same way ripples in sand do, legible
+ * from a steeper, more overhead angle and compressing toward invisible
+ * edge-on. 3.3° still weren't edge-on enough — the ripples were still
+ * legible and still read as curved rather than flat — so this pass drops the
+ * angle the rest of the way to exactly level, which is also what makes any
+ * remaining trace of them project as flat horizontal bands rather than
+ * curved ones (a level camera on the model's own x=0 axis sees a
+ * radially-symmetric ripple's iso-height contours edge-on and flat, where
+ * any pitch skews them). The base-slab visibility itself is now finished by
+ * SCENE2_BOTTOM_NDC below, which pushes the ring — and everything at or
+ * beyond its radius, which the base slab's visible margin is — past the
+ * frame's bottom edge outright, so what's left of the pitch is no longer
+ * doing that job alone.
+ *
+ * A shallower camera also sees the ring plane more edge-on, so the diorama
+ * covers less of the frame's height at the same scale — that is what has
+ * paid for MODEL_SCALE_DESKTOP growing across these same passes without
+ * eating into the row's band above it.
  *
  * These two are the *angle* only. The whole rig is then lifted by
  * solveBottomRise() below — the same amount added to both the eye and the
- * target, so the ~3.3° pitch is untouched and the model simply slides down
- * the frame until it rests on its bottom edge. Paired with style.css's
- * `min-width: 768px` block, which puts the portrait/PROJECTS/SYSTEM row in
- * the space the model leaves above it.
+ * target, so the 0° pitch is untouched and the model simply slides down the
+ * frame until it rests on (now past) its bottom edge. Paired with
+ * style.css's `min-width: 768px` block, which puts the
+ * portrait/PROJECTS/SYSTEM row in the space the model leaves above it.
  *
  * Gated on the same 767.98px breakpoint as the rest of the site (see MOBILE
  * below) — mobile keeps the level, centred framing above completely
  * untouched.
  */
-const SCENE2_CAMERA_POS_WIDE = { x: 0, y: 0.55, z: 4.3 }
+const SCENE2_CAMERA_POS_WIDE = { x: 0, y: 0.3, z: 4.3 }
 const SCENE2_CAMERA_TARGET_WIDE = { x: 0, y: 0.3, z: 0 }
 
 /**
