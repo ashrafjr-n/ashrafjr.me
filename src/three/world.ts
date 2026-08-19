@@ -71,10 +71,10 @@ const SCENE2_CAMERA_TARGET = { x: 0, y: 0.3, z: 0 }
  * cancels out of the condition — `a = 0` for *any* scale at exactly
  * `dy = SCENE2_CAMERA_TARGET_WIDE.y - SCENE2_CAMERA_POS_WIDE.y
  *     = -POS_WIDE.z * SCENE2_BOTTOM_NDC * tan(CAMERA_FOV/2 in rad)
- *     ≈ 4.3 * 0.98 * tan(17.5°) ≈ 1.329`.
+ *     ≈ 4.3 * 1.03 * tan(17.5°) ≈ 1.396`.
  * TARGET_WIDE.y is left at 0.3 (unchanged from every earlier pass, still the
  * point being aimed toward before the rise lifts it onto the model's upper
- * body) and POS_WIDE.y is solved backwards from that: 0.3 - 1.329 ≈ -1.029.
+ * body) and POS_WIDE.y is solved backwards from that: 0.3 - 1.396 ≈ -1.096.
  * The eye's *pre-rise* value reading negative looks alarming but is not a bug
  * — solveBottomRise() always lifts both by the same rise, and the resulting
  * final eye height lands at the ring's own height (comfortably above y = 0,
@@ -101,7 +101,7 @@ const SCENE2_CAMERA_TARGET = { x: 0, y: 0.3, z: 0 }
  * below) — mobile keeps the level, centred framing above completely
  * untouched.
  */
-const SCENE2_CAMERA_POS_WIDE = { x: 0, y: -1.029, z: 4.3 }
+const SCENE2_CAMERA_POS_WIDE = { x: 0, y: -1.096, z: 4.3 }
 const SCENE2_CAMERA_TARGET_WIDE = { x: 0, y: 0.3, z: 0 }
 
 /**
