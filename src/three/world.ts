@@ -133,12 +133,12 @@ const SCENE2_CAMERA_TARGET_WIDE = { x: 0, y: 0.3, z: 0 }
  * row instead would cost most of the model's on-screen size.
  *
  * (The specific vh/px/% figures this paragraph used to carry — 33.8vh,
- * 31.5vh, 76%/64% of the half-frame — are stale across four rounds of camera
- * work now: dead level, then tilted up to park the eye at ring height (with
- * SCENE2_BOTTOM_NDC briefly pushed past 1 alongside it, then pulled back to
- * 0.98 once that overshoot turned out to crop the model itself). All of it
- * moves where the model's visible top and bottom land. Re-measure the
- * rendered page before trusting or reintroducing numbers here.)
+ * 31.5vh, 76%/64% of the half-frame — are stale across five rounds of camera
+ * work now: dead level, then tilted up to park the eye at ring height, with
+ * SCENE2_BOTTOM_NDC swinging 0.98 → 1.08 (too much crop) → 0.98 (wave line
+ * crept back) → 1.03 (current). All of it moves where the model's visible
+ * top and bottom land. Re-measure the rendered page before trusting or
+ * reintroducing numbers here.)
  *
  * Camera pitch and distance were measured as **not** levers on the model's
  * on-screen *width* — flattening the old ~6.6° pitch to 2°, or dollying the
