@@ -521,7 +521,10 @@ body {
   .scene2-word--system,
   .scene2-word--projects {
     position: absolute;
-    top: 50%;
+    /* --row-word-lift above the portrait's own centre line, same as the
+       tablet/desktop column layout — the -50% transform still does the
+       actual centring, this just moves the point it centres on. */
+    top: calc(50% - var(--row-word-lift));
     transform: translateY(-50%);
     margin: 0;
   }
