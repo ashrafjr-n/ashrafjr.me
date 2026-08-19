@@ -122,7 +122,7 @@ const SCENE2_CAMERA_TARGET_WIDE = { x: 0, y: 0.3, z: 0 }
  * brought this to 0.78 (worst case now 0.98 of the half-frame, at 1.42).
  */
 const MODEL_SCALE_TABLET = 0.85
-const MODEL_SCALE_DESKTOP = 1.1
+const MODEL_SCALE_DESKTOP = 1.28
 const MODEL_FIT_PER_ASPECT = 0.78
 
 /**
