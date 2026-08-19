@@ -96,7 +96,7 @@ const SCENE2_CAMERA_TARGET_WIDE = { x: 0, y: 0.3, z: 0 }
  * the model to 0.60). Without it the tiers alone are only correct for their
  * band's *typical* aspect.
  */
-const MODEL_SCALE_TABLET = 0.7
+const MODEL_SCALE_TABLET = 0.85
 const MODEL_SCALE_DESKTOP = 1.1
 const MODEL_FIT_PER_ASPECT = 0.8
 
