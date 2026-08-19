@@ -103,21 +103,28 @@ const SCENE2_CAMERA_TARGET_WIDE = { x: 0, y: 0.3, z: 0 }
  *
  * **What caps the desktop tier is the Scene 2 row, not the frame**, and it is
  * worth knowing which part of the model does the touching. The diorama's
- * *solid* mass — the white ring plane, the planets, the figure — stops at
- * 33.8vh here, just under the portrait's box (31.5vh, see style.css), and
- * that is the number 1.1 was solved against: 20px of clear black on a
- * 1536x849 laptop, 14px on a short 1440x600 one. The model's own **particle
- * cloud reaches much higher, to ~23vh, and deliberately shares the band with
- * the row** — it is loose white dots, the page's starfield already lies
- * behind the portrait, and holding the cloud below the row instead would cost
- * most of the model's size (the on-screen width would drop back from 76% of
- * the half-frame to 64%).
+ * *solid* mass — the white ring plane, the planets, the figure — stops just
+ * under the portrait's box, with a thin sliver of clear black between them.
+ * The model's own **particle cloud reaches much higher and deliberately
+ * shares the band with the row** — it is loose white dots, the page's
+ * starfield already lies behind the portrait, and holding the cloud below the
+ * row instead would cost most of the model's on-screen size.
  *
- * Camera pitch and distance are **not** levers on any of this, which was
- * measured rather than assumed: with the bottom anchored and the row fixed,
- * flattening SCENE2_CAMERA_POS_WIDE from 6.6° to 2°, or dollying the eye from
- * z 4.3 out to 6, moves the largest in-frame model from 78% to 79% of the
- * half-frame. Only the row's own band changes the picture.
+ * (The specific vh/px/% figures this paragraph used to carry — 33.8vh,
+ * 31.5vh, 76%/64% of the half-frame — are stale as of this file's camera
+ * work: SCENE2_CAMERA_POS_WIDE went to dead level and SCENE2_BOTTOM_NDC was
+ * pushed past 1 in the same pass, both of which move where the model's
+ * visible top and bottom land. Re-measure the rendered page before trusting
+ * or reintroducing numbers here.)
+ *
+ * Camera pitch and distance were measured as **not** levers on the model's
+ * on-screen *width* — flattening the old ~6.6° pitch to 2°, or dollying the
+ * eye from z 4.3 out to 6, barely moved it. That was measured before this
+ * pass flattened the pitch the rest of the way to 0° and pushed
+ * SCENE2_BOTTOM_NDC past the frame edge specifically to change what's
+ * *vertically* visible (the base slab's wave lines) — a different axis than
+ * the width claim above, but worth re-verifying together with the vh figures
+ * above rather than assumed to still hold unchanged.
  *
  * MODEL_FIT_PER_ASPECT is the guard under both: measured against this rig by
  * projecting the model's own white geometry, the widest scale that keeps it
