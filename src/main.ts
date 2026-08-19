@@ -53,12 +53,26 @@ function buildIntro(): HTMLParagraphElement {
  * `modifier` names the word for CSS. It carries nothing on desktop; the mobile
  * layout stacks the two in a column and needs to order them by identity, and
  * `nth-of-type` would tie that to where they happen to sit in the DOM.
+ *
+ * On tablets and desktop the button holds a folder icon (`ui/folder.ts`)
+ * above the label; on phones the icon is hidden by CSS (`.scene2-folder-icon`
+ * defaults to `display: none`, shown again only from the `min-width: 768px`
+ * block) and the button reads as plain text, exactly as it did before —
+ * mobile's layout and behaviour are untouched. The label lives in its own
+ * span rather than as the button's direct text so the icon can sit beside it;
+ * it carries no styling of its own; every font/color rule still comes from
+ * `.scene2-word` and is inherited.
  */
 function buildRowWord(text: string, modifier: string): HTMLButtonElement {
   const word = document.createElement('button')
   word.className = `scene2-word scene2-word--${modifier}`
   word.type = 'button'
-  word.textContent = text
+
+  const label = document.createElement('span')
+  label.className = 'scene2-folder-label'
+  label.textContent = text
+
+  word.append(createFolderIcon(), label)
   return word
 }
 
