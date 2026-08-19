@@ -37,6 +37,11 @@
      row sits off the *top* edge there, since the bottom of the screen belongs
      to the model. Phones keep --row-bottom above and never read this. */
   --row-top: 4vh;
+  /* How far SYSTEM/PROJECTS sit above the portrait's own centre line — a
+     small deliberate offset, not a re-anchor. Read by both the tablet/desktop
+     column layout and the phone block below; the portrait itself is
+     untouched. */
+  --row-word-lift: 14px;
 
   /* Open/close easing for the reveal window: a long expo-out tail. */
   --reveal-ease: cubic-bezier(0.16, 1, 0.3, 1);
@@ -411,6 +416,10 @@ body {
     flex-direction: column;
     align-items: center;
     gap: 0.5em;
+    /* Sits a little above the portrait's centre line rather than dead on it —
+       see --row-word-lift. A static offset, not part of the hover/focus
+       transition (those only ever touch color). */
+    transform: translateY(calc(-1 * var(--row-word-lift)));
   }
 
   /* Sized as a fraction of the portrait's own height — roughly comparable to
