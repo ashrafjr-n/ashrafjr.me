@@ -92,7 +92,7 @@ function buildScene2Row(): {
   row: HTMLDivElement
   projects: HTMLButtonElement
   mark: Mark
-  folders: FolderIcon[]
+  words: { word: HTMLButtonElement; folder: FolderIcon }[]
 } {
   const row = document.createElement('div')
   row.className = 'scene2-row'
@@ -113,7 +113,15 @@ function buildScene2Row(): {
   const mark = createMark('ASCII-art portrait of Ashraf')
 
   row.append(system, mark.el, projects)
-  return { row, projects, mark, folders: [systemFolder, projectsFolder] }
+  return {
+    row,
+    projects,
+    mark,
+    words: [
+      { word: system, folder: systemFolder },
+      { word: projects, folder: projectsFolder },
+    ],
+  }
 }
 
 // --- Mount ---
@@ -124,7 +132,7 @@ const canvas = document.createElement('canvas')
 canvas.id = 'scene'
 
 const intro = buildIntro()
-const { row: scene2Row, projects, mark, folders } = buildScene2Row()
+const { row: scene2Row, projects, mark, words: scene2Words } = buildScene2Row()
 app.append(canvas, intro, scene2Row)
 
 // --- Starfield + model, and the input they read ---
@@ -226,7 +234,14 @@ function raf(time: number) {
     // does not rewind) if scrolled away before it finishes, and does nothing
     // once fully drawn.
     mark.update(time, rowShown > 0)
-    for (const folder of folders) folder.update(time, rowShown > 0)
+    // Each word's own label waits for that word's own folder icon to finish
+    // its first draw-in before it is allowed to show (see .is-label-shown in
+    // style.css, scoped to tablets/desktop where the icon actually draws).
+    // `classList.add` is idempotent, so no extra bookkeeping is needed to
+    // call it again on every later frame once the draw is done.
+    for (const { word, folder } of scene2Words) {
+      if (folder.update(time, rowShown > 0)) word.classList.add('is-label-shown')
+    }
   }
   revealWindow.update(state)
   requestAnimationFrame(raf)
