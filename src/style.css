@@ -41,7 +41,7 @@
      small deliberate offset, not a re-anchor. Read by both the tablet/desktop
      column layout and the phone block below; the portrait itself is
      untouched. */
-  --row-word-lift: 14px;
+  --row-word-lift: 24px;
 
   /* Open/close easing for the reveal window: a long expo-out tail. */
   --reveal-ease: cubic-bezier(0.16, 1, 0.3, 1);
