@@ -45,8 +45,13 @@ function takeOverAnimation(root: Element): Line[] {
 const MAX_DELTA_MS = 100
 
 export interface AsciiReveal {
-  /** Advance the draw. No-op once it has finished. */
-  update(time: number, visible: boolean): void
+  /**
+   * Advance the draw. No-op once it has finished. Returns whether the draw
+   * has completed (top to bottom, at least once) — true from the frame it
+   * finishes onward, so a caller can gate other UI on "has this drawn in
+   * yet" without keeping its own copy of the state.
+   */
+  update(time: number, visible: boolean): boolean
 }
 
 /**
@@ -99,15 +104,16 @@ export function createAsciiReveal(
     return Math.min(lines.length, (lines.length * ms) / drawMs)
   }
 
-  function update(time: number, visible: boolean): void {
-    if (done) return
+  function update(time: number, visible: boolean): boolean {
+    if (done) return true
     const delta = Math.min(time - prevTime, MAX_DELTA_MS)
     prevTime = time
-    if (!lines.length || !visible) return
+    if (!lines.length || !visible) return done
 
     elapsed += delta
     draw(filledAt(elapsed))
     if (drawn >= lines.length) done = true
+    return done
   }
 
   return { update }
