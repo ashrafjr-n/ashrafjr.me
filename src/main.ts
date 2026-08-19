@@ -14,6 +14,7 @@ import { lockScroll, unlockScroll } from './lib/scroll-lock'
 import { state, initPointer, initScroll } from './lib/state'
 import { buildSocialBadges } from './ui/social'
 import { createMark, type Mark } from './ui/mark'
+import { createFolderIcon } from './ui/folder'
 import { createRevealWindow } from './ui/reveal-window'
 
 /**
