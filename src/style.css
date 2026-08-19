@@ -400,6 +400,29 @@ body {
   .scene2-word--projects {
     justify-self: start;
   }
+
+  /* The folder icon sits above its label here — a <button> is inline-block by
+     default, which is what the base rule (and phones, untouched by this
+     block) still get; this column layout is scoped to tablets/desktop only.
+     gap is in em, off the button's own font-size (--row-word-size), so it
+     scales with the label rather than needing its own clamp. */
+  .scene2-word {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5em;
+  }
+
+  /* Sized as a fraction of the portrait's own height so it follows the same
+     tuning --row-mark-h already carries at each breakpoint (smaller on
+     desktop, where the model leaves a shallower band above it — see
+     "Scene 2 row" in CLAUDE.md) rather than needing a second clamp re-tuned
+     in step with it. 1036 / 977.4 is the file's own viewBox. */
+  .scene2-folder-icon {
+    display: block;
+    height: calc(var(--row-mark-h) * 0.3);
+    aspect-ratio: 1036 / 977.4;
+  }
 }
 
 /* ===========================================================
