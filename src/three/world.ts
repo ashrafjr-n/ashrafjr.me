@@ -165,13 +165,16 @@ const MODEL_URL = '/models/space_boi.glb'
 const MODEL_SPAN = 3.5
 
 /**
- * The lowest thing in the model that is actually *visible*, in fitted units
- * (i.e. after fitModel(), pivot scale 1). The GLB's base slab is pure black on
- * a pure black page, so it never reads as an edge: the white ring plane on top
- * of it is what the eye takes for the bottom of the model, and it is what
- * Scene 2 rests on the bottom of the frame. Measured off the GLB — the ring
- * plane sits at y 0.33 with a rim at radius 1.33; keep these in step with the
- * file if it is ever replaced.
+ * The lowest *intended*-visible thing in the model, in fitted units (i.e.
+ * after fitModel(), pivot scale 1) — the white ring plane, which used to be
+ * treated as the model's true bottom edge on the assumption that the GLB's
+ * black base slab beneath it was pure black on a pure black page and read as
+ * nothing. That assumption turned out to be wrong: the slab carries visible
+ * wave-like relief (see SCENE2_BOTTOM_NDC below), so the ring is now
+ * deliberately pushed *past* the frame's bottom edge rather than rested on
+ * it, taking the slab's own margin off screen with it. Measured off the GLB
+ * — the ring plane sits at y 0.33 with a rim at radius 1.33; keep these in
+ * step with the file if it is ever replaced.
  *
  * The radius is written as 1.35 rather than that literal 1.33, so this
  * one-point solve lands where the *whole* white silhouette actually bottoms
@@ -246,8 +249,9 @@ function mix(a: number, b: number, t: number): number {
 }
 
 /**
- * How far the desktop/tablet Scene 2 rig is lifted so the model comes to rest
- * on the bottom edge of the frame, for a given pivot scale.
+ * How far the desktop/tablet Scene 2 rig is lifted so the model's ring lands
+ * at SCENE2_BOTTOM_NDC down the frame (past the bottom edge, currently), for
+ * a given pivot scale.
  *
  * Solved rather than authored, because the two ends of it move together: the
  * model's size is capped by the frame's own width (see MODEL_FIT_PER_ASPECT),
