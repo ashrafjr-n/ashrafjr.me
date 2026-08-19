@@ -71,15 +71,20 @@ const SCENE2_CAMERA_TARGET = { x: 0, y: 0.3, z: 0 }
  * cancels out of the condition — `a = 0` for *any* scale at exactly
  * `dy = SCENE2_CAMERA_TARGET_WIDE.y - SCENE2_CAMERA_POS_WIDE.y
  *     = -POS_WIDE.z * SCENE2_BOTTOM_NDC * tan(CAMERA_FOV/2 in rad)
- *     ≈ 4.3 * 1.08 * tan(17.5°) ≈ 1.464`.
+ *     ≈ 4.3 * 0.98 * tan(17.5°) ≈ 1.329`.
  * TARGET_WIDE.y is left at 0.3 (unchanged from every earlier pass, still the
  * point being aimed toward before the rise lifts it onto the model's upper
- * body) and POS_WIDE.y is solved backwards from that: 0.3 - 1.464 ≈ -1.164.
+ * body) and POS_WIDE.y is solved backwards from that: 0.3 - 1.329 ≈ -1.029.
  * The eye's *pre-rise* value reading negative looks alarming but is not a bug
  * — solveBottomRise() always lifts both by the same rise, and the resulting
  * final eye height lands at the ring's own height (comfortably above y = 0,
  * so this doesn't reopen the "camera below the model looks at the underside"
  * problem — that was about the *final*, not the pre-rise, height).
+ *
+ * This dy is derived from SCENE2_BOTTOM_NDC, so **the two constants move
+ * together** — changing one without re-solving the other breaks the
+ * edge-on property (re-run the a=0 formula above, or the equivalent check in
+ * git history, whenever SCENE2_BOTTOM_NDC changes).
  *
  * A shallower camera also sees the ring plane more edge-on, so the diorama
  * covers less of the frame's height at the same scale — that is what has
@@ -96,7 +101,7 @@ const SCENE2_CAMERA_TARGET = { x: 0, y: 0.3, z: 0 }
  * below) — mobile keeps the level, centred framing above completely
  * untouched.
  */
-const SCENE2_CAMERA_POS_WIDE = { x: 0, y: -1.164, z: 4.3 }
+const SCENE2_CAMERA_POS_WIDE = { x: 0, y: -1.029, z: 4.3 }
 const SCENE2_CAMERA_TARGET_WIDE = { x: 0, y: 0.3, z: 0 }
 
 /**
