@@ -277,7 +277,7 @@ body {
    still very much load-bearing for the phone breakpoint further down. */
 @media (min-width: 900px) {
   :root {
-    --row-mark-h: clamp(180px, 31vh, 400px);
+    --row-mark-h: clamp(180px, 32vh, 400px);
     --row-bottom: 4vh;
   }
 }
