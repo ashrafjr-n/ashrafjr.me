@@ -152,25 +152,36 @@ const SCENE2_CAMERA_TARGET_WIDE = { x: 0, y: 0.3, z: 0 }
  * MODEL_FIT_PER_ASPECT is the guard under both: measured against this rig by
  * projecting the model's own white geometry, the widest scale that keeps it
  * inside both side edges runs from `0.84 * aspect` on a tall frame down to
- * about `0.79 * aspect` around aspect 1.4, so capping at `0.74 * aspect`
- * clears the sides at any window shape — including the viewports that sit in
- * the desktop band but are portrait anyway (an iPad Pro 12.9" is 1024 x 1366,
- * where the cap holds the model to 0.55). Without it the tiers alone are only
- * correct for their band's *typical* aspect.
+ * about `0.79 * aspect` around aspect 1.4 — the worst-case aspect — so
+ * capping at `0.76 * aspect` clears the sides at any window shape with real
+ * margin to spare, including the viewports that sit in the desktop band but
+ * are portrait anyway (an iPad Pro 12.9" is 1024 x 1366). Without it the
+ * tiers alone are only correct for their band's *typical* aspect.
  *
- * The cap is not linear in aspect, so **it has to be re-checked whenever a
- * tier grows**: the cap only binds where `0.74 * aspect` falls under the
- * tier, and raising the tier extends that range into wider frames, where the
- * true limit is lower. At the old 0.95 tier a 0.80 cap was safe; at 1.1 it
- * put the widest dot 0.7% past the edge around aspect 1.40, which is what
- * brought this down to 0.74. Because the applied scale is always
- * `min(tier, cap)`, this cap stays the hard safety ceiling at every aspect
- * however far a tier is raised above it — raising a tier can only push the
- * applied scale up *to* the cap, never past it.
+ * **This is the constant that actually governs the model's on-screen size at
+ * most common desktop/tablet aspects**, not the tiers above — `min(tier,
+ * cap)` means the tiers only take over once a window is wide enough that
+ * `MODEL_FIT_PER_ASPECT * aspect` exceeds them (aspect > 1.13/0.76 ≈ 1.49 for
+ * tablet, > 1.42/0.76 ≈ 1.87 for desktop); at more ordinary aspects — the
+ * 1536x849 (≈1.81) laptop this doc keeps measuring against included — the cap
+ * binds first and the tier value is currently unreachable. Growing the model
+ * on a normal window means moving this constant, not the tiers.
+ *
+ * The cap is not linear in aspect, so **it has to be re-checked whenever it
+ * or a tier changes**. History: 0.80 was safe at the old 0.95 tier; at 1.1 it
+ * put the widest dot 0.7% past the edge around aspect 1.40 (the worst case),
+ * which is what brought it down to 0.74. `0.76` is a cautious step back up —
+ * chosen by the developer, checked against the rendered page via HMR rather
+ * than derived here, since this session has no way to re-verify overflow
+ * visually. It still leaves real margin under the documented `~0.79` true
+ * limit at aspect 1.4. Because the applied scale is always `min(tier, cap)`,
+ * this cap stays the hard safety ceiling at every aspect however far a tier
+ * is raised above it — raising a tier can only push the applied scale up *to*
+ * the cap, never past it.
  */
 const MODEL_SCALE_TABLET = 1.13
 const MODEL_SCALE_DESKTOP = 1.42
-const MODEL_FIT_PER_ASPECT = 0.74
+const MODEL_FIT_PER_ASPECT = 0.76
 
 /**
  * Full turns the model makes across the scroll transition, on top of its idle
