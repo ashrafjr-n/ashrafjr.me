@@ -161,27 +161,37 @@ const SCENE2_CAMERA_TARGET_WIDE = { x: 0, y: 0.3, z: 0 }
  * **This is the constant that actually governs the model's on-screen size at
  * most common desktop/tablet aspects**, not the tiers above — `min(tier,
  * cap)` means the tiers only take over once a window is wide enough that
- * `MODEL_FIT_PER_ASPECT * aspect` exceeds them (aspect > 1.13/0.76 ≈ 1.49 for
- * tablet, > 1.42/0.76 ≈ 1.87 for desktop); at more ordinary aspects — the
- * 1536x849 (≈1.81) laptop this doc keeps measuring against included — the cap
- * binds first and the tier value is currently unreachable. Growing the model
- * on a normal window means moving this constant, not the tiers.
+ * `MODEL_FIT_PER_ASPECT * aspect` exceeds them (aspect > 1.13/0.78 ≈ 1.45 for
+ * tablet, > 1.42/0.78 ≈ 1.82 for desktop — close enough to the ~1.81 laptop
+ * this doc keeps measuring against that the desktop tier is nearly, but not
+ * quite, reachable there). Growing the model on a normal window means moving
+ * this constant, not the tiers.
  *
  * The cap is not linear in aspect, so **it has to be re-checked whenever it
- * or a tier changes**. History: 0.80 was safe at the old 0.95 tier; at 1.1 it
- * put the widest dot 0.7% past the edge around aspect 1.40 (the worst case),
- * which is what brought it down to 0.74. `0.76` is a cautious step back up —
- * chosen by the developer, checked against the rendered page via HMR rather
- * than derived here, since this session has no way to re-verify overflow
- * visually. It still leaves real margin under the documented `~0.79` true
- * limit at aspect 1.4. Because the applied scale is always `min(tier, cap)`,
- * this cap stays the hard safety ceiling at every aspect however far a tier
- * is raised above it — raising a tier can only push the applied scale up *to*
- * the cap, never past it.
+ * or a tier changes**. History: 0.80 was unsafe at tier 1.1 (0.7% overflow
+ * around aspect 1.40, the worst case), which brought it down to 0.74, then
+ * cautiously back up to 0.76. **`0.78` is a further step, chosen by the
+ * developer against an explicit trade-off the assistant could not resolve
+ * alone**: it leaves only ~1.3% margin under the documented `~0.79` true
+ * limit at aspect 1.4, a figure that was only ever measured at that one
+ * aspect (not the ~1.81 this project actually runs at) and carries a hedge
+ * ("about") in its own derivation. Checked against the rendered page via HMR
+ * by the developer, not verified visually by the assistant, since no
+ * screenshot capability was available in that session. **If the model's
+ * sides look clipped on any real window, this is the first constant to
+ * pull back down** — not the tiers, and not anything camera-related (bringing
+ * the camera closer was considered and rejected as an alternative: it
+ * changes projected width by the same mechanism as this cap, while also
+ * invalidating the ring-height eye-position solve above, so it's strictly
+ * more risk for the same fundamental constraint, not a way around it).
+ * Because the applied scale is always `min(tier, cap)`, this cap stays the
+ * hard safety ceiling at every aspect however far a tier is raised above
+ * it — raising a tier can only push the applied scale up *to* the cap, never
+ * past it.
  */
 const MODEL_SCALE_TABLET = 1.13
 const MODEL_SCALE_DESKTOP = 1.42
-const MODEL_FIT_PER_ASPECT = 0.76
+const MODEL_FIT_PER_ASPECT = 0.78
 
 /**
  * Full turns the model makes across the scroll transition, on top of its idle
