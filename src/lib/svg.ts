@@ -17,3 +17,27 @@ export function stripLightScheme(svg: string): string {
   }
   return svg
 }
+
+/**
+ * Rewrite every `id="..."` in an inlined SVG's markup, and every `url(#...)`
+ * that references one, so this copy's ids can't collide with another
+ * inlined copy on the same page.
+ *
+ * SVG ids resolve against the whole document, not scoped to their own
+ * `<svg>` — so two of this project's ASCII-art files (or two instances of
+ * the same one) that both number their clip-path ids `k0`, `k1`, `k2`... (as
+ * this project's generator does) silently steal each other's clip rects the
+ * moment both are inlined: `url(#k12)` resolves to whichever `id="k12"`
+ * comes first in document order, not necessarily the one in the same file.
+ * `prefix` should be unique per call site/instance.
+ */
+export function makeIdsUnique(svg: string, prefix: string): string {
+  const ids = new Set<string>()
+  for (const m of svg.matchAll(/\bid="([^"]+)"/g)) ids.add(m[1])
+  let out = svg
+  for (const id of ids) {
+    out = out.split(`id="${id}"`).join(`id="${prefix}-${id}"`)
+    out = out.split(`url(#${id})`).join(`url(#${prefix}-${id})`)
+  }
+  return out
+}
