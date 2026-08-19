@@ -15,6 +15,7 @@
  * bottom-to-top are the same value going up and coming back down.
  */
 import { clamp } from '../lib/math'
+import { stripLightScheme } from '../lib/svg'
 
 const MARK_SRC = '/assets/svg/me.svg'
 
@@ -39,24 +40,6 @@ export interface Mark {
    * if the page is scrolled back up.
    */
   update(time: number, visible: boolean): void
-}
-
-/**
- * Cut the artwork's `prefers-color-scheme: light` block out of its stylesheet.
- *
- * Inline, that stylesheet is a document-level one: on a light-mode system it
- * would flip every grey to near-black on a black page. The site is black-only,
- * so the light half is simply removed rather than fought with `color-scheme`.
- */
-function stripLightScheme(svg: string): string {
-  const at = svg.indexOf('@media(prefers-color-scheme:light){')
-  if (at < 0) return svg
-  let depth = 0
-  for (let i = svg.indexOf('{', at); i < svg.length; i++) {
-    if (svg[i] === '{') depth++
-    else if (svg[i] === '}' && --depth === 0) return svg.slice(0, at) + svg.slice(i + 1)
-  }
-  return svg
 }
 
 /** One line of the artwork: its clip rect and the width that reveals it fully. */
