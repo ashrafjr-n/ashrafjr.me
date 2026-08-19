@@ -205,25 +205,19 @@ const MODEL_RING_RADIUS = 1.35
 
 /**
  * How far down the frame that ring's near edge is put in Scene 2, as a
- * fraction of the half-height: 1 is exactly the bottom edge, so anything
- * over 1 deliberately pushes the ring — and the model's base slab, which sits
- * at the same height and beyond the ring's own radius — past the bottom edge
- * and off screen.
+ * fraction of the half-height: 1 is exactly the bottom edge.
  *
- * Was 0.98 (a 2% sliver of clear black under the ring) until the near-flat
- * sweep lines moulded into the base slab turned out to still be legible at
- * that resting position, even once the camera pitch was flattened hard (see
- * SCENE2_CAMERA_POS_WIDE). The ring was the model's lowest *intended*-visible
- * point, but the base slab's own relief is not confined to it — anything at
- * the ring's radius or beyond projects at least as low on screen as the ring
- * does — so deliberately overshooting the ring past the frame edge is what
- * takes the slab's own margin off screen with it, rather than trying to
- * out-angle a texture that reads at any pitch shallow enough to still resemble
- * a diorama shot. 1.08 is a real, no-longer-marginal push: at desktop's
- * largest in-frame scale that lands the ring itself roughly 3-4% of the
- * half-frame past the bottom edge, not merely at it.
+ * Went 0.98 → 1.08 to deliberately push the ring (and the model's base slab
+ * beyond it, where the wave-line relief lives) past the bottom edge, back
+ * when pitch alone wasn't hiding those lines. Once SCENE2_CAMERA_POS_WIDE was
+ * re-solved to view the ring edge-on (see that constant's own comment) rather
+ * than from above, the overshoot turned out to be redundant *and* too much:
+ * it was cropping the model's own solid mass (the ring, meant to be visible)
+ * along with the slab margin it was aimed at. Back to `0.98` — a 2% sliver of
+ * clear black under the ring, fully in frame — now that the edge-on angle is
+ * doing the actual work.
  */
-const SCENE2_BOTTOM_NDC = 1.08
+const SCENE2_BOTTOM_NDC = 0.98
 
 /**
  * Radians per second the model turns about its own Y axis — and therefore the
