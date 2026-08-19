@@ -93,11 +93,16 @@ function buildScene2Row(): {
   const row = document.createElement('div')
   row.className = 'scene2-row'
 
-  // SYSTEM is deliberately inert: it is built and styled exactly like
-  // PROJECTS but nothing is bound to it, and it is not returned, so nothing
-  // can. It gets its own behaviour later; until then it must not borrow the
-  // projects window.
+  // SYSTEM is still deliberately inert as far as the projects reveal window
+  // goes: it is built and styled exactly like PROJECTS but is not returned,
+  // so nothing can bind it to that window. It does get the same click
+  // plumbing PROJECTS gets from bindTrigger (stopPropagation, so a future
+  // click-away listener doesn't fight it) so it is ready to be pointed at its
+  // own target the moment one exists.
   const system = buildRowWord('SYSTEM', 'system')
+  system.addEventListener('click', (e) => {
+    e.stopPropagation()
+  })
   const projects = buildRowWord('PROJECTS', 'projects')
   // The portrait draws and wipes itself; it is advanced from the RAF loop below
   // and only runs while the row is on screen.
