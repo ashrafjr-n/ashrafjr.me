@@ -98,15 +98,44 @@ const FORM_AT = 0.92
 const FADE_END = 0.97
 
 // --- The flight, all in fractions of the ENTER_AT..FORM_AT window ---
-/** How much of the window one star's own flight takes, and its per-star spread. */
-const TRAVEL_SPAN = 0.55
-const TRAVEL_JITTER = 0.18
+/**
+ * How much of the window one star's own flight takes, and how much that varies
+ * per star.
+ *
+ * **These two are what decide whether the stars arrive in a queue or as one
+ * swarm, and the span is the lever — not the speed.** A star's delay is drawn
+ * from whatever is left of the window after its own flight, so the spread of
+ * departures and the length of a flight trade directly against each other:
+ * peak concurrency is about `span / (1 - span)`. At the original 0.55 that
+ * came out over 1, i.e. **every star in a folder was airborne at the same
+ * instant** — 5188 of 5200, measured — so the whole cloud crossed the screen
+ * as a single body and the folder went from 3% filled to 100% in the last
+ * fifth of the window.
+ *
+ * At 0.26 the peak is ~60% (about 3100 stars), departures spread over 0.79 of
+ * the window instead of 0.54, and the folder now fills progressively —
+ * 5% / 38% / 83% at the same points it used to sit at 0% / 0% / 52%. Stars
+ * land while others are still setting off, which is the whole point.
+ *
+ * **Do not push it much lower.** Concurrency falls off fast from here and the
+ * stream thins toward a single file, which is a different, worse look. The
+ * jitter (0.30, so flights vary 1.86x in length) is what keeps the front
+ * ragged rather than a moving wall at any span.
+ */
+const TRAVEL_SPAN = 0.26
+const TRAVEL_JITTER = 0.3
 /**
  * How much of a star's departure point follows its place in the artwork rather
  * than chance. The folder fills from the edge the stars arrive at, inward, so
  * the stream reads as depositing itself; pure randomness reads as static.
+ *
+ * Lowered from 0.7 alongside the span above: at 0.7 a star's departure was
+ * mostly a function of its x, so everything bound for the same column left
+ * together and the front arrived as a coherent vertical wall. Half positional
+ * is enough to keep the edge-inward fill legible while leaving the front
+ * ragged.
  */
-const ORDER_WEIGHT = 0.7
+const ORDER_WEIGHT = 0.5
 /** The left side sets off this much later than the right — mirrored looks mechanical. */
 const SIDE_LEAD = 0.06
 /**
