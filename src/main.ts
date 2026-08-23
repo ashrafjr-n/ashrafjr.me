@@ -263,7 +263,7 @@ function updateScene2Row(progress: number): void {
 // in the app — but everything belonging to the covered page is skipped, and
 // only the window's own scene is advanced. The scroll is frozen while that is
 // true, so `progress` could not have moved anyway; skipping it is what also
-// stops the model's spin and the portrait's cycle from running unseen.
+// stops the model's spin from running unseen.
 function raf(time: number) {
   if (!isPaused) {
     const progress = scene.update(time, state)
@@ -276,7 +276,9 @@ function raf(time: number) {
     // done, or — on wide screens, where folder.update() is already retired by
     // the fill() above — the constellation reporting the folders built.
     // `classList.add` is idempotent, so no extra bookkeeping is needed to
-    // call it again on every later frame once that has happened.
+    // call it again on every later frame once that has happened. It is never
+    // removed: on wide screens the label is inside the word the constellation
+    // is fading, so it goes back out with it on a scroll up anyway.
     for (const { word, folder } of scene2Words) {
       const arrived = WIDE ? scene.constellation.live : folder.update(time, rowShown > 0)
       if (arrived) word.classList.add('is-label-shown')

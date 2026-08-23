@@ -507,11 +507,11 @@ body {
     will-change: auto;
   }
 
-  /* Unchanged in position from the block above — still top-centred. The
-     portrait's own place in this composition is still open (it was sized
-     against a band that no longer exists); it is deliberately left where it
-     was for now. It carries the row's old fade now, on the same schedule and
-     from the same code. */
+  /* Dormant: the portrait is not mounted at the moment (see buildScene2Row in
+     main.ts) while where it belongs in this composition is decided. The rule
+     is left here, unchanged, so putting it back is a one-line change there —
+     it was top-centred, sized against a band of black that no longer exists.
+     Nothing reads it today. */
   .scene2-mark {
     position: absolute;
     top: var(--row-top);
