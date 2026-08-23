@@ -7,10 +7,13 @@
  * embedded in the model rather than as a separate dolly-ing backdrop. Mouse
  * parallax is layered on top via shared input state, lerped for smooth motion.
  *
- * Two render passes share one renderer, both drawn through the world layer's
- * bird's-eye camera — sharing the vantage is what makes the star orbits line up
- * with the model's. Depth is cleared between them so the model always sits in
- * front of the stars.
+ * Three render passes share one renderer. The first two are drawn through the
+ * world layer's bird's-eye camera — sharing the vantage is what makes the star
+ * orbits line up with the model's — with depth cleared between them so the
+ * model always sits in front of the stars. The third is the folder
+ * constellations (`three/constellation.ts`), which are screen-space and drawn
+ * through their own orthographic camera, on top of everything and skipped
+ * entirely except while they are actually flying.
  * Palette: white/silver/gray only — no color pops.
  */
 import {
@@ -28,6 +31,7 @@ import {
 } from 'three'
 import { rand } from '../lib/math'
 import type { InputState } from '../lib/state'
+import { createConstellation, type Constellation } from './constellation'
 import { createCircleTexture } from './sprite'
 import { createWorld, MODEL_SPIN_RATE } from './world'
 
@@ -42,6 +46,12 @@ export interface SceneController {
    */
   resync(): void
   resize(): void
+  /**
+   * The Scene 2 folder constellations. Owned here because they are a render
+   * pass on this renderer and ride this loop's `progress`; the two folders are
+   * registered with it from main.ts, which is what holds the DOM.
+   */
+  constellation: Constellation
 }
 
 // The camera sits inside the cloud and only a narrow cone of it is ever on
@@ -287,7 +297,7 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
   renderer.setSize(window.innerWidth, window.innerHeight, false)
   renderer.setClearColor(0x000000, 0) // transparent: the CSS black shows through
-  renderer.autoClear = false // two passes per frame, cleared manually below
+  renderer.autoClear = false // three passes per frame, cleared manually below
 
   // Named for what it holds: the star layers only. The model lives in the
   // world layer's own scene, which is rendered separately below.
@@ -450,6 +460,9 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
   // --- Scene 1 world layer (the model), drawn over the starfield ---
   const world = createWorld(window.innerWidth / window.innerHeight)
 
+  // --- Scene 2 folder constellations, drawn over both in screen space ---
+  const constellation = createConstellation()
+
   /** Both layers, in one array so the frame loop allocates nothing per frame. */
   const layers = [cloud, band]
 
@@ -498,11 +511,14 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
     }
 
     world.update(delta, progress)
+    constellation.update(time, progress)
 
     renderer.clear()
     renderer.render(starfield, world.camera) // same vantage -> same orbital plane
     renderer.clearDepth() // world layer sits in front of the starfield
     renderer.render(world.scene, world.camera)
+    renderer.clearDepth() // the constellations sit in front of both
+    constellation.render(renderer) // no-op unless stars are actually in flight
 
     return progress
   }
@@ -529,10 +545,11 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
   function resize(): void {
     const w = window.innerWidth
     const h = window.innerHeight
-    world.resize(w / h) // one camera now drives both passes
+    world.resize(w / h) // one camera drives the starfield and world passes
+    constellation.resize() // its own screen-space camera, and re-aims its targets
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
     renderer.setSize(w, h, false)
   }
 
-  return { update, resync, resize }
+  return { update, resync, resize, constellation }
 }
