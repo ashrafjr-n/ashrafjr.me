@@ -10,6 +10,11 @@
  * If `visible` goes false before it finishes, the draw pauses rather than
  * rewinding — it picks up again once `visible` is true, and never resets to
  * blank once it has started.
+ *
+ * `fill()` skips the draw entirely and shows the artwork complete, and
+ * `ready` hands back the injected `<svg>`; together they are what the
+ * wide-screen folder icons use, where the artwork is assembled by the star
+ * constellation rather than typed in. See those two members below.
  */
 import { clamp } from './math'
 import { makeIdsUnique, stripLightScheme } from './svg'
@@ -52,6 +57,28 @@ export interface AsciiReveal {
    * yet" without keeping its own copy of the state.
    */
   update(time: number, visible: boolean): boolean
+  /**
+   * Open every clip rect at once and retire the controller — `update()` is a
+   * no-op from here on, exactly as if the draw had run.
+   *
+   * This is what the wide-screen folder icons use instead of the typed-in
+   * draw: there the artwork is assembled on screen by the star constellation
+   * flying in (three/constellation.ts) and then cross-faded to, so the file
+   * has to be sitting there complete and simply invisible. A line-by-line
+   * type-in would contradict the whole point — the stars drew it, not the
+   * file.
+   *
+   * Safe to call before the fetch has landed: `filled` is remembered and
+   * applied the moment the lines exist.
+   */
+  fill(): void
+  /**
+   * Resolves with the injected root `<svg>` once it is in the page — the hook
+   * for anything that needs to read the artwork itself rather than just watch
+   * it draw (the constellation samples its glyph positions). Never rejects; a
+   * failed fetch simply leaves it pending.
+   */
+  ready: Promise<SVGSVGElement>
 }
 
 /**
@@ -73,12 +100,21 @@ export function createAsciiReveal(
   let prevTime = 0
   let done = false
 
+  let announceReady: (svg: SVGSVGElement) => void
+  const ready = new Promise<SVGSVGElement>((resolve) => {
+    announceReady = resolve
+  })
+
   fetch(src)
     .then((res) => res.text())
     .then((svg) => {
       el.innerHTML = makeIdsUnique(stripLightScheme(svg), idPrefix)
       lines = takeOverAnimation(el)
-      draw(0) // blank: it is only ever seen mid-draw from here on
+      // `done` here means fill() was called before the fetch landed — draw it
+      // out in full rather than blank, so the request isn't silently lost.
+      draw(done ? lines.length : 0) // blank: it is only ever seen mid-draw from here on
+      const root = el.querySelector('svg')
+      if (root) announceReady(root)
     })
     .catch((err) => console.error(`[ascii-reveal] failed to load ${src}`, err))
 
@@ -116,5 +152,10 @@ export function createAsciiReveal(
     return done
   }
 
-  return { update }
+  function fill(): void {
+    done = true
+    if (lines.length) draw(lines.length)
+  }
+
+  return { update, fill, ready }
 }
