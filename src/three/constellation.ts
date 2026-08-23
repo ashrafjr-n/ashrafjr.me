@@ -44,6 +44,7 @@ import type { CanvasTexture, WebGLRenderer } from 'three'
 import { clamp, rand } from '../lib/math'
 import { sampleGlyphPoints, toScreenPoints, type GlyphPoint } from '../lib/ascii-points'
 import { createCircleTexture } from './sprite'
+import { STAR_BRIGHT_MIN, STAR_BRIGHT_MAX, STAR_OPACITY } from './star-look'
 
 /** Which screen edge a constellation's stars come in from. */
 export type Side = 'left' | 'right'
@@ -118,14 +119,6 @@ const BOW_PX = 90
  * stopped scrolling. A star lands and stays exactly landed.
  */
 const SWAP_START = 0.78
-
-/**
- * Extra brightness while the stars are still travelling, easing back to 1 as
- * the folder forms. Global rather than per-star: a uniform multiplier is
- * already at 1 by the time the artwork takes over, so it cannot show up as a
- * step at the swap the way a random per-star boost would.
- */
-const TRAVEL_BOOST = 1.35
 
 /**
  * Point size, in viewBox units of the artwork rather than pixels — so it is
@@ -282,8 +275,12 @@ export function createConstellation(): Constellation {
       depths[i] = Math.random()
       bows[i] = rand(-BOW_PX, BOW_PX)
 
-      // The star wears the grey of the character it is going to become.
-      color.setRGB(g.level, g.level, g.level)
+      // Exactly the site's own star shading — the same grayscale range the
+      // ambient orbiting field rolls from, per star, from the shared module.
+      // These have to read as the site's stars arriving, so they get no
+      // palette of their own.
+      const v = rand(STAR_BRIGHT_MIN, STAR_BRIGHT_MAX)
+      color.setRGB(v, v, v)
       colors[i * 3] = color.r
       colors[i * 3 + 1] = color.g
       colors[i * 3 + 2] = color.b
@@ -375,7 +372,7 @@ export function createConstellation(): Constellation {
     const p = clamp((progress - ENTER_AT) / (FORM_AT - ENTER_AT), 0, 1)
     const starFade = 1 - clamp((progress - FORM_AT) / (FADE_END - FORM_AT), 0, 1)
     const swap = clamp((p - SWAP_START) / (1 - SWAP_START), 0, 1)
-    const opacity = starFade * (1 + (TRAVEL_BOOST - 1) * (1 - p))
+    const opacity = STAR_OPACITY * starFade
 
     live = swap >= 1
     drawing = p > 0 && opacity > OPACITY_EPSILON
