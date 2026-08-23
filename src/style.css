@@ -458,6 +458,99 @@ body {
 }
 
 /* ===========================================================
+   Wide screens — the flanking composition (900px and up, 4:3 and wider)
+
+   Scene 2's real layout. The model no longer moves, grows or gets out of the
+   way (three/world.ts holds the camera and the pivot still now), so the row
+   cannot hang in a band above it any more — instead the two folders stand in
+   the black to the model's left and right, where the star constellations fly
+   in and build them (three/constellation.ts).
+
+   **The aspect bound is not decoration, it is the whole reason this is its own
+   query.** The empty band on each side of the model is
+   `0.5 - 0.3124 / aspect` of the screen's width, derived from CAMERA_FOV 35 at
+   ~10.15 units with MODEL_SPAN 3.5: ~502px at 1536x849, ~271px at 1024x768,
+   but only ~64px on an iPad in portrait (768x1024) and negative on a phone,
+   where the model is already wider than the screen. There is nowhere to put a
+   folder below 4:3, so everything narrower keeps the min-width: 768px layout
+   above (or the phone block below) exactly as it was.
+
+   **This query is written twice** — here and as a matchMedia in main.ts, which
+   is what decides between the constellation and the plain typed-in draw. The
+   two have to change together, the same way the 767.98px phone query does.
+
+   Nothing here is additive: the row stops being a centred line at all and
+   becomes a full-viewport positioning layer, so the three elements can be
+   placed against the screen's own edges.
+   =========================================================== */
+@media (min-width: 900px) and (min-aspect-ratio: 4/3) {
+  :root {
+    /* How far each folder stands in from its own screen edge. Well inside the
+       side band measured above at every width this query covers. */
+    --folder-side-inset: clamp(2rem, 6vw, 7rem);
+  }
+
+  .scene2-row {
+    /* A full-viewport layer, replacing the base rule's centred line and the
+       768px block's three-column grid.
+
+       The words have to sit on the screen's own left and right edges, and the
+       base rule's `transform: translateX(-50%)` would otherwise make the row
+       itself the containing block for anything positioned inside it. Spreading
+       the row over the whole viewport and dropping its transform is what lets
+       the two words be placed against real screen edges without taking them
+       out of the row in the DOM — so the row's own opacity fade (main.ts,
+       ROW_FADE_START) and its .is-live pointer gate keep working untouched,
+       and phones/tablets are not affected at all. */
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    max-width: none;
+    transform: none;
+    display: block;
+  }
+
+  /* Unchanged in position from the block above — still top-centred. The
+     portrait's own place in this composition is still open (it was sized
+     against a band that no longer exists); it is deliberately left where it
+     was for now. */
+  .scene2-mark {
+    position: absolute;
+    top: var(--row-top);
+    left: 50%;
+    transform: translateX(-50%);
+  }
+
+  /* Centred on the model's own height, hard against the screen's edges. The
+     --row-word-lift nudge from the block above is deliberately dropped here:
+     it existed to sit the words just off the *portrait's* centre line, and
+     these no longer flank the portrait. */
+  .scene2-word--system,
+  .scene2-word--projects {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+  }
+
+  .scene2-word--system {
+    left: var(--folder-side-inset);
+  }
+
+  .scene2-word--projects {
+    right: var(--folder-side-inset);
+  }
+
+  /* Still a fraction of the portrait's height as in the block above, but now
+     with a width-keyed ceiling on top of it. --row-mark-h is a vh clamp, and
+     the space the folder has to fit is horizontal — at 1024x768 the vh term
+     alone would draw a 209px-tall folder into a 271px band. The min() is what
+     keeps it clear of the model on the narrower half of this query's range. */
+  .scene2-folder-icon {
+    height: min(calc(var(--row-mark-h) * 0.85), 15vw);
+  }
+}
+
+/* ===========================================================
    Phones only — 767.98px and below
 
    **This is deliberately not the 900px desktop breakpoint's other half.**
