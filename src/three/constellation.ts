@@ -387,7 +387,15 @@ export function createConstellation(): Constellation {
       if (progress < TRIGGER_AT || !sources.length) return
       started = true
       prevTime = time
-      for (const src of sources) src.mesh.visible = true
+      for (const src of sources) {
+        // Re-aim on the way in, not just at registration: the folders are
+        // measured the moment their file lands, and the row can still settle
+        // after that (a webfont arriving changes the label's height, and the
+        // button is centred on it). This is the last chance to be exact, and
+        // it costs one pass over the points, once.
+        reaim(src)
+        src.mesh.visible = true
+      }
     }
 
     const delta = Math.min(time - prevTime, MAX_DELTA_MS)
