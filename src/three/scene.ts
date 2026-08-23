@@ -33,6 +33,9 @@ import { rand } from '../lib/math'
 import type { InputState } from '../lib/state'
 import { createConstellation, type Constellation } from './constellation'
 import { createCircleTexture } from './sprite'
+// The ambient field's own shading, shared with the folder constellations so
+// the two cannot drift apart — see star-look.ts.
+import { STAR_BRIGHT_MIN, STAR_BRIGHT_MAX, STAR_OPACITY } from './star-look'
 import { createWorld, MODEL_SPIN_RATE } from './world'
 
 export interface SceneController {
@@ -153,12 +156,6 @@ const BAND_OPACITY = 1.0
  */
 const BAND_CLEAR_CHANCE = 0.35
 const BAND_CLEAR_LEVEL = 4.0
-
-// Default star shading — grayscale brightness from pure white down to a
-// slightly dimmer silver-white, no color tint. Used by the ambient field.
-const STAR_BRIGHT_MIN = 0.78
-const STAR_BRIGHT_MAX = 1.0
-const STAR_OPACITY = 0.85
 
 // --- Scene 1 -> Scene 2 scroll transition ---
 /**
