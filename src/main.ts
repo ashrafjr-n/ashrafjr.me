@@ -10,6 +10,7 @@
 import './style.css'
 import { clamp } from './lib/math'
 import { initScene } from './three/scene'
+import type { Side } from './three/constellation'
 import { lockScroll, unlockScroll } from './lib/scroll-lock'
 import { state, initPointer, initScroll } from './lib/state'
 import { buildSocialBadges } from './ui/social'
@@ -92,7 +93,9 @@ function buildScene2Row(): {
   row: HTMLDivElement
   projects: HTMLButtonElement
   mark: Mark
-  words: { word: HTMLButtonElement; folder: FolderIcon }[]
+  /** `side` is the screen edge each word stands on in the wide composition —
+   *  and therefore the edge its constellation of stars flies in from. */
+  words: { word: HTMLButtonElement; folder: FolderIcon; side: Side }[]
 } {
   const row = document.createElement('div')
   row.className = 'scene2-row'
@@ -118,8 +121,8 @@ function buildScene2Row(): {
     projects,
     mark,
     words: [
-      { word: system, folder: systemFolder },
-      { word: projects, folder: projectsFolder },
+      { word: system, folder: systemFolder, side: 'left' },
+      { word: projects, folder: projectsFolder, side: 'right' },
     ],
   }
 }
@@ -137,6 +140,20 @@ app.append(canvas, intro, scene2Row)
 
 // --- Starfield + model, and the input they read ---
 const scene = initScene(canvas)
+
+/**
+ * Whether Scene 2 runs its flanking composition — the two folders standing to
+ * the model's left and right, built on screen by the star constellations.
+ *
+ * **The same query is written in style.css**, on the block that lays that
+ * composition out, and the two have to move together (see the note there for
+ * why the aspect bound is what it is). Read once, at startup, rather than
+ * live: below it the folders type themselves in and there is nowhere beside
+ * the model to put them anyway, and swapping between the two mid-session is
+ * not a case worth carrying — the same call the reveal window makes about the
+ * phone drag it binds once at construction.
+ */
+const WIDE = window.matchMedia('(min-width: 900px) and (min-aspect-ratio: 4/3)').matches
 
 /**
  * Whether the site behind the reveal window is standing still.
@@ -187,8 +204,23 @@ window.addEventListener('resize', () => {
 initPointer()
 initScroll()
 
+// Wide screens: the folder marks are not typed in line by line — the stars
+// assemble them and cross-fade to them, so each file has to be sitting there
+// complete and simply transparent (style.css starts .scene2-word at opacity 0
+// in that block, and the constellation owns it from there). Registration waits
+// on the fetch, since the glyph positions come out of the injected <svg>
+// itself; if a fetch never lands, that word stays hidden, exactly as an
+// undrawn folder does today.
+if (WIDE) {
+  for (const { folder } of scene2Words) folder.fill()
+  for (const { word, folder, side } of scene2Words) {
+    folder.ready.then((svg) => scene.constellation.addSource(svg, side, word))
+  }
+}
+
 let introShown = -1
 let rowShown = -1
+let rowLive = false
 
 /** Fade and lift the intro line, driven by the same progress as the scene. */
 function updateIntro(progress: number): void {
@@ -203,14 +235,27 @@ function updateIntro(progress: number): void {
  * Fade the Scene 2 row in, off the same progress as everything else. The
  * reveal window is not part of the row and carries no opacity of its own here:
  * it is invisible until it is opened, which only the row's live words can do.
+ *
+ * On wide screens the row is a full-viewport layer holding three things that
+ * arrive on two different schedules, so the fade moves down onto the portrait
+ * and the row itself stays opaque: an opacity on the row would multiply into
+ * the two folders as well, and they answer to the constellation's own gate,
+ * which opens far earlier than this one. Which is also why the words go live
+ * there when the constellation says they are built and on screen, rather than
+ * at ROW_ACTIVE_AT — by then the folders have been sitting there, readable and
+ * apparently clickable, for most of the transition.
  */
 function updateScene2Row(progress: number): void {
   const t = clamp((progress - ROW_FADE_START) / (1 - ROW_FADE_START), 0, 1)
-  if (Math.abs(t - rowShown) < 0.002) return // skip redundant style writes
-  rowShown = t
-  scene2Row.style.opacity = String(t)
+  if (Math.abs(t - rowShown) >= 0.002) {
+    // skip redundant style writes
+    rowShown = t
+    ;(WIDE ? mark.el : scene2Row).style.opacity = String(t)
+  }
 
-  const active = t > ROW_ACTIVE_AT
+  const active = WIDE ? scene.constellation.live : t > ROW_ACTIVE_AT
+  if (active === rowLive) return
+  rowLive = active
   scene2Row.classList.toggle('is-live', active) // lets the words take the pointer
   // Scrolling back toward Scene 1 also puts an open window away, rather than
   // leaving a preview over the transition.
@@ -234,13 +279,17 @@ function raf(time: number) {
     // does not rewind) if scrolled away before it finishes, and does nothing
     // once fully drawn.
     mark.update(time, rowShown > 0)
-    // Each word's own label waits for that word's own folder icon to finish
-    // its first draw-in before it is allowed to show (see .is-label-shown in
-    // style.css, scoped to tablets/desktop where the icon actually draws).
+    // Each word's own label waits for that word's own folder mark to arrive
+    // before it is allowed to show (see .is-label-shown in style.css, scoped
+    // to tablets/desktop where the mark actually appears). What it waits on
+    // depends on how the mark got there: the typed-in draw reporting itself
+    // done, or — on wide screens, where folder.update() is already retired by
+    // the fill() above — the constellation reporting the folders built.
     // `classList.add` is idempotent, so no extra bookkeeping is needed to
-    // call it again on every later frame once the draw is done.
+    // call it again on every later frame once that has happened.
     for (const { word, folder } of scene2Words) {
-      if (folder.update(time, rowShown > 0)) word.classList.add('is-label-shown')
+      const arrived = WIDE ? scene.constellation.live : folder.update(time, rowShown > 0)
+      if (arrived) word.classList.add('is-label-shown')
     }
   }
   revealWindow.update(state)

@@ -499,28 +499,45 @@ body {
     max-width: none;
     transform: none;
     display: block;
+    /* The row itself no longer fades — it holds three things arriving on two
+       different schedules, and an opacity here would multiply into both of
+       them. main.ts moves the row's fade down onto the portrait and hands the
+       two words to the constellation, whose gate opens far earlier. */
+    opacity: 1;
+    will-change: auto;
   }
 
   /* Unchanged in position from the block above — still top-centred. The
      portrait's own place in this composition is still open (it was sized
      against a band that no longer exists); it is deliberately left where it
-     was for now. */
+     was for now. It carries the row's old fade now, on the same schedule and
+     from the same code. */
   .scene2-mark {
     position: absolute;
     top: var(--row-top);
     left: 50%;
     transform: translateX(-50%);
+    opacity: 0;
+    will-change: opacity;
   }
 
   /* Centred on the model's own height, hard against the screen's edges. The
      --row-word-lift nudge from the block above is deliberately dropped here:
      it existed to sit the words just off the *portrait's* centre line, and
-     these no longer flank the portrait. */
+     these no longer flank the portrait.
+
+     Transparent until the constellation raises them (three/constellation.ts
+     owns both halves of that cross-fade). It has to start here in CSS rather
+     than in JS: the artwork is filled in complete the moment it loads, so
+     anything that let it paint before the stars arrive would give the trick
+     away — and if a fetch never lands, staying hidden is the right failure. */
   .scene2-word--system,
   .scene2-word--projects {
     position: absolute;
     top: 50%;
     transform: translateY(-50%);
+    opacity: 0;
+    will-change: opacity;
   }
 
   .scene2-word--system {
