@@ -20,11 +20,13 @@
  * same soft sprite and the same PointsMaterial as the rest of the site's
  * stars: these read as the *same* stars arriving, which is the entire point.
  *
- * **One shot, then it holds.** It fires once when the scroll crosses
- * TRIGGER_AT, runs on wall-clock time from there, and retires — scrolling back
- * up and down again finds the folders already built, never rebuilding them.
- * Same shape as `lib/ascii-reveal.ts`'s draw-once-and-hold, including the
- * pause: the clock only advances while the layer is actually on screen.
+ * **Every position here is a pure function of the scroll**, like the rest of
+ * the transition — nothing is accumulated, nothing runs on a clock. Scroll
+ * down and the stars fly in and build the folder; scroll back up and they take
+ * it apart and leave the way they came, exactly reversed. This replaced a
+ * one-shot that played on wall-clock time the first time the scroll crossed a
+ * threshold; the version that reads the scroll is both better to watch and the
+ * one that matches how everything else in `scene.ts` works.
  *
  * Palette: grayscale only, straight off the artwork's own grey ramp.
  */
@@ -56,33 +58,38 @@ export type Side = 'left' | 'right'
  */
 const STARS_PER_FOLDER = 5200
 
-/** Scroll progress at which the whole thing fires, once. */
-const TRIGGER_AT = 0.62
-
+// --- The scroll window ---
 /**
- * The layer's own scroll gate — separate from the Scene 2 row's fade, and
- * deliberately much earlier than it, because the stars have to be on screen
- * well before the row arrives. Reaches 1 exactly at TRIGGER_AT, so the effect
- * always begins fully visible; below GATE_START everything here is gone, which
- * is what keeps Scene 1 clean if the reader scrolls back up.
+ * Scroll progress at which the first stars start entering, and at which the
+ * last one lands.
+ *
+ * `ENTER_AT` is measured against when the sky actually empties, not guessed.
+ * Counting stars inside the frustum across the scroll: the ambient cloud is
+ * gone by ~0.42, and the close-in band still has **33% of its stars on screen
+ * at 0.45**, 21% at 0.50 and 5% at 0.60. Starting here means the arriving
+ * stream genuinely crosses the departing one during the band's last stretch,
+ * rather than waiting for a blank sky — which is the point, and which is what
+ * a later start got wrong.
+ *
+ * `FORM_AT` leaves the last 8% of the scroll as a settled folder.
  */
-const GATE_START = 0.52
-const GATE_END = TRIGGER_AT
+const ENTER_AT = 0.45
+const FORM_AT = 0.92
+/** Progress at which the stars themselves have fully gone, leaving the artwork. */
+const FADE_END = 0.97
 
-// --- The flight ---
-/** How long one star's own flight lasts, and how much that varies per star. */
-const TRAVEL_MS = 2000
+// --- The flight, all in fractions of the ENTER_AT..FORM_AT window ---
+/** How much of the window one star's own flight takes, and its per-star spread. */
+const TRAVEL_SPAN = 0.55
 const TRAVEL_JITTER = 0.18
-/** Spread of departure times across a folder's stars. */
-const STAGGER_MS = 1100
 /**
- * How much of that stagger follows the star's place in the artwork rather than
- * chance. The folder fills from the edge the stars arrive at, inward, so the
- * stream reads as depositing itself; pure randomness reads as static.
+ * How much of a star's departure point follows its place in the artwork rather
+ * than chance. The folder fills from the edge the stars arrive at, inward, so
+ * the stream reads as depositing itself; pure randomness reads as static.
  */
 const ORDER_WEIGHT = 0.7
-/** The left side sets off this much after the right — mirrored looks mechanical. */
-const SIDE_LEAD_MS = 240
+/** The left side sets off this much later than the right — mirrored looks mechanical. */
+const SIDE_LEAD = 0.06
 /**
  * Deceleration exponent. Strongly eased out: the stars arrive fast and settle
  * slowly, which is what sells them as coming to rest rather than stopping.
@@ -98,28 +105,19 @@ const ENTRY_SPREAD_H = 0.34
 /** How far a path bows off the straight line at its midpoint. */
 const BOW_PX = 90
 
-// --- The settle ---
-/** A small decaying wobble as each star lands, so nothing arrives dead. */
-const SETTLE_PX = 0.7
-const SETTLE_MS = 620
-const SETTLE_RATE = 0.017 // radians per ms
-
 // --- The swap ---
-/** Latest a star can land: the whole formation is done by here. */
-const FORM_MS = STAGGER_MS + SIDE_LEAD_MS + TRAVEL_MS * (1 + TRAVEL_JITTER)
 /**
- * The artwork fades in *while the last stars are still landing* and reaches
- * full exactly as the formation completes, so the two pictures overlap rather
- * than hand over. The stars then hold a moment on top of it before fading —
- * additive, so the overlap just reads as the constellation settling to its
- * final brightness.
+ * Where in the window the artwork starts fading in. It reaches full exactly at
+ * the end of it — i.e. as the last stars land — so the two pictures overlap
+ * rather than hand over. Additive blending means the overlap just reads as the
+ * constellation settling to its final brightness.
+ *
+ * There is deliberately **no settle wobble** on a landed star. The one this
+ * had was a decaying oscillation in wall-clock time, which cannot survive
+ * being driven by the scroll: it would freeze mid-wobble the moment the reader
+ * stopped scrolling. A star lands and stays exactly landed.
  */
-const SWAP_MS = 900
-const SWAP_AT = FORM_MS - SWAP_MS
-const STAR_HOLD_MS = 250
-const STAR_FADE_MS = 800
-const STAR_FADE_AT = FORM_MS + STAR_HOLD_MS
-const END_MS = STAR_FADE_AT + STAR_FADE_MS
+const SWAP_START = 0.78
 
 /**
  * Extra brightness while the stars are still travelling, easing back to 1 as
@@ -141,8 +139,13 @@ const POINT_SIZE_UNITS = 10
 /** Smallest opacity change worth writing to the DOM. */
 const OPACITY_EPSILON = 0.004
 
-/** Longest frame gap honoured, so a backgrounded tab doesn't skip the flight. */
-const MAX_DELTA_MS = 100
+/**
+ * Smallest change in window position worth re-walking the points for. The
+ * scroll is lerped, so it keeps moving for a moment after the reader stops and
+ * then settles — below this the positions are already right and the whole
+ * per-frame pass is skipped.
+ */
+const STEP_EPSILON = 0.0002
 
 interface Source {
   svg: SVGSVGElement
@@ -160,12 +163,13 @@ interface Source {
   spreads: Float32Array
   depths: Float32Array
   bows: Float32Array
-  phases: Float32Array
   positions: Float32Array
   posAttr: Float32BufferAttribute
   mesh: Points
   material: PointsMaterial
   hostOpacity: number
+  /** Targets measured against a laid-out page at least once. */
+  aimed: boolean
 }
 
 export interface Constellation {
@@ -175,15 +179,18 @@ export interface Constellation {
    * element whose opacity is the other half of the cross-fade.
    */
   addSource(svg: SVGSVGElement, side: Side, host: HTMLElement): void
-  /** Advance the one-shot. Cheap no-op before it fires and after it retires. */
-  update(time: number, progress: number): void
+  /**
+   * Place everything for this scroll position. Pure — the same `progress`
+   * always produces the same frame — and a cheap no-op outside the window.
+   */
+  update(progress: number): void
   /** Draw, if there is anything to draw. */
   render(renderer: WebGLRenderer): void
   resize(): void
   /**
    * Whether the folders are formed and on screen — i.e. whether it makes sense
-   * for them to accept a click. False again if the reader scrolls back toward
-   * Scene 1, even though the formation itself never replays.
+   * for them to accept a click. False again the moment the reader scrolls back
+   * up far enough to start taking them apart.
    */
   readonly live: boolean
 }
@@ -208,12 +215,9 @@ export function createConstellation(): Constellation {
   const sources: Source[] = []
   const color = new Color()
 
-  /** ms since the trigger; only advances while the layer is on screen. */
-  let elapsed = 0
-  let prevTime = 0
-  let started = false
-  let finished = false
-  let gate = 0
+  /** Position in the ENTER_AT..FORM_AT window, 0..1. The only state there is. */
+  let placedAt = -1
+  let drawing = false
   let live = false
 
   function buildStart(src: Source, i: number): void {
@@ -234,6 +238,7 @@ export function createConstellation(): Constellation {
     if (!scale) return // not rendered (display: none, or not laid out yet)
     src.material.size = scale * POINT_SIZE_UNITS
     for (let i = 0; i < src.count; i++) buildStart(src, i)
+    src.aimed = true
   }
 
   function addSource(svg: SVGSVGElement, side: Side, host: HTMLElement): void {
@@ -260,19 +265,22 @@ export function createConstellation(): Constellation {
     const spreads = new Float32Array(count)
     const depths = new Float32Array(count)
     const bows = new Float32Array(count)
-    const phases = new Float32Array(count)
 
-    const lead = dir > 0 ? 0 : SIDE_LEAD_MS
+    const lead = dir > 0 ? 0 : SIDE_LEAD
     for (let i = 0; i < count; i++) {
       const g = glyphs[i]
       const nx = (g.x - minX) / span
       const order = dir > 0 ? 1 - nx : nx
-      delays[i] = lead + STAGGER_MS * (order * ORDER_WEIGHT + Math.random() * (1 - ORDER_WEIGHT))
-      durations[i] = TRAVEL_MS * rand(1 - TRAVEL_JITTER, 1 + TRAVEL_JITTER)
+      const duration = TRAVEL_SPAN * rand(1 - TRAVEL_JITTER, 1 + TRAVEL_JITTER)
+      // Delay + duration can never exceed the window: the slack left over
+      // after this star's own flight is all there is to spend on waiting, so
+      // the last star lands exactly at FORM_AT however the dice fell.
+      const slack = Math.max(0, 1 - duration - lead)
+      durations[i] = duration
+      delays[i] = lead + slack * (order * ORDER_WEIGHT + Math.random() * (1 - ORDER_WEIGHT))
       spreads[i] = rand(-1, 1)
       depths[i] = Math.random()
       bows[i] = rand(-BOW_PX, BOW_PX)
-      phases[i] = rand(0, Math.PI * 2)
 
       // The star wears the grey of the character it is going to become.
       color.setRGB(g.level, g.level, g.level)
@@ -323,10 +331,10 @@ export function createConstellation(): Constellation {
       spreads,
       depths,
       bows,
-      phases,
       mesh,
       material,
       hostOpacity: -1,
+      aimed: false,
     }
 
     reaim(src)
@@ -339,96 +347,57 @@ export function createConstellation(): Constellation {
     src.host.style.opacity = String(value)
   }
 
-  function advance(src: Source, t: number): void {
+  /** Place every star for window position `p` (0..1). No state, no history. */
+  function place(src: Source, p: number): void {
     const pos = src.positions
     const targets = src.targets
     const starts = src.starts
 
     for (let i = 0; i < src.count; i++) {
       const i3 = i * 3
-      const local = clamp((t - src.delays[i]) / src.durations[i], 0, 1)
+      const local = clamp((p - src.delays[i]) / src.durations[i], 0, 1)
       const eased = 1 - Math.pow(1 - local, TRAVEL_EASE)
 
-      const tx = targets[i3]
-      const ty = targets[i3 + 1]
-      let x = starts[i3] + (tx - starts[i3]) * eased
-      let y = starts[i3 + 1] + (ty - starts[i3 + 1]) * eased + Math.sin(Math.PI * local) * src.bows[i]
-
-      if (local >= 1) {
-        // Landed: a wobble that dies out over SETTLE_MS, so the arrival reads
-        // as settling rather than as a hard stop on a grid.
-        const age = t - src.delays[i] - src.durations[i]
-        if (age < SETTLE_MS) {
-          const damp = (1 - age / SETTLE_MS) * SETTLE_PX
-          const phase = src.phases[i] + age * SETTLE_RATE
-          x += Math.cos(phase) * damp
-          y += Math.sin(phase * 1.3) * damp
-        }
-      }
-
-      pos[i3] = x
-      pos[i3 + 1] = y
+      const sx = starts[i3]
+      const sy = starts[i3 + 1]
+      pos[i3] = sx + (targets[i3] - sx) * eased
+      pos[i3 + 1] =
+        sy + (targets[i3 + 1] - sy) * eased + Math.sin(Math.PI * local) * src.bows[i]
     }
     src.posAttr.needsUpdate = true
   }
 
-  function update(time: number, progress: number): void {
-    gate = clamp((progress - GATE_START) / (GATE_END - GATE_START), 0, 1)
+  function update(progress: number): void {
+    if (!sources.length) return
 
-    if (finished) {
-      // Retired: the stars are gone for good, but the artwork underneath still
-      // has to answer to the scroll so it never hangs over Scene 1.
-      for (const src of sources) setHostOpacity(src, gate)
-      live = gate > 0.99
-      return
-    }
+    // The whole state of this layer, from one number. Scrolling back up runs
+    // every one of these backwards, which is the point.
+    const p = clamp((progress - ENTER_AT) / (FORM_AT - ENTER_AT), 0, 1)
+    const starFade = 1 - clamp((progress - FORM_AT) / (FADE_END - FORM_AT), 0, 1)
+    const swap = clamp((p - SWAP_START) / (1 - SWAP_START), 0, 1)
+    const opacity = starFade * (1 + (TRAVEL_BOOST - 1) * (1 - p))
 
-    if (!started) {
-      if (progress < TRIGGER_AT || !sources.length) return
-      started = true
-      prevTime = time
-      for (const src of sources) {
-        // Re-aim on the way in, not just at registration: the folders are
-        // measured the moment their file lands, and the row can still settle
-        // after that (a webfont arriving changes the label's height, and the
-        // button is centred on it). This is the last chance to be exact, and
-        // it costs one pass over the points, once.
-        reaim(src)
-        src.mesh.visible = true
-      }
-    }
+    live = swap >= 1
+    drawing = p > 0 && opacity > OPACITY_EPSILON
 
-    const delta = Math.min(time - prevTime, MAX_DELTA_MS)
-    prevTime = time
-    // Paused, not rewound, while the layer is off screen — the same treatment
-    // ascii-reveal gives its draw.
-    if (gate > 0) elapsed += delta
-
-    const t = elapsed
-    const forming = clamp(t / FORM_MS, 0, 1)
-    const starFade = 1 - clamp((t - STAR_FADE_AT) / STAR_FADE_MS, 0, 1)
-    const swap = clamp((t - SWAP_AT) / SWAP_MS, 0, 1)
-    const boost = 1 + (TRAVEL_BOOST - 1) * (1 - forming)
+    const moved = Math.abs(p - placedAt) >= STEP_EPSILON
+    if (moved) placedAt = p
 
     for (const src of sources) {
-      advance(src, t)
-      src.material.opacity = gate * starFade * boost
-      setHostOpacity(src, gate * swap)
-    }
-
-    live = swap >= 1 && gate > 0.99
-
-    if (t >= END_MS) {
-      finished = true
-      for (const src of sources) {
-        src.mesh.visible = false
-        src.material.opacity = 0
-      }
+      // Aim on the way in rather than only at registration: a folder is
+      // measured the moment its file lands, and the row can still settle after
+      // that (a webfont arriving changes the label's height, and the button is
+      // centred on it). Cheap, and it happens once per source.
+      if (drawing && !src.aimed) reaim(src)
+      src.mesh.visible = drawing
+      if (drawing && moved) place(src, p)
+      src.material.opacity = opacity
+      setHostOpacity(src, swap)
     }
   }
 
   function render(renderer: WebGLRenderer): void {
-    if (!started || finished) return
+    if (!drawing) return
     renderer.render(scene, camera)
   }
 
@@ -437,6 +406,7 @@ export function createConstellation(): Constellation {
     camera.bottom = window.innerHeight
     camera.updateProjectionMatrix()
     for (const src of sources) reaim(src)
+    placedAt = -1 // every start position moved; the next frame has to re-place
   }
 
   return {

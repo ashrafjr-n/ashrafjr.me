@@ -511,7 +511,7 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
     }
 
     world.update(delta, progress)
-    constellation.update(time, progress)
+    constellation.update(progress)
 
     renderer.clear()
     renderer.render(starfield, world.camera) // same vantage -> same orbital plane
