@@ -11,13 +11,14 @@
  * black and the page background is the same black, so it reads as one
  * continuous surface.
  *
- * **The camera never moves and the model is never resized.** This layer's only
- * response to the scroll is the extra spin below — Scene 2 is reached by the
- * stars scattering away and the two folder constellations arriving, not by
- * recomposing the model. An earlier version dollied the camera in, levelled
- * it, tilted it back up and grew the pivot across the same scroll; all of it
- * was removed deliberately (see the Removed section of CLAUDE.md) and none of
- * it should come back without the whole composition being rethought.
+ * **The camera never moves.** This layer answers to the scroll in exactly two
+ * ways — one extra turn, and a modest growth — and both are on the model
+ * itself. Scene 2 is reached by the stars scattering away and the two folder
+ * constellations arriving, not by recomposing the shot. An earlier version
+ * dollied the camera in, levelled it, tilted it back up and anchored the model
+ * to the bottom edge of the frame across the same scroll; all of that was
+ * removed deliberately (see the Removed section of CLAUDE.md) and none of it
+ * should come back without the whole composition being rethought.
  *
  * Palette: white/black/silver-gray only.
  */
@@ -45,12 +46,48 @@ const CAMERA_TARGET = { x: 0, y: 0.25, z: 0 } // model's own mid-height: centers
  * spin. Driven by progress rather than elapsed time, so it lands on exactly
  * this many turns however fast or slow the page is scrolled.
  *
- * This is the *only* thing the scroll does to the model now, so it is also the
- * whole of "the model spins faster as you scroll" — raise it to speed the
- * transition spin up, and keep it a whole number so the model finishes square
- * with where it started.
+ * Keep it a whole number, so the model finishes square with where it started.
+ * It was briefly 2 and that read as too fast and too many — one turn across
+ * the whole scroll is the pace this transition wants.
  */
-const TRANSITION_TURNS = 2
+const TRANSITION_TURNS = 1
+
+/**
+ * How much larger the model runs by Scene 2. Mixed in by the same `progress`
+ * as the spin, so it grows through the transition and is at full size exactly
+ * when the folders are.
+ *
+ * Applied to the pivot `Group`, not to the model's own `fitModel()` scale: the
+ * pivot's local origin already sits on the model's ground-centre point, so
+ * scaling it in place doesn't lift the model off `y = 0` or shift its x/z
+ * centre, and uniform scale commutes with the Y-axis spin.
+ */
+const MODEL_SCENE2_SCALE = 1.35
+
+/**
+ * Ceiling on that growth, per unit of aspect ratio — and **what it is
+ * protecting is the two folders, not the frame's edges.**
+ *
+ * The model's on-screen half-width is `0.3124 * scale / aspect` of the screen
+ * width (`CAMERA_FOV` 35 at ~10.15 units with `MODEL_SPAN` 3.5, plus the
+ * near edge's perspective magnification). The flanking folders' inner edges
+ * sit at about 0.281 of the screen width out from the centre at every width
+ * the wide query covers — `--folder-side-inset` and the folder's own `15vw`
+ * ceiling both scale with the viewport, which is what makes that figure
+ * constant. So the model has to stay under it.
+ *
+ * Because the cap is proportional to aspect, `0.3124 * cap` is a constant:
+ * this pins the model's half-width at **23.7% of the screen width** whenever
+ * the cap binds, leaving ~4.4% of clear black between it and each folder. That
+ * is the real reason for the shape of this constant — it holds the gap, rather
+ * than holding a scale.
+ *
+ * `Math.max(1, ...)` is what keeps it safe outside the wide query: on a phone
+ * (aspect ~0.46) the cap computes to 0.35, and without the floor this would
+ * *shrink* the model rather than leave it alone. Narrow viewports get no
+ * growth at all, which is correct — they have no room for it.
+ */
+const MODEL_SCALE_PER_ASPECT = 0.76
 
 const MODEL_URL = '/models/space_boi.glb'
 /**
@@ -124,8 +161,8 @@ export function createWorld(aspect: number): WorldLayer {
   scene.add(new AmbientLight(0xffffff, 1.1), key, fill)
 
   // Rotation pivot: sits at the origin, which fitModel() lines the model's own
-  // centre up with. Spinning this Group keeps the model exactly in place, and
-  // its scale is deliberately left at 1 forever.
+  // centre up with. Spinning and scaling this Group keeps the model exactly in
+  // place; its `position` is never written, so the model stays dead centre.
   const pivot = new Group()
   scene.add(pivot)
 
@@ -155,6 +192,13 @@ export function createWorld(aspect: number): WorldLayer {
     // depends on how long the user took. Negative to match SPIN_SPEED, so the
     // scroll turn continues in the idle direction instead of fighting it.
     pivot.rotation.y = idleAngle - TRANSITION_TURNS * Math.PI * 2 * progress
+
+    // Grow into Scene 2, capped so the model never reaches the folders
+    // standing either side of it. `camera.aspect` is read per frame rather
+    // than cached off a resize listener, so a window dragged wider retunes the
+    // cap the same way the CSS retunes the folders.
+    const scale = Math.max(1, Math.min(MODEL_SCENE2_SCALE, MODEL_SCALE_PER_ASPECT * camera.aspect))
+    pivot.scale.setScalar(1 + (scale - 1) * progress)
   }
 
   function resize(nextAspect: number): void {
