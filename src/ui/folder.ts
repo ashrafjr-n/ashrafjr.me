@@ -1,8 +1,18 @@
 /**
  * Scene 2 folder icon — an ASCII-art folder mark, used for both SYSTEM and
- * PROJECTS on tablets and desktop. Draws itself in, top to bottom, once
- * Scene 2 is reached, and then stays fully drawn — same draw-once controller
- * as the portrait (`lib/ascii-reveal.ts`), so the two read as one system.
+ * PROJECTS on tablets and desktop.
+ *
+ * It arrives one of two ways, decided by the caller once at startup:
+ *  - **narrow** (the min-width: 768px row, below 4:3): `update()` types it in
+ *    top to bottom once Scene 2 is reached, then holds — the same draw-once
+ *    controller as the portrait (`lib/ascii-reveal.ts`), so the two read as
+ *    one system.
+ *  - **wide** (the flanking composition): `fill()` on load, and the star
+ *    constellation assembles it on screen instead and cross-fades to it
+ *    (`three/constellation.ts`), which is what `ready` is for.
+ *
+ * This module stays agnostic between them — it is the element, the file and
+ * the speed, nothing more.
  */
 import { createAsciiReveal, type AsciiReveal } from '../lib/ascii-reveal'
 
@@ -29,6 +39,10 @@ export interface FolderIcon {
    * scrolled away before it finishes.
    */
   update: AsciiReveal['update']
+  /** Show the artwork complete at once, instead of typing it in. */
+  fill: AsciiReveal['fill']
+  /** The injected `<svg>`, once it is in the page. */
+  ready: AsciiReveal['ready']
 }
 
 /**
@@ -42,5 +56,5 @@ export function createFolderIcon(): FolderIcon {
 
   const reveal = createAsciiReveal(el, FOLDER_SRC, `folder-${instanceCount++}`, DRAW_MS)
 
-  return { el, update: reveal.update }
+  return { el, update: reveal.update, fill: reveal.fill, ready: reveal.ready }
 }
