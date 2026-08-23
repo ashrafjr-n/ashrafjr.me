@@ -159,11 +159,27 @@ const BAND_CLEAR_LEVEL = 4.0
 
 // --- Scene 1 -> Scene 2 scroll transition ---
 /**
- * How fast the transition value chases raw scroll. Scroll events arrive in
- * coarse jumps; every part of the transition reads this one smoothed value, so
- * the camera, the spin, the scatter and the fly-past stay locked together.
+ * How fast the transition value chases raw scroll, **per second**. Scroll
+ * events arrive in coarse jumps; every part of the transition reads this one
+ * smoothed value, so the spin, the growth, the scatter, the fly-past and the
+ * folder constellations stay locked together.
+ *
+ * Applied as `1 - exp(-rate * delta)`, not as a flat per-frame fraction. The
+ * flat form (`progress += (target - progress) * 0.08` every frame) makes the
+ * smoothing a function of the refresh rate rather than of time: on a 120Hz
+ * display it takes twice as many steps per second and the whole transition
+ * settles about twice as fast as it does at 60Hz. Same page, same scroll,
+ * different animation.
+ *
+ * `5.0` is solved to reproduce the old behaviour exactly on a 60Hz display,
+ * which is what it was tuned against: `1 - exp(-5 / 60) = 0.0800`. So this is
+ * a correctness fix with no change of feel where it was already right — it is
+ * the other refresh rates that move.
+ *
+ * `delta` is clamped upstream, so a backgrounded tab cannot jump the
+ * transition on the first frame back.
  */
-const SCROLL_LERP = 0.08
+const SCROLL_RATE = 5.0
 
 /**
  * Extra orbit radius each band star gains by full scroll — it flies apart.
@@ -476,8 +492,10 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
     prevTime = time
 
     // One value, advanced once per frame, read by all four moving parts below
-    // — that is what keeps them simultaneous rather than sequential.
-    progress += (state.scroll - progress) * SCROLL_LERP
+    // — that is what keeps them simultaneous rather than sequential. Smoothed
+    // against elapsed time, not per frame, so the transition takes the same
+    // time to settle at 60Hz and at 120Hz — see SCROLL_RATE.
+    progress += (state.scroll - progress) * (1 - Math.exp(-SCROLL_RATE * delta))
 
     // Mouse parallax — tilt the wide field a few degrees, lerped. The band is
     // deliberately left untilted: its full-loop visibility was solved for a
