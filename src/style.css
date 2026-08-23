@@ -246,27 +246,17 @@ body {
 }
 
 /* The portrait runs *smaller* on desktop than the base clamp, which is the
-   opposite of what it did under the old right-hand stack — and it is the
-   model that decides it. Desktop takes the largest of the Scene 2 model
-   tiers (MODEL_SCALE_DESKTOP in three/world.ts), which lands the top of the
-   model's *solid* mass — ring plane, planets, figure — at ~33.8vh with the
-   model bottomed out on the screen's bottom edge; the row has the black band
-   above that and nothing more. At --row-top 1.5vh this clamp ends the
-   portrait's box at 31.5vh on anything between ~600px and ~1333px tall,
-   which is 14–25px of clear black under the artwork — tightest on a short
-   1440x600 window, which is what stops this clamp going higher. Only
-   --row-mark-h moves: the box keeps the artwork's own aspect-ratio, so the
-   width follows.
+   opposite of what it did under the old right-hand stack. It was sized this
+   way against a Scene 2 that grew the model and stood it on the bottom edge
+   of the frame, leaving the row only the shallow band of black above it; that
+   whole rig is gone (three/world.ts holds the camera and the model still
+   now), so this clamp no longer has a model crowding it and is simply the
+   size the artwork currently runs at on desktop. Only --row-mark-h moves: the
+   box keeps the artwork's own aspect-ratio, so the width follows. It also
+   still sizes the folder icons, which are derived from it — see the two
+   blocks below.
 
-   The model's own particle cloud reaches higher than its solid mass, to
-   ~23vh, so the portrait's lower half has the model's loose white dots
-   behind it. That is deliberate — the page's starfield is already behind the
-   artwork, and holding the cloud under the row would cost the model most of
-   its size — but it is why the clearance above is measured against the solid
-   mass rather than the model's full silhouette.
-
-   Tablets (768–899.98px) keep the base clamp above — their model tier is
-   smaller again, so the band above it is deeper, not shallower.
+   Tablets (768–899.98px) keep the base clamp above.
 
    --row-bottom no longer positions .scene2-row at this breakpoint — the
    min-width: 768px block below anchors the row to the top instead. Its 4vh
@@ -341,16 +331,17 @@ body {
 
    Keeps the base rule's horizontal flanking line (SYSTEM — portrait —
    PROJECTS, centred on each other and on the screen) and re-anchors it to
-   the *top* of the viewport, because Scene 2 now stands the model itself
-   centred and bottom-anchored underneath it (MODEL_SCALE_* and
-   solveBottomRise() in three/world.ts, gated on the same 767.98px breakpoint
-   via matchMedia there). The two halves are one composition: the model rests
-   on the bottom edge of the frame, the row occupies the band of black it
-   leaves above. Retuning either — the model's scale tiers, --row-top,
-   --row-mark-h — wants the other re-checked, or the portrait's feet run into
-   the model's rings and planets. The model is sized right up against that
-   line (see the min-width: 900px block above), so there is no slack left in
-   this pairing to spend without moving one of the two.
+   the *top* of the viewport.
+
+   **This is now the narrow-tablet fallback, not the main desktop layout.**
+   It was written for a Scene 2 that grew the model and stood it on the bottom
+   edge of the frame, with this row in the band of black above; that rig has
+   been removed and the real wide-screen composition is the
+   `min-width: 900px and (min-aspect-ratio: 4/3)` block further down, which
+   overrides almost all of this. What still reaches the screen from here is
+   the 768–899.98px band and any wider viewport that is narrower than 4:3 —
+   an iPad in portrait, mainly — where there is no room beside the model for
+   the flanking folders and this top row is what runs instead.
 
    This replaced a right-anchored vertical stack (portrait, PROJECTS, SYSTEM,
    top to bottom) paired with the model shifted off to the left; nothing of
