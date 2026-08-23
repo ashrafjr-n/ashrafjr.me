@@ -14,7 +14,6 @@ import type { Side } from './three/constellation'
 import { lockScroll, unlockScroll } from './lib/scroll-lock'
 import { state, initPointer, initScroll } from './lib/state'
 import { buildSocialBadges } from './ui/social'
-import { createMark, type Mark } from './ui/mark'
 import { createFolderIcon, type FolderIcon } from './ui/folder'
 import { createRevealWindow } from './ui/reveal-window'
 
@@ -81,18 +80,19 @@ function buildRowWord(text: string, modifier: string): { word: HTMLButtonElement
 }
 
 /**
- * Scene 2 row: SYSTEM, the portrait, PROJECTS — three elements on one line,
- * vertically centred on each other. Horizontally centred on the screen too,
- * below the model in the levelled phone view and above the bottom-anchored
- * model from 768px up (style.css decides which). No cards, no frames, no
- * dividers: the two flush
- * bordered cards that used to be here were removed deliberately, so nothing in
- * this row may grow a background, border or rectangle of its own.
+ * Scene 2 row: SYSTEM and PROJECTS. No cards, no frames, no dividers: the two
+ * flush bordered cards that used to be here were removed deliberately, so
+ * nothing in this row may grow a background, border or rectangle of its own.
+ *
+ * **The portrait is temporarily not mounted.** `ui/mark.ts`, the `.scene2-mark`
+ * rules in style.css and me.svg itself are all still there and untouched — it
+ * is only left out of the row while where it belongs in this composition is
+ * decided. Putting it back is `createMark()` plus one `row.append` and one
+ * `mark.update()` call in the loop; nothing else was unpicked for this.
  */
 function buildScene2Row(): {
   row: HTMLDivElement
   projects: HTMLButtonElement
-  mark: Mark
   /** `side` is the screen edge each word stands on in the wide composition —
    *  and therefore the edge its constellation of stars flies in from. */
   words: { word: HTMLButtonElement; folder: FolderIcon; side: Side }[]
@@ -111,15 +111,11 @@ function buildScene2Row(): {
     e.stopPropagation()
   })
   const { word: projects, folder: projectsFolder } = buildRowWord('PROJECTS', 'projects')
-  // The portrait draws itself in; it is advanced from the RAF loop below and
-  // only starts once the row is on screen.
-  const mark = createMark('ASCII-art portrait of Ashraf')
 
-  row.append(system, mark.el, projects)
+  row.append(system, projects)
   return {
     row,
     projects,
-    mark,
     words: [
       { word: system, folder: systemFolder, side: 'left' },
       { word: projects, folder: projectsFolder, side: 'right' },
@@ -135,7 +131,7 @@ const canvas = document.createElement('canvas')
 canvas.id = 'scene'
 
 const intro = buildIntro()
-const { row: scene2Row, projects, mark, words: scene2Words } = buildScene2Row()
+const { row: scene2Row, projects, words: scene2Words } = buildScene2Row()
 app.append(canvas, intro, scene2Row)
 
 // --- Starfield + model, and the input they read ---
@@ -236,21 +232,20 @@ function updateIntro(progress: number): void {
  * reveal window is not part of the row and carries no opacity of its own here:
  * it is invisible until it is opened, which only the row's live words can do.
  *
- * On wide screens the row is a full-viewport layer holding three things that
- * arrive on two different schedules, so the fade moves down onto the portrait
- * and the row itself stays opaque: an opacity on the row would multiply into
- * the two folders as well, and they answer to the constellation's own gate,
- * which opens far earlier than this one. Which is also why the words go live
- * there when the constellation says they are built and on screen, rather than
- * at ROW_ACTIVE_AT — by then the folders have been sitting there, readable and
- * apparently clickable, for most of the transition.
+ * On wide screens the row itself carries no fade at all: it is a full-viewport
+ * layer whose only children are the two words, and those answer entirely to
+ * the constellation, which starts far earlier than ROW_FADE_START and reverses
+ * with the scroll. An opacity here would multiply into them. Which is also why
+ * the words go live there when the constellation says they are built, rather
+ * than at ROW_ACTIVE_AT — by then the folders would have been sitting there,
+ * readable and apparently clickable, for most of the transition.
  */
 function updateScene2Row(progress: number): void {
   const t = clamp((progress - ROW_FADE_START) / (1 - ROW_FADE_START), 0, 1)
-  if (Math.abs(t - rowShown) >= 0.002) {
+  if (!WIDE && Math.abs(t - rowShown) >= 0.002) {
     // skip redundant style writes
     rowShown = t
-    ;(WIDE ? mark.el : scene2Row).style.opacity = String(t)
+    scene2Row.style.opacity = String(t)
   }
 
   const active = WIDE ? scene.constellation.live : t > ROW_ACTIVE_AT
@@ -274,11 +269,6 @@ function raf(time: number) {
     const progress = scene.update(time, state)
     updateIntro(progress)
     updateScene2Row(progress)
-    // `rowShown` is the row's own fade, so the portrait and the two folder
-    // icons start drawing exactly when Scene 2 is reached; each pauses (it
-    // does not rewind) if scrolled away before it finishes, and does nothing
-    // once fully drawn.
-    mark.update(time, rowShown > 0)
     // Each word's own label waits for that word's own folder mark to arrive
     // before it is allowed to show (see .is-label-shown in style.css, scoped
     // to tablets/desktop where the mark actually appears). What it waits on
