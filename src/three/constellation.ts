@@ -56,7 +56,7 @@ import type { CanvasTexture, WebGLRenderer } from 'three'
 import { clamp, rand } from '../lib/math'
 import { sampleGlyphPoints, toScreenPoints, type GlyphPoint } from '../lib/ascii-points'
 import { createCircleTexture } from './sprite'
-import { STAR_BRIGHT_MIN, STAR_BRIGHT_MAX, STAR_OPACITY } from './star-look'
+import { STAR_BRIGHT_MIN, STAR_BRIGHT_MAX, STAR_OPACITY, STAR_SIZE_PER_VH } from './star-look'
 
 /** Which screen edge a constellation's stars come in from. */
 export type Side = 'left' | 'right'
@@ -64,10 +64,16 @@ export type Side = 'left' | 'right'
 /**
  * Characters sampled per folder. Chosen against the artwork's own grid rather
  * than picked: folder.svg carries 10,448 glyphs, so this takes roughly every
- * second one, which puts the sampled points ~2.3px apart horizontally against
- * the ~2.2px the lines already sit apart vertically. An even grid at the
- * target is what lets the constellation read as a continuous mass instead of
- * scan lines. Halve it and the folder reads as horizontal dashes.
+ * second one, which puts the sampled points **~2.26px apart horizontally
+ * against the ~2.22px the lines already sit apart vertically** — a square
+ * grid.
+ *
+ * That evenness is the whole reason for the number, and it survived the stars
+ * being shrunk to the size the orbiting ones draw at (see STAR_SIZE_PER_VH):
+ * a ~1.06px dot on a square ~2.2px grid is an even stipple, where doubling the
+ * count would only close the horizontal gaps — the line pitch is fixed by the
+ * file — and turn the folder into dense scan lines with clear gaps between
+ * them. Halving it reads as horizontal dashes for the same reason.
  */
 const STARS_PER_FOLDER = 5200
 
@@ -131,15 +137,6 @@ const BOW_PX = 90
  * stopped scrolling. A star lands and stays exactly landed.
  */
 const SWAP_START = 0.78
-
-/**
- * Point size, in viewBox units of the artwork rather than pixels — so it is
- * derived from the same `getScreenCTM()` scale as the targets and stays
- * correct against the glyph grid at every viewport size. 10 units is a little
- * over one sampled cell, which is what makes the landed constellation
- * continuous instead of stippled.
- */
-const POINT_SIZE_UNITS = 10
 
 /** Smallest opacity change worth writing to the DOM. */
 const OPACITY_EPSILON = 0.004
@@ -234,14 +231,15 @@ export function createConstellation(): Constellation {
     src.starts[i3 + 1] = src.targets[i3 + 1] + src.spreads[i] * ENTRY_SPREAD_H * h
   }
 
-  /**
-   * Re-read where the artwork actually sits and re-aim every star at it. Also
-   * where the point size comes from, since both follow the same matrix.
-   */
+  /** Re-read where the artwork actually sits and re-aim every star at it. */
   function reaim(src: Source): void {
+    // Sized off the viewport, not off the artwork's own scale: these have to
+    // draw at exactly the width the orbiting stars do, and that is what
+    // follows the viewport height. See STAR_SIZE_PER_VH.
+    src.material.size = STAR_SIZE_PER_VH * window.innerHeight
+
     const scale = toScreenPoints(src.svg, src.glyphs, src.targets)
     if (!scale) return // not rendered (display: none, or not laid out yet)
-    src.material.size = scale * POINT_SIZE_UNITS
     for (let i = 0; i < src.count; i++) buildStart(src, i)
     src.aimed = true
   }
