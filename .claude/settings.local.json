@@ -14,7 +14,9 @@
       "Bash(node -e \"console.log\\(require\\('./node_modules/three/package.json'\\).version\\)\")",
       "Bash(node -e \"const p=require\\('./node_modules/gsap/package.json'\\); console.log\\(p.version\\); console.log\\(JSON.stringify\\(p.exports?.['.']||p.main\\)\\)\")",
       "Bash(cd *)",
-      "Bash(npx tsc *)"
+      "Bash(npx tsc *)",
+      "Bash(git add *)",
+      "Bash(git commit *)"
     ]
   }
 }

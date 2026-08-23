@@ -11,6 +11,14 @@
  * black and the page background is the same black, so it reads as one
  * continuous surface.
  *
+ * **The camera never moves and the model is never resized.** This layer's only
+ * response to the scroll is the extra spin below — Scene 2 is reached by the
+ * stars scattering away and the two folder constellations arriving, not by
+ * recomposing the model. An earlier version dollied the camera in, levelled
+ * it, tilted it back up and grew the pivot across the same scroll; all of it
+ * was removed deliberately (see the Removed section of CLAUDE.md) and none of
+ * it should come back without the whole composition being rethought.
+ *
  * Palette: white/black/silver-gray only.
  */
 import {
@@ -32,173 +40,17 @@ const CAMERA_FOV = 35
 const CAMERA_POS = { x: 0, y: 9.3, z: 4.6 }
 const CAMERA_TARGET = { x: 0, y: 0.25, z: 0 } // model's own mid-height: centers it on screen
 
-// --- Scene 2 framing, reached at scroll progress 1 ---
-// Dead level: the eye and the look-at point share a height, so the pitch is
-// exactly 0° — a straight-on view of the model rather than the ~63° overhead of
-// Scene 1. Keep these two `y` values equal to keep the view level.
-// The height is the model's own mid-height, which centres it in frame.
-// This is the phone framing — see MOBILE below. Desktop/tablet get the WIDE
-// variants instead.
-const SCENE2_CAMERA_POS = { x: 0, y: 0.3, z: 4.3 }
-const SCENE2_CAMERA_TARGET = { x: 0, y: 0.3, z: 0 }
-
-/**
- * Desktop/tablet-only Scene 2 recomposition.
- *
- * Earlier passes chased the base slab's wave lines by flattening *pitch*
- * toward 0° (13° → 6.6° → 3.3° → dead level), on the theory that a level
- * camera sees a flat ground pattern edge-on. That theory was incomplete: at
- * dead level the ring still rendered as a curve, because "pitch" here is the
- * angle of the ray toward SCENE2_CAMERA_TARGET_WIDE (roughly screen centre),
- * not the ray toward the ring — and the ring is deliberately parked down at
- * SCENE2_BOTTOM_NDC, near/past the bottom edge, which is a ray angled a good
- * chunk of the vertical half-FOV *below* the centre ray regardless of the
- * camera's own pitch. What actually determines whether the ring looks edge-on
- * is the camera's **height relative to the ring's own height** — a circle is
- * only seen as a flat line from a viewpoint level with its own plane, the way
- * a person standing sees rings on the ground in front of them edge-on, not
- * the ellipse a bird's-eye view would show.
- *
- * Under dead level (POS_WIDE.y === TARGET_WIDE.y), solveBottomRise() was
- * landing the eye at roughly ring-height + 0.87 in fitted units — well above
- * the ring, hence the persisting curve. Fixing it means going the other way
- * from the previous passes: **tilt the camera up** (target above eye, not
- * below) so the *smaller* rise needed to still hit SCENE2_BOTTOM_NDC lands
- * the eye essentially at the ring's own height instead of high above it.
- *
- * The tilt is solved, not guessed: solveBottomRise()'s `a` term is the gap
- * between the eye's final height and the ring's, and — because MODEL_RING_Y
- * cancels out of the condition — `a = 0` for *any* scale at exactly
- * `dy = SCENE2_CAMERA_TARGET_WIDE.y - SCENE2_CAMERA_POS_WIDE.y
- *     = -POS_WIDE.z * SCENE2_BOTTOM_NDC * tan(CAMERA_FOV/2 in rad)
- *     ≈ 4.3 * 1.03 * tan(17.5°) ≈ 1.396`.
- * TARGET_WIDE.y is left at 0.3 (unchanged from every earlier pass, still the
- * point being aimed toward before the rise lifts it onto the model's upper
- * body) and POS_WIDE.y is solved backwards from that: 0.3 - 1.396 ≈ -1.096.
- * The eye's *pre-rise* value reading negative looks alarming but is not a bug
- * — solveBottomRise() always lifts both by the same rise, and the resulting
- * final eye height lands at the ring's own height (comfortably above y = 0,
- * so this doesn't reopen the "camera below the model looks at the underside"
- * problem — that was about the *final*, not the pre-rise, height).
- *
- * This dy is derived from SCENE2_BOTTOM_NDC, so **the two constants move
- * together** — changing one without re-solving the other breaks the
- * edge-on property (re-run the a=0 formula above, or the equivalent check in
- * git history, whenever SCENE2_BOTTOM_NDC changes).
- *
- * A shallower camera also sees the ring plane more edge-on, so the diorama
- * covers less of the frame's height at the same scale — that is what has
- * paid for MODEL_SCALE_DESKTOP growing across these same passes without
- * eating into the row's band above it.
- *
- * The whole rig is then lifted by solveBottomRise() below — the same amount
- * added to both the eye and the target, so this angle is untouched and the
- * model simply slides down the frame until the ring rests past its bottom
- * edge. Paired with style.css's `min-width: 768px` block, which puts the
- * portrait/PROJECTS/SYSTEM row in the space the model leaves above it.
- *
- * Gated on the same 767.98px breakpoint as the rest of the site (see MOBILE
- * below) — mobile keeps the level, centred framing above completely
- * untouched.
- */
-const SCENE2_CAMERA_POS_WIDE = { x: 0, y: -1.096, z: 4.3 }
-const SCENE2_CAMERA_TARGET_WIDE = { x: 0, y: 0.3, z: 0 }
-
-/**
- * Desktop/tablet only: how large the model runs by Scene 2. It stays centred
- * on x (the pivot is never moved off the origin) and is dropped to the bottom
- * edge of the frame by the camera rise below, so the whole diorama reads as
- * one large object anchored to the foot of the viewport with the Scene 2 row
- * above it.
- *
- * Applied to the pivot Group, not to the model's own fitted scale from
- * fitModel() — the pivot's local origin already sits on the model's
- * ground-centre point, so scaling it in place doesn't lift the model off
- * y = 0 or shift its x/z centre, and uniform scale commutes with the Y-axis
- * spin.
- *
- * Two tiers, for the same reason the rest of the site has three bands:
- * desktop (min-width: 900px, the boundary style.css's own desktop block uses)
- * gets the larger model, tablets (768–899.98px) the smaller one, since a tall
- * tablet portrait sees barely over half the horizontal span a 16:10 desktop
- * does at CAMERA_FOV 35.
- *
- * **What caps the desktop tier is the Scene 2 row, not the frame**, and it is
- * worth knowing which part of the model does the touching. The diorama's
- * *solid* mass — the white ring plane, the planets, the figure — stops just
- * under the portrait's box, with a thin sliver of clear black between them.
- * The model's own **particle cloud reaches much higher and deliberately
- * shares the band with the row** — it is loose white dots, the page's
- * starfield already lies behind the portrait, and holding the cloud below the
- * row instead would cost most of the model's on-screen size.
- *
- * (The specific vh/px/% figures this paragraph used to carry — 33.8vh,
- * 31.5vh, 76%/64% of the half-frame — are stale across five rounds of camera
- * work now: dead level, then tilted up to park the eye at ring height, with
- * SCENE2_BOTTOM_NDC swinging 0.98 → 1.08 (too much crop) → 0.98 (wave line
- * crept back) → 1.03 (current). All of it moves where the model's visible
- * top and bottom land. Re-measure the rendered page before trusting or
- * reintroducing numbers here.)
- *
- * Camera pitch and distance were measured as **not** levers on the model's
- * on-screen *width* — flattening the old ~6.6° pitch to 2°, or dollying the
- * eye from z 4.3 out to 6, barely moved it. That was measured before the
- * pitch was flattened to 0° and then tilted the other way to a look-up,
- * specifically to change what's *vertically* visible (the base slab's wave
- * lines) — a different axis than
- * the width claim above, but worth re-verifying together with the vh figures
- * above rather than assumed to still hold unchanged.
- *
- * MODEL_FIT_PER_ASPECT is the guard under both: measured against this rig by
- * projecting the model's own white geometry, the widest scale that keeps it
- * inside both side edges runs from `0.84 * aspect` on a tall frame down to
- * about `0.79 * aspect` around aspect 1.4 — the worst-case aspect — so
- * capping at `0.76 * aspect` clears the sides at any window shape with real
- * margin to spare, including the viewports that sit in the desktop band but
- * are portrait anyway (an iPad Pro 12.9" is 1024 x 1366). Without it the
- * tiers alone are only correct for their band's *typical* aspect.
- *
- * **This is the constant that actually governs the model's on-screen size at
- * most common desktop/tablet aspects**, not the tiers above — `min(tier,
- * cap)` means the tiers only take over once a window is wide enough that
- * `MODEL_FIT_PER_ASPECT * aspect` exceeds them (aspect > 1.13/0.78 ≈ 1.45 for
- * tablet, > 1.42/0.78 ≈ 1.82 for desktop — close enough to the ~1.81 laptop
- * this doc keeps measuring against that the desktop tier is nearly, but not
- * quite, reachable there). Growing the model on a normal window means moving
- * this constant, not the tiers.
- *
- * The cap is not linear in aspect, so **it has to be re-checked whenever it
- * or a tier changes**. History: 0.80 was unsafe at tier 1.1 (0.7% overflow
- * around aspect 1.40, the worst case), which brought it down to 0.74, then
- * cautiously back up to 0.76. **`0.78` is a further step, chosen by the
- * developer against an explicit trade-off the assistant could not resolve
- * alone**: it leaves only ~1.3% margin under the documented `~0.79` true
- * limit at aspect 1.4, a figure that was only ever measured at that one
- * aspect (not the ~1.81 this project actually runs at) and carries a hedge
- * ("about") in its own derivation. Checked against the rendered page via HMR
- * by the developer, not verified visually by the assistant, since no
- * screenshot capability was available in that session. **If the model's
- * sides look clipped on any real window, this is the first constant to
- * pull back down** — not the tiers, and not anything camera-related (bringing
- * the camera closer was considered and rejected as an alternative: it
- * changes projected width by the same mechanism as this cap, while also
- * invalidating the ring-height eye-position solve above, so it's strictly
- * more risk for the same fundamental constraint, not a way around it).
- * Because the applied scale is always `min(tier, cap)`, this cap stays the
- * hard safety ceiling at every aspect however far a tier is raised above
- * it — raising a tier can only push the applied scale up *to* the cap, never
- * past it.
- */
-const MODEL_SCALE_TABLET = 1.13
-const MODEL_SCALE_DESKTOP = 1.42
-const MODEL_FIT_PER_ASPECT = 0.78
-
 /**
  * Full turns the model makes across the scroll transition, on top of its idle
  * spin. Driven by progress rather than elapsed time, so it lands on exactly
  * this many turns however fast or slow the page is scrolled.
+ *
+ * This is the *only* thing the scroll does to the model now, so it is also the
+ * whole of "the model spins faster as you scroll" — raise it to speed the
+ * transition spin up, and keep it a whole number so the model finishes square
+ * with where it started.
  */
-const TRANSITION_TURNS = 1
+const TRANSITION_TURNS = 2
 
 const MODEL_URL = '/models/space_boi.glb'
 /**
@@ -207,48 +59,6 @@ const MODEL_URL = '/models/space_boi.glb'
  * fitting by height would blow the footprint far past the viewport.
  */
 const MODEL_SPAN = 3.5
-
-/**
- * The lowest *intended*-visible thing in the model, in fitted units (i.e.
- * after fitModel(), pivot scale 1) — the white ring plane, which used to be
- * treated as the model's true bottom edge on the assumption that the GLB's
- * black base slab beneath it was pure black on a pure black page and read as
- * nothing. That assumption turned out to be wrong: the slab carries visible
- * wave-like relief. Hiding it turned out to be a camera-*angle* problem (see
- * SCENE2_CAMERA_POS_WIDE) rather than a crop problem — pushing the ring past
- * the frame's bottom edge (SCENE2_BOTTOM_NDC, below) was tried first and
- * cropped the ring itself along with the relief, so the ring is back to
- * resting just inside the edge. Measured off the GLB
- * — the ring plane sits at y 0.33 with a rim at radius 1.33; keep these in
- * step with the file if it is ever replaced.
- *
- * The radius is written as 1.35 rather than that literal 1.33, so this
- * one-point solve lands where the *whole* white silhouette actually bottoms
- * out: swept through the spin, the geometry just above and outside the rim
- * (it flares to radius 1.57 by y 1.06) comes marginally lower on screen than
- * the rim itself does, and 1.35 is the value that reproduces the real low
- * point across the scale range.
- */
-const MODEL_RING_Y = 0.33
-const MODEL_RING_RADIUS = 1.35
-
-/**
- * How far down the frame that ring's near edge is put in Scene 2, as a
- * fraction of the half-height: 1 is exactly the bottom edge.
- *
- * History: 0.98 → 1.08 to deliberately push the ring (and the model's base
- * slab beyond it, where the wave-line relief lives) past the bottom edge,
- * back when pitch alone wasn't hiding those lines → back to 0.98 once
- * SCENE2_CAMERA_POS_WIDE was re-solved to view the ring edge-on, since 1.08
- * turned out to be cropping the model's own solid mass (the ring, meant to
- * be visible) along with the slab margin it was aimed at → **now `1.03`**,
- * because the wave line was still peeking out at 0.98 even with the edge-on
- * angle doing most of the work. This is a real trade-off between two
- * failure modes (crop the ring vs. show the wave line), not a value with a
- * single correct answer — nudge it either direction and re-solve
- * SCENE2_CAMERA_POS_WIDE.y to match if the balance needs to move again.
- */
-const SCENE2_BOTTOM_NDC = 1.03
 
 /**
  * Radians per second the model turns about its own Y axis — and therefore the
@@ -285,53 +95,13 @@ function fitModel(model: Object3D): void {
   model.position.set(-center.x, -fitted.min.y, -center.z)
 }
 
-/** Linear blend, used to walk the camera from its Scene 1 rig to its Scene 2 one. */
-function mix(a: number, b: number, t: number): number {
-  return a + (b - a) * t
-}
-
-/**
- * How far the desktop/tablet Scene 2 rig is lifted so the model's ring lands
- * at SCENE2_BOTTOM_NDC down the frame (just inside the bottom edge,
- * currently), for
- * a given pivot scale.
- *
- * Solved rather than authored, because the two ends of it move together: the
- * model's size is capped by the frame's own width (see MODEL_FIT_PER_ASPECT),
- * and a smaller model has to be met by a lower camera to stay bottom-anchored.
- *
- * The rise is added to the eye *and* the target, so the view direction — and
- * with it the angle of SCENE2_CAMERA_*_WIDE (currently a look-*up*, eye below
- * target — see that constant's own comment) — is untouched; only the height
- * changes, which slides the whole scene down the frame.
- *
- * The point being landed is the ring plane's near edge, (0, ringY, ringR),
- * which is the model's lowest visible point from a camera on +z. Writing the
- * eye as (0, ey + rise, ez) and the view direction as d = (0, dy, dz), the
- * camera's own up axis is (0, -dz, dy) / |d|, so the vertical/depth ratio the
- * projection divides out is linear in the rise and inverts in one step.
- */
-function solveBottomRise(scale: number): number {
-  const dy = SCENE2_CAMERA_TARGET_WIDE.y - SCENE2_CAMERA_POS_WIDE.y
-  const dz = -SCENE2_CAMERA_POS_WIDE.z
-  // The half-height the point is aimed at, in tangent units.
-  const t = SCENE2_BOTTOM_NDC * Math.tan((CAMERA_FOV / 2) * (Math.PI / 180))
-
-  const pointY = MODEL_RING_Y * scale
-  // The point's z relative to the eye — unaffected by the rise, which is y only.
-  const b = MODEL_RING_RADIUS * scale - SCENE2_CAMERA_POS_WIDE.z
-  // Its y relative to the risen eye, solved from `ndcY = -SCENE2_BOTTOM_NDC`.
-  const a = (-b * (dy + t * dz)) / (t * dy - dz)
-
-  return pointY - SCENE2_CAMERA_POS_WIDE.y - a
-}
-
 export interface WorldLayer {
   scene: Scene
   camera: PerspectiveCamera
   /**
-   * Advance the spin and the camera. Driven by the single RAF loop; `delta` is
-   * in seconds and `progress` is the 0..1 Scene 1 -> Scene 2 scroll position.
+   * Advance the spin. Driven by the single RAF loop; `delta` is in seconds and
+   * `progress` is the 0..1 Scene 1 -> Scene 2 scroll position. The camera is
+   * not touched — see the note at the top of the file.
    */
   update(delta: number, progress: number): void
   resize(aspect: number): void
@@ -340,15 +110,8 @@ export interface WorldLayer {
 export function createWorld(aspect: number): WorldLayer {
   const scene = new Scene()
 
-  // Same two breakpoints style.css's Scene 2 row uses (the phone query and
-  // the min-width: 900px desktop-size block). `.matches` is read fresh in
-  // update() every frame rather than cached from a resize listener, so the
-  // Scene 2 composition tracks the live viewport the same way the CSS does —
-  // including a window resized across a boundary mid-session, not just at
-  // load.
-  const MOBILE = window.matchMedia('(max-width: 767.98px)')
-  const DESKTOP = window.matchMedia('(min-width: 900px)')
-
+  // Set once, never written again: this vantage is Scene 1's and Scene 2's
+  // alike.
   const camera = new PerspectiveCamera(CAMERA_FOV, aspect, 0.1, 200)
   camera.position.set(CAMERA_POS.x, CAMERA_POS.y, CAMERA_POS.z)
   camera.lookAt(CAMERA_TARGET.x, CAMERA_TARGET.y, CAMERA_TARGET.z)
@@ -361,7 +124,8 @@ export function createWorld(aspect: number): WorldLayer {
   scene.add(new AmbientLight(0xffffff, 1.1), key, fill)
 
   // Rotation pivot: sits at the origin, which fitModel() lines the model's own
-  // centre up with. Spinning this Group keeps the model exactly in place.
+  // centre up with. Spinning this Group keeps the model exactly in place, and
+  // its scale is deliberately left at 1 forever.
   const pivot = new Group()
   scene.add(pivot)
 
@@ -391,41 +155,6 @@ export function createWorld(aspect: number): WorldLayer {
     // depends on how long the user took. Negative to match SPIN_SPEED, so the
     // scroll turn continues in the idle direction instead of fighting it.
     pivot.rotation.y = idleAngle - TRANSITION_TURNS * Math.PI * 2 * progress
-
-    // Dolly in and drop the angle. Both the eye and the look-at point blend, so
-    // the camera arcs down and forward together instead of just pitching.
-    // Desktop/tablet blend toward the WIDE rig instead of the phone one —
-    // mobile's target is untouched by this branch. Scene 1 (progress 0) is
-    // identical either way, since both blends start from the same CAMERA_POS/
-    // CAMERA_TARGET.
-    const wide = !MOBILE.matches
-    const scene2Pos = wide ? SCENE2_CAMERA_POS_WIDE : SCENE2_CAMERA_POS
-    const scene2Target = wide ? SCENE2_CAMERA_TARGET_WIDE : SCENE2_CAMERA_TARGET
-
-    // Desktop/tablet only: how large the model runs by Scene 2, capped by the
-    // frame's own width so it never runs off the sides, and the rise that
-    // drops it onto the bottom edge of that frame — which follows from
-    // whatever scale the cap leaves. Both are mixed by the same progress as
-    // everything else, so they arrive exactly as Scene 2 does, and both are
-    // explicitly neutral on mobile rather than left alone, so a viewport
-    // resized across a breakpoint mid-session can't strand the pivot
-    // over-scaled or the camera off its level phone framing.
-    const tier = DESKTOP.matches ? MODEL_SCALE_DESKTOP : MODEL_SCALE_TABLET
-    const modelScale = Math.min(tier, MODEL_FIT_PER_ASPECT * camera.aspect)
-    const rise = wide ? solveBottomRise(modelScale) : 0
-
-    camera.position.set(
-      mix(CAMERA_POS.x, scene2Pos.x, progress),
-      mix(CAMERA_POS.y, scene2Pos.y + rise, progress),
-      mix(CAMERA_POS.z, scene2Pos.z, progress),
-    )
-    camera.lookAt(
-      mix(CAMERA_TARGET.x, scene2Target.x, progress),
-      mix(CAMERA_TARGET.y, scene2Target.y + rise, progress),
-      mix(CAMERA_TARGET.z, scene2Target.z, progress),
-    )
-
-    pivot.scale.setScalar(wide ? mix(1, modelScale, progress) : 1)
   }
 
   function resize(nextAspect: number): void {
