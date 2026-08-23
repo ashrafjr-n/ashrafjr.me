@@ -17,7 +17,12 @@
       "Bash(npx tsc *)",
       "Bash(git add *)",
       "Bash(git commit *)",
-      "Bash(python3 -)"
+      "Bash(python3 -)",
+      "Bash(git reset *)",
+      "Bash(grep -n \"^## \\\\|^### \\\\|^| width \\\\|^- \\\\*\\\\*The phone block\\\\|^- \\\\`src/\" CLAUDE.md)",
+      "Bash(grep -n \"Scene 2 row \\(\\\\`.scene2-row\\\\`\\)\\\\|^  - \\\\*\\\\*Tablets and desktop\\\\|^  - \\\\*\\\\*On phones the two words\\\\|^  - The two words are \\\\`.scene2-word\\\\`\\\\|^  - The portrait \\(\\\\`.scene2-mark\\\\`\\)\\\\|^  - The row is \\\\`pointer-events\" CLAUDE.md)",
+      "Bash(grep -n \"^- \\\\`SPIN_SPEED\\\\` is \\\\*\\\\*negative\\\\*\\\\*\" CLAUDE.md)",
+      "Bash(git check-ignore *)"
     ]
   }
 }
