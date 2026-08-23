@@ -23,7 +23,9 @@
       "Bash(grep -n \"Scene 2 row \\(\\\\`.scene2-row\\\\`\\)\\\\|^  - \\\\*\\\\*Tablets and desktop\\\\|^  - \\\\*\\\\*On phones the two words\\\\|^  - The two words are \\\\`.scene2-word\\\\`\\\\|^  - The portrait \\(\\\\`.scene2-mark\\\\`\\)\\\\|^  - The row is \\\\`pointer-events\" CLAUDE.md)",
       "Bash(grep -n \"^- \\\\`SPIN_SPEED\\\\` is \\\\*\\\\*negative\\\\*\\\\*\" CLAUDE.md)",
       "Bash(git check-ignore *)",
-      "Bash(curl -s -o /dev/null -w \"%{http_code} constellation.ts\\\\n\" http://localhost:5173/src/three/constellation.ts)"
+      "Bash(curl -s -o /dev/null -w \"%{http_code} constellation.ts\\\\n\" http://localhost:5173/src/three/constellation.ts)",
+      "Bash(python3 -c ' *)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}  folder.svg served\\\\n\" http://localhost:5173/assets/svg/folder.svg)"
     ]
   }
 }
