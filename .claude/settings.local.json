@@ -16,7 +16,8 @@
       "Bash(cd *)",
       "Bash(npx tsc *)",
       "Bash(git add *)",
-      "Bash(git commit *)"
+      "Bash(git commit *)",
+      "Bash(python3 -)"
     ]
   }
 }
