@@ -25,7 +25,8 @@
       "Bash(git check-ignore *)",
       "Bash(curl -s -o /dev/null -w \"%{http_code} constellation.ts\\\\n\" http://localhost:5173/src/three/constellation.ts)",
       "Bash(python3 -c ' *)",
-      "Bash(curl -s -o /dev/null -w \"%{http_code}  folder.svg served\\\\n\" http://localhost:5173/assets/svg/folder.svg)"
+      "Bash(curl -s -o /dev/null -w \"%{http_code}  folder.svg served\\\\n\" http://localhost:5173/assets/svg/folder.svg)",
+      "Bash(grep -n \"TRAVEL_SPAN\\\\` 0.55\\\\|100% around progress\" CLAUDE.md)"
     ]
   }
 }
