@@ -19,7 +19,7 @@
  * deterministic and cheap over the ~10k glyphs these files carry.
  */
 
-/** A sampled character: viewBox coordinates, plus its own grey 0..1. */
+/** A sampled character: viewBox coordinates, plus its own grey 0..1 (see RAMP). */
 export interface GlyphPoint {
   x: number
   y: number
@@ -44,9 +44,13 @@ const FALLBACK_FONT_SIZE = 8
  * steps (the real steps alternate 16/17 per channel, which the linear fit here
  * reproduces to within 1/255). Anything unrecognised reads as full white.
  *
- * Carrying this through matters: a star coloured like the glyph it is about to
- * become is what makes the swap invisible. Without it the constellation reads
- * uniformly bright and visibly dims the moment the artwork takes over.
+ * **Nothing reads `level` at the moment.** The constellation used to colour
+ * each star by the glyph it was going to become, and that was dropped: the
+ * stars have to look like the site's other stars, not like the artwork (see
+ * the note at the top of `three/constellation.ts`). It is kept because it is a
+ * real property of the data — reading an ASCII-art SVG back as points means
+ * reading its shading too — and it costs one lookup per `<tspan>`, not per
+ * glyph. Don't wire it back into star colour without re-reading why it went.
  */
 const RAMP = 'abcdefghijklm'
 const RAMP_MIN = 0x3d / 0xff
