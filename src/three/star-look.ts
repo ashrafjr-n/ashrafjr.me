@@ -24,3 +24,30 @@
 export const STAR_BRIGHT_MIN = 0.78
 export const STAR_BRIGHT_MAX = 1.0
 export const STAR_OPACITY = 0.85
+
+/**
+ * How wide a star draws, in CSS pixels per pixel of viewport height.
+ *
+ * **Matching the colour was not enough on its own, and this is why.** The
+ * orbiting layers are in world space with `sizeAttenuation` on, so Three sizes
+ * them as `size * 0.5 * drawingBufferHeight / distance`; the constellation is
+ * in screen space with attenuation off, where `size` is already CSS pixels.
+ * Two different units for the same thing, so nothing lines them up unless it
+ * is done by hand — and the constellation's first size was set against the
+ * artwork's glyph grid instead, which drew it at **2.36 CSS px against the
+ * band's 1.06: 2.2x the width and 4.9x the area**. Additive blending stacks
+ * area, so it read as glaring even once the colours matched exactly.
+ *
+ * The factor is the band's own attenuation solved out: `BAND_POINT_SIZE
+ * (0.025) * 0.5 / the band's ~10-unit distance`, which leaves a plain
+ * multiple of the viewport height. It is height-dependent because the
+ * orbiting stars are — a taller window draws them larger, and these have to
+ * follow. The device-pixel ratio cancels: Three multiplies an unattenuated
+ * `size` by it, and divides the attenuated one by it through
+ * `drawingBufferHeight`.
+ *
+ * **Re-derive it if `BAND_POINT_SIZE` or the band's radii change.** It is the
+ * one number here that is a restatement of something in `scene.ts` rather than
+ * a value `scene.ts` reads back.
+ */
+export const STAR_SIZE_PER_VH = 0.00125
