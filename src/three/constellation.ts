@@ -6,10 +6,22 @@
  * The trick is that there is nothing to fake. `folder.svg` is ASCII art, and
  * at the size it is drawn each character lands under ~1.2 x 2.2 CSS pixels —
  * so the artwork already *is* a field of dots. Every star here is aimed at one
- * specific character's centre (`lib/ascii-points.ts`) and carries that
- * character's own grey, so when the real SVG cross-fades in underneath there
- * is no seam to hide: the picture the stars built and the picture the file
- * draws are the same picture.
+ * specific character's centre (`lib/ascii-points.ts`), so when the real SVG
+ * cross-fades in underneath there is nothing to line up: the picture the stars
+ * built and the picture the file draws stand in the same places.
+ *
+ * **A star is coloured like the site's other stars, not like the character it
+ * lands on.** Each one rolls its grey from the shared `star-look.ts` range —
+ * the same one the ambient orbiting field uses — and the layer carries that
+ * module's `STAR_OPACITY`. An earlier version instead gave each star the grey
+ * of the glyph it was about to become, plus a brightness boost while it flew,
+ * on the theory that matching the artwork made the swap invisible. It did, but
+ * it also made the two folders read as glaring bright patches against a sky of
+ * calmer stars, which is the more visible problem of the two: these have to
+ * read as *the site's own stars* arriving. What the swap loses is the
+ * artwork's per-glyph shading, which appears as the file takes over — at ~2px
+ * a cell that is texture, not structure, and both pictures are up together
+ * through the whole cross-fade anyway.
  *
  * **Screen space, not world space.** The targets are DOM elements, so the
  * whole layer is an OrthographicCamera mapped one-to-one onto CSS pixels with
@@ -28,7 +40,7 @@
  * threshold; the version that reads the scroll is both better to watch and the
  * one that matches how everything else in `scene.ts` works.
  *
- * Palette: grayscale only, straight off the artwork's own grey ramp.
+ * Palette: grayscale only, from `star-look.ts`.
  */
 import {
   AdditiveBlending,
@@ -167,9 +179,9 @@ interface Source {
 
 export interface Constellation {
   /**
-   * Register one folder: its injected `<svg>` (the source of both the target
-   * points and their greys), the screen edge its stars arrive from, and the
-   * element whose opacity is the other half of the cross-fade.
+   * Register one folder: its injected `<svg>` (where the target points are
+   * read from), the screen edge its stars arrive from, and the element whose
+   * opacity is the other half of the cross-fade.
    */
   addSource(svg: SVGSVGElement, side: Side, host: HTMLElement): void
   /**
