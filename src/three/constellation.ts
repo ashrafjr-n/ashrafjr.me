@@ -167,6 +167,21 @@ const BOW_PX = 90
  */
 const SWAP_START = 0.78
 
+/**
+ * Whether the real `folder.svg` is allowed to cross-fade in underneath at all.
+ *
+ * **A test switch, deliberately left in place.** The stars and the artwork
+ * overlap for the last fifth of the window, so anything anyone says about how
+ * the folder looks is a judgement about the two of them together. Turning this
+ * off is the only way to see what the stars alone actually build — and whether
+ * the file is carrying the picture or just standing behind it.
+ *
+ * It gates the *artwork* and nothing else. `live` is still computed from the
+ * real cross-fade below, so the words go live and their labels appear exactly
+ * when they always did, whichever way this is set.
+ */
+const SHOW_ARTWORK = false
+
 /** Smallest opacity change worth writing to the DOM. */
 const OPACITY_EPSILON = 0.004
 
@@ -409,7 +424,13 @@ export function createConstellation(): Constellation {
     // The whole state of this layer, from one number. Scrolling back up runs
     // every one of these backwards, which is the point.
     const p = clamp((progress - ENTER_AT) / (FORM_AT - ENTER_AT), 0, 1)
-    const starFade = 1 - clamp((progress - FORM_AT) / (FADE_END - FORM_AT), 0, 1)
+    // The stars only fade out because the artwork is there to be left behind.
+    // With SHOW_ARTWORK off there is nothing to hand over to, so they stay —
+    // otherwise the test would end on an empty screen rather than on the
+    // picture it is meant to be judging.
+    const starFade = SHOW_ARTWORK
+      ? 1 - clamp((progress - FORM_AT) / (FADE_END - FORM_AT), 0, 1)
+      : 1
     const swap = clamp((p - SWAP_START) / (1 - SWAP_START), 0, 1)
     const opacity = STAR_OPACITY * starFade
 
@@ -428,7 +449,9 @@ export function createConstellation(): Constellation {
       src.mesh.visible = drawing
       if (drawing && moved) place(src, p)
       src.material.opacity = opacity
-      setHostOpacity(src, swap)
+      // The artwork's half of the cross-fade — and the only thing SHOW_ARTWORK
+      // touches. `live` above is read off the real `swap` regardless.
+      setHostOpacity(src, SHOW_ARTWORK ? swap : 0)
     }
   }
 
