@@ -45,14 +45,14 @@
 import {
   AdditiveBlending,
   BufferGeometry,
-  Color,
   Float32BufferAttribute,
   OrthographicCamera,
   Points,
   PointsMaterial,
   Scene,
+  Vector3,
 } from 'three'
-import type { CanvasTexture, WebGLRenderer } from 'three'
+import type { CanvasTexture, PerspectiveCamera, WebGLRenderer } from 'three'
 import { clamp, rand } from '../lib/math'
 import { sampleGlyphPoints, toScreenPoints, type GlyphPoint } from '../lib/ascii-points'
 import { createCircleTexture } from './sprite'
@@ -60,6 +60,33 @@ import { STAR_BRIGHT_MIN, STAR_BRIGHT_MAX, STAR_OPACITY, STAR_SIZE_PER_VH } from
 
 /** Which screen edge a constellation's stars come in from. */
 export type Side = 'left' | 'right'
+
+/**
+ * Where the stars come *from*: the close-in band orbiting the model, described
+ * by the layer that owns it.
+ *
+ * **The values are `scene.ts`'s and stay there.** This is the same one-way
+ * arrangement `star-look.ts` sets up for the colours — the constellation reads
+ * the ring's shape so it can leave from it, and never edits it to suit itself.
+ * The band is protected work; see the top of CLAUDE.md.
+ *
+ * `camera` is the world layer's bird's-eye camera, which is what turns a point
+ * on that ring into a point on screen. It never moves, so a departure point
+ * only has to be re-solved when the viewport changes shape.
+ */
+export interface RingOrigin {
+  camera: PerspectiveCamera
+  /** The band's own orbit radius range, before any scroll scatter. */
+  radiusMin: number
+  radiusMax: number
+  /** The heights its stars sit at. */
+  yMin: number
+  yMax: number
+  /** Extra orbit radius a band star gains by full scroll, and its ease curve. */
+  scatterMin: number
+  scatterMax: number
+  scatterEase: number
+}
 
 /**
  * Characters sampled per folder. Chosen against the artwork's own grid rather
@@ -145,11 +172,39 @@ const SIDE_LEAD = 0.06
 const TRAVEL_EASE = 3.4
 
 // --- Where they come from ---
-/** Nearest star starts this far outside its edge; the stream reaches this deep. */
-const ENTRY_GAP_PX = 80
-const ENTRY_DEPTH_PX = 620
-/** Vertical scatter at the start, as a fraction of the viewport height, +/-. */
-const ENTRY_SPREAD_H = 0.34
+//
+// **A star leaves from the ring around the model, at the point the ring has
+// reached by the moment it sets off.** That is the whole idea: the band
+// scattering outward and the folders assembling are not two things that happen
+// to overlap — the folders are made *of* the ring, and each star is shed from
+// it as it goes past. It replaced a departure from off the screen's left and
+// right edges, which read as a second, unrelated event arriving after the ring
+// had broken up.
+//
+// The departure point is a pure function of the star's own constants, exactly
+// like everything else here: its place on the ring, and the radius the ring has
+// scattered to at that star's own delay. So a star that leaves early peels off
+// close in, while the ring is still near the model, and a late one leaves from
+// far out — the departure ellipse grows with the ring instead of sitting still
+// off the frame. Where that lands on screen is read off the world camera by
+// projecting the ring itself, so it follows the real band at any aspect; see
+// `buildStart()`.
+//
+// **Nothing here touches the band.** It reads the band's shape through
+// `RingOrigin` and leaves from it. See the note on that interface.
+/**
+ * How much of a star's own flight it spends fading up from nothing.
+ *
+ * **This is what makes the ring departure work at all, not a flourish.** A star
+ * waiting for its delay sits parked at its departure point, and those points
+ * are now *on screen* for everything leaving early — where the old off-screen
+ * edges hid them for free. Parked stars would read as a static arc sitting over
+ * the transition. Fading on travelled distance rather than on time keeps the
+ * birth tight against the ring: at 5% of the way across, a star appears
+ * essentially where the ring's own stars are, so it reads as one of them coming
+ * loose rather than as a new star switching on.
+ */
+const BIRTH_SPAN = 0.05
 /** How far a path bows off the straight line at its midpoint. */
 const BOW_PX = 90
 
@@ -196,8 +251,6 @@ const STEP_EPSILON = 0.0002
 interface Source {
   svg: SVGSVGElement
   host: HTMLElement
-  /** +1 enters from the right edge, -1 from the left. */
-  dir: number
   glyphs: GlyphPoint[]
   count: number
   /** Screen-space xyz per star, re-projected on every resize. */
@@ -206,11 +259,18 @@ interface Source {
   /** Per-star constants, all viewport-independent so a resize keeps them. */
   delays: Float32Array
   durations: Float32Array
-  spreads: Float32Array
-  depths: Float32Array
+  /** Where on the scattering ring this star rode, and how hard it scatters. */
+  ringAngles: Float32Array
+  ringRadii: Float32Array
+  ringHeights: Float32Array
+  ringScatter: Float32Array
   bows: Float32Array
+  /** Each star's own grey, which `place()` scales by its birth fade. */
+  greys: Float32Array
   positions: Float32Array
   posAttr: Float32BufferAttribute
+  colors: Float32Array
+  colAttr: Float32BufferAttribute
   mesh: Points
   material: PointsMaterial
   hostOpacity: number
@@ -241,7 +301,7 @@ export interface Constellation {
   readonly live: boolean
 }
 
-export function createConstellation(): Constellation {
+export function createConstellation(origin: RingOrigin): Constellation {
   const scene = new Scene()
   // CSS pixels with y running down, exactly like the DOM: left/right 0..width,
   // top/bottom 0..height. Three maps `top` to +1 and `bottom` to -1, so giving
@@ -259,20 +319,57 @@ export function createConstellation(): Constellation {
   const sprite: CanvasTexture = createCircleTexture({ mipmaps: false })
 
   const sources: Source[] = []
-  const color = new Color()
 
   /** Position in the ENTER_AT..FORM_AT window, 0..1. The only state there is. */
   let placedAt = -1
   let drawing = false
   let live = false
 
+  /** Scratch for the world -> screen projection; nothing is allocated per star. */
+  const worldPoint = new Vector3()
+  const ringPx = { x: 0, y: 0 }
+  const axisPx = { x: 0, y: 0 }
+
+  /**
+   * A world point through the model's own camera, in the same CSS pixels this
+   * layer draws in — the browser's y-down screen coordinates, not Three's NDC.
+   */
+  function project(x: number, y: number, z: number, out: { x: number; y: number }): void {
+    worldPoint.set(x, y, z).project(origin.camera)
+    out.x = (worldPoint.x * 0.5 + 0.5) * window.innerWidth
+    out.y = (1 - (worldPoint.y * 0.5 + 0.5)) * window.innerHeight
+  }
+
+  /**
+   * Where this star comes off the ring: its own place on the band, carried out
+   * to the radius the band has scattered to by the moment it sets off.
+   *
+   * The scattered radius is solved on screen rather than in the world, by
+   * projecting the band at its *own* radius and then running that offset out
+   * from the model's axis. A ring that has flown out to twenty-odd units is
+   * partly behind this camera, where a projection folds back on itself and
+   * gives nonsense; the band at rest never is. Extrapolating the offset instead
+   * is exact where it matters — the departure ellipse's shape, tilt and centre
+   * all come from the real projection, and only its size is scaled.
+   */
   function buildStart(src: Source, i: number): void {
     const i3 = i * 3
-    const w = window.innerWidth
-    const h = window.innerHeight
-    const depth = ENTRY_GAP_PX + src.depths[i] * ENTRY_DEPTH_PX
-    src.starts[i3] = src.dir > 0 ? w + depth : -depth
-    src.starts[i3 + 1] = src.targets[i3 + 1] + src.spreads[i] * ENTRY_SPREAD_H * h
+    const angle = src.ringAngles[i]
+    const radius = src.ringRadii[i]
+    const height = src.ringHeights[i]
+
+    project(0, height, 0, axisPx)
+    project(Math.cos(angle) * radius, height, Math.sin(angle) * radius, ringPx)
+
+    // The scroll position this star departs at, and therefore how far the band
+    // has scattered by then — the same `progress ^ ease` curve `scene.ts`
+    // advances the band on, read from RingOrigin rather than restated here.
+    const departAt = ENTER_AT + src.delays[i] * (FORM_AT - ENTER_AT)
+    const scattered = src.ringScatter[i] * Math.pow(departAt, origin.scatterEase)
+    const reach = 1 + scattered / radius
+
+    src.starts[i3] = axisPx.x + (ringPx.x - axisPx.x) * reach
+    src.starts[i3 + 1] = axisPx.y + (ringPx.y - axisPx.y) * reach
   }
 
   /** Re-read where the artwork actually sits and re-aim every star at it. */
@@ -284,6 +381,10 @@ export function createConstellation(): Constellation {
 
     const scale = toScreenPoints(src.svg, src.glyphs, src.targets)
     if (!scale) return // not rendered (display: none, or not laid out yet)
+    // The departure points are projected through the world camera, which is
+    // only walked as part of a render — and the first reaim can land before one
+    // has happened.
+    origin.camera.updateMatrixWorld()
     for (let i = 0; i < src.count; i++) buildStart(src, i)
     src.aimed = true
   }
@@ -309,9 +410,12 @@ export function createConstellation(): Constellation {
     const colors = new Float32Array(count * 3)
     const delays = new Float32Array(count)
     const durations = new Float32Array(count)
-    const spreads = new Float32Array(count)
-    const depths = new Float32Array(count)
+    const ringAngles = new Float32Array(count)
+    const ringRadii = new Float32Array(count)
+    const ringHeights = new Float32Array(count)
+    const ringScatter = new Float32Array(count)
     const bows = new Float32Array(count)
+    const greys = new Float32Array(count)
 
     const lead = dir > 0 ? 0 : SIDE_LEAD
     for (let i = 0; i < count; i++) {
@@ -325,25 +429,32 @@ export function createConstellation(): Constellation {
       const slack = Math.max(0, 1 - duration - lead)
       durations[i] = duration
       delays[i] = lead + slack * (order * ORDER_WEIGHT + Math.random() * (1 - ORDER_WEIGHT))
-      spreads[i] = rand(-1, 1)
-      depths[i] = Math.random()
       bows[i] = rand(-BOW_PX, BOW_PX)
+
+      // Its seat on the band, rolled the way `scene.ts` rolls the band's own:
+      // a radius and a height inside the ring's window, and its own share of
+      // the scatter. The half of the ring it sits on is the folder's own side,
+      // so each mark is visibly drawn off the near arc rather than both of them
+      // picking stars out of the same crowd. `x = cos(angle)`, so the quarter
+      // turns either side of 0 are the half nearer the right-hand folder.
+      ringAngles[i] = rand(-Math.PI / 2, Math.PI / 2) + (dir > 0 ? 0 : Math.PI)
+      ringRadii[i] = rand(origin.radiusMin, origin.radiusMax)
+      ringHeights[i] = rand(origin.yMin, origin.yMax)
+      ringScatter[i] = rand(origin.scatterMin, origin.scatterMax)
 
       // Exactly the site's own star shading — the same grayscale range the
       // ambient orbiting field rolls from, per star, from the shared module.
       // These have to read as the site's stars arriving, so they get no
-      // palette of their own.
-      const v = rand(STAR_BRIGHT_MIN, STAR_BRIGHT_MAX)
-      color.setRGB(v, v, v)
-      colors[i * 3] = color.r
-      colors[i * 3 + 1] = color.g
-      colors[i * 3 + 2] = color.b
+      // palette of their own. Kept, rather than only written into the buffer,
+      // because `place()` scales it by the star's birth fade every frame.
+      greys[i] = rand(STAR_BRIGHT_MIN, STAR_BRIGHT_MAX)
     }
 
     const geometry = new BufferGeometry()
     const posAttr = new Float32BufferAttribute(positions, 3)
+    const colAttr = new Float32BufferAttribute(colors, 3)
     geometry.setAttribute('position', posAttr)
-    geometry.setAttribute('color', new Float32BufferAttribute(colors, 3))
+    geometry.setAttribute('color', colAttr)
 
     const material = new PointsMaterial({
       size: 2,
@@ -367,7 +478,6 @@ export function createConstellation(): Constellation {
     const src: Source = {
       svg,
       host,
-      dir,
       glyphs,
       count,
       // Read back off the attribute, never the array handed to it: a
@@ -375,13 +485,18 @@ export function createConstellation(): Constellation {
       // orphan. Same trap as the starfield's layers in scene.ts.
       positions: posAttr.array as Float32Array,
       posAttr,
+      colors: colAttr.array as Float32Array,
+      colAttr,
       targets: new Float32Array(count * 3),
       starts: new Float32Array(count * 3),
       delays,
       durations,
-      spreads,
-      depths,
+      ringAngles,
+      ringRadii,
+      ringHeights,
+      ringScatter,
       bows,
+      greys,
       mesh,
       material,
       hostOpacity: -1,
@@ -401,6 +516,7 @@ export function createConstellation(): Constellation {
   /** Place every star for window position `p` (0..1). No state, no history. */
   function place(src: Source, p: number): void {
     const pos = src.positions
+    const col = src.colors
     const targets = src.targets
     const starts = src.starts
 
@@ -414,8 +530,20 @@ export function createConstellation(): Constellation {
       pos[i3] = sx + (targets[i3] - sx) * eased
       pos[i3 + 1] =
         sy + (targets[i3 + 1] - sy) * eased + Math.sin(Math.PI * local) * src.bows[i]
+
+      // Born out of the ring over the first few percent of its own crossing —
+      // so a star still waiting its turn contributes nothing, which is what
+      // keeps the departure points from reading as a static arc parked over
+      // the model. Scaling the grey does the work of an alpha: the material is
+      // additively blended, so `colour * 0` is the same as not being there.
+      const birth = eased < BIRTH_SPAN ? eased / BIRTH_SPAN : 1
+      const v = src.greys[i] * birth
+      col[i3] = v
+      col[i3 + 1] = v
+      col[i3 + 2] = v
     }
     src.posAttr.needsUpdate = true
+    src.colAttr.needsUpdate = true
   }
 
   function update(progress: number): void {

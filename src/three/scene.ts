@@ -474,7 +474,22 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
   const world = createWorld(window.innerWidth / window.innerHeight)
 
   // --- Scene 2 folder constellations, drawn over both in screen space ---
-  const constellation = createConstellation()
+  //
+  // They are handed the band's shape and this layer's camera so their stars can
+  // leave *from* the ring as it scatters, rather than arriving from off the
+  // screen's edges as an unrelated second event. The values stay here and are
+  // read one way — the same arrangement `star-look.ts` sets up for the shading.
+  // Nothing in `constellation.ts` writes to the band.
+  const constellation = createConstellation({
+    camera: world.camera,
+    radiusMin: BAND_RADIUS_MIN,
+    radiusMax: BAND_RADIUS_MAX,
+    yMin: BAND_Y_MIN,
+    yMax: BAND_Y_MAX,
+    scatterMin: BAND_SCATTER_MIN,
+    scatterMax: BAND_SCATTER_MAX,
+    scatterEase: BAND_SCATTER_EASE,
+  })
 
   /** Both layers, in one array so the frame loop allocates nothing per frame. */
   const layers = [cloud, band]
