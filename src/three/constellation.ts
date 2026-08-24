@@ -1,7 +1,17 @@
 /**
- * Scene 2's folder constellations — the stars that fly in from the screen's
- * left and right edges, gather beside the model, and turn into the SYSTEM and
- * PROJECTS folder marks.
+ * Scene 2's folder constellations — the stars that come off the ring orbiting
+ * the model, gather beside it, and turn into the SYSTEM and PROJECTS folder
+ * marks.
+ *
+ * **They leave from the ring itself, and that is what makes the transition one
+ * event rather than two.** The close-in band scatters outward across the same
+ * scroll; each of these stars is shed from it at the point it has reached by
+ * the moment that star sets off, so the ring breaking up and the folders
+ * assembling are cause and effect. An earlier version had them arriving from
+ * off the screen's left and right edges, which read as a separate thing
+ * happening after the ring had gone. The band itself is untouched by any of
+ * this — its shape is read through `RingOrigin` and never written; see the
+ * protected section at the top of CLAUDE.md.
  *
  * The trick is that there is nothing to fake. `folder.svg` is ASCII art, and
  * at the size it is drawn each character lands under ~1.2 x 2.2 CSS pixels —
@@ -38,7 +48,9 @@
  * it apart and leave the way they came, exactly reversed. This replaced a
  * one-shot that played on wall-clock time the first time the scroll crossed a
  * threshold; the version that reads the scroll is both better to watch and the
- * one that matches how everything else in `scene.ts` works.
+ * one that matches how everything else in `scene.ts` works. The departure point
+ * obeys the same rule: it is solved from the star's own delay, not from where
+ * the band happens to be on this frame.
  *
  * Palette: grayscale only, from `star-look.ts`.
  */
@@ -58,7 +70,11 @@ import { sampleGlyphPoints, toScreenPoints, type GlyphPoint } from '../lib/ascii
 import { createCircleTexture } from './sprite'
 import { STAR_BRIGHT_MIN, STAR_BRIGHT_MAX, STAR_OPACITY, STAR_SIZE_PER_VH } from './star-look'
 
-/** Which screen edge a constellation's stars come in from. */
+/**
+ * Which screen edge a constellation's folder stands on. It picks the half of
+ * the ring that folder's stars are drawn from, and the edge of the artwork that
+ * fills first.
+ */
 export type Side = 'left' | 'right'
 
 /**
@@ -281,8 +297,8 @@ interface Source {
 export interface Constellation {
   /**
    * Register one folder: its injected `<svg>` (where the target points are
-   * read from), the screen edge its stars arrive from, and the element whose
-   * opacity is the other half of the cross-fade.
+   * read from), the screen edge it stands on, and the element whose opacity is
+   * the other half of the cross-fade.
    */
   addSource(svg: SVGSVGElement, side: Side, host: HTMLElement): void
   /**

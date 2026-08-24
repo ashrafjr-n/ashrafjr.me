@@ -94,7 +94,7 @@ function buildScene2Row(): {
   row: HTMLDivElement
   projects: HTMLButtonElement
   /** `side` is the screen edge each word stands on in the wide composition —
-   *  and therefore the edge its constellation of stars flies in from. */
+   *  and therefore the half of the model's ring its stars are shed from. */
   words: { word: HTMLButtonElement; folder: FolderIcon; side: Side }[]
 } {
   const row = document.createElement('div')
