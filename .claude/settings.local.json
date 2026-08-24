@@ -28,7 +28,9 @@
       "Bash(curl -s -o /dev/null -w \"%{http_code}  folder.svg served\\\\n\" http://localhost:5173/assets/svg/folder.svg)",
       "Bash(grep -n \"TRAVEL_SPAN\\\\` 0.55\\\\|100% around progress\" CLAUDE.md)",
       "Bash(node /private/tmp/claude-501/-Users-ashrafjarabeah-Desktop-ashraf/db1007d2-60ec-43e6-b000-23f96a912127/scratchpad/probe.mjs)",
-      "Bash(node /private/tmp/claude-501/-Users-ashrafjarabeah-Desktop-ashraf/db1007d2-60ec-43e6-b000-23f96a912127/scratchpad/probe2.mjs)"
+      "Bash(node /private/tmp/claude-501/-Users-ashrafjarabeah-Desktop-ashraf/db1007d2-60ec-43e6-b000-23f96a912127/scratchpad/probe2.mjs)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:5173/)",
+      "Bash(curl -s http://localhost:5173/src/three/constellation.ts)"
     ]
   }
 }
