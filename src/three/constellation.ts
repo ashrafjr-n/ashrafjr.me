@@ -1,7 +1,7 @@
 /**
  * Scene 2's folder constellations — the stars that come off the ring orbiting
  * the model, gather beside it, and turn into the SYSTEM and PROJECTS folder
- * marks.
+ * marks.a
  *
  * **They leave from the ring itself, and that is what makes the transition one
  * event rather than two.** The close-in band scatters outward across the same
