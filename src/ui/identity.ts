@@ -12,8 +12,10 @@
  *   - behind (d < 0): above, small and dim but crisp — settled.
  * So arriving reads as a lens racking in and leaving reads as memory.
  *
- * Behind it all runs a thread of stars down the screen's axis (see
- * `thread()`), hidden where it would cross a statement.
+ * Behind it all runs a thread of stars down the screen's axis, hidden where it
+ * would cross a statement. While focus travels between two statements a comet
+ * runs down that thread from one to the next, arriving as the next one sharpens.
+ * Two small labels hold the bottom corners: the scene's name and a counter.
  *
  * A pure function of the identity progress (`lib/phases.ts`), so scrolling
  * back up plays it backwards exactly. Driven from main.ts's one RAF loop.
@@ -47,6 +49,9 @@ const THREAD_STARS = 72
 const THREAD_FLOW = 22
 /** Half-height, in vh at full size, of the gap the thread leaves around a statement. */
 const CLEAR_VH = 7.5
+/** Stars trailing the comet, and the vh between them. */
+const TAIL = 7
+const TAIL_STEP_VH = 0.9
 
 /** Keep `u`'s ends flat for `DWELL` of the step, and ease across the middle. */
 function dwell(x: number): number {
@@ -69,11 +74,11 @@ export function createIdentity(): Identity {
   const thread = Array.from({ length: THREAD_STARS }, (_, k) => {
     const star = document.createElement('i')
     star.className = 'identity-star'
-    const size = 1.2 + Math.random() * 1.3
+    const size = 1.4 + Math.random() * 1.4
     star.style.width = star.style.height = `${size}px`
     star.style.marginLeft = `${(Math.random() - 0.5) * 2.5 - size / 2}px`
     el.append(star)
-    return { star, k, level: 0.35 + Math.random() * 0.65, phase: Math.random() * Math.PI * 2 }
+    return { star, k, level: 0.5 + Math.random() * 0.5, phase: Math.random() * Math.PI * 2 }
   })
 
   const items = ITEMS.map(({ label, text }, i) => {
@@ -89,6 +94,25 @@ export function createIdentity(): Identity {
     el.append(item)
     return { item, caption, word }
   })
+
+  // The comet: a head and a tail of fading, shrinking stars above it.
+  const comet = Array.from({ length: TAIL + 1 }, (_, j) => {
+    const star = document.createElement('i')
+    star.className = j === 0 ? 'identity-star identity-comet' : 'identity-star'
+    const size = j === 0 ? 4 : 2.6 - (1.4 * j) / TAIL
+    star.style.width = star.style.height = `${size}px`
+    star.style.marginLeft = `${-size / 2}px`
+    el.append(star)
+    return star
+  })
+
+  const name = document.createElement('p')
+  name.className = 'identity-meta identity-meta--name'
+  name.textContent = '02 — IDENTITY'
+  const counter = document.createElement('p')
+  counter.className = 'identity-meta identity-meta--count'
+  el.append(name, counter)
+  let counted = -1
 
   const ys = new Float64Array(ITEMS.length)
   const scales = new Float64Array(ITEMS.length)
@@ -109,7 +133,7 @@ export function createIdentity(): Identity {
       for (let i = 0; i < ITEMS.length; i++) {
         clear = Math.min(clear, clamp((Math.abs(centred - ys[i]) - CLEAR_VH * scales[i]) / 4, 0, 1))
       }
-      const twinkle = 0.65 + 0.35 * Math.sin(phase + t * 60)
+      const twinkle = 0.75 + 0.25 * Math.sin(phase + t * 60)
       star.style.transform = `translateY(${centred}vh)`
       star.style.opacity = String(Math.sin((Math.PI * y) / 100) * level * twinkle * clear)
     }
@@ -145,6 +169,25 @@ export function createIdentity(): Identity {
     })
 
     drawThread(t)
+
+    // Between statements k and k+1, `u` runs 0..1 and the comet descends from
+    // just below k to just above k+1 — both measured where they stand now.
+    const k = clamp(Math.floor(f), 0, ITEMS.length - 2)
+    const u = clamp(f - k, 0, 1)
+    const from = ys[k] + CLEAR_VH * scales[k]
+    const to = ys[k + 1] - CLEAR_VH * scales[k + 1]
+    const head = from + (to - from) * u
+    const glow = Math.sin(Math.PI * u)
+    comet.forEach((star, j) => {
+      star.style.transform = `translateY(${head - j * TAIL_STEP_VH}vh)`
+      star.style.opacity = String(glow * (1 - j / (TAIL + 1)))
+    })
+
+    const current = clamp(Math.round(f), 0, ITEMS.length - 1)
+    if (current !== counted) {
+      counted = current
+      counter.textContent = `0${current + 1} / 0${ITEMS.length}`
+    }
   }
 
   return { el, update }

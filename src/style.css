@@ -221,6 +221,32 @@ body {
   will-change: transform, opacity;
 }
 
+/* The comet running down the thread between two statements. */
+.identity-comet {
+  box-shadow: 0 0 10px 2px rgba(255, 255, 255, 0.85);
+}
+
+/* The two corner labels: the scene's name and which statement is in focus. */
+.identity-meta {
+  position: absolute;
+  bottom: clamp(1.5rem, 5vh, 3rem);
+  margin: 0;
+  font-family: var(--font-code);
+  font-size: clamp(0.62rem, 0.8vw, 0.78rem);
+  letter-spacing: 0.32em;
+  white-space: nowrap;
+  color: var(--text-dim);
+}
+
+.identity-meta--name {
+  left: clamp(1.25rem, 3vw, 2.5rem);
+}
+
+.identity-meta--count {
+  right: clamp(1.25rem, 3vw, 2.5rem);
+  font-variant-numeric: tabular-nums;
+}
+
 /* ===========================================================
    Portrait (ui/mark.ts) — not mounted at the moment; rules kept with it
    =========================================================== */
