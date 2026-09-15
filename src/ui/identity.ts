@@ -13,7 +13,7 @@
  * back up plays it backwards exactly. Driven from main.ts's one RAF loop.
  */
 
-const WORDS = ['COMPUTER SCIENCE', 'FULL-STACK DEVELOPER', 'AI ENGINEER']
+const WORDS = ['COMPUTER SCIENCE', 'FULL-STACK DEVELOPER', 'BUILDING TOWARD AI']
 
 /** Where focus sits at the start and end of the scene, in word indices. */
 const FOCUS_FROM = -0.7
