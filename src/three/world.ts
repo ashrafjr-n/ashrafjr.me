@@ -38,12 +38,18 @@ const CAMERA_POS = { x: 0, y: 9.3, z: 4.6 }
 const CAMERA_TARGET = { x: 0, y: 0.25, z: 0 } // model's own mid-height: centers it on screen
 
 /**
- * The model's own camera: level with it and looking straight at its face,
- * where the bird's-eye camera above now frames only the stars. It looks at the
- * origin; `update()` sizes and places the model against it.
+ * The model's own camera: exactly level with the model's centre (both at
+ * y = 0) and looking straight ahead, never down at it — the bird's-eye camera
+ * above frames only the stars.
  */
-const MODEL_CAMERA_POS = { x: 0, y: 1.2, z: 10.1 }
-const MODEL_CAMERA_DIST = Math.hypot(MODEL_CAMERA_POS.y, MODEL_CAMERA_POS.z)
+const MODEL_CAMERA_DIST = 10.1
+/**
+ * Where the model sits on screen is set by shifting the lens, not by tilting
+ * the camera or moving the model: the frame slides up by this fraction of its
+ * height, so the model draws that much below centre with its level, head-on
+ * perspective untouched.
+ */
+const LENS_DROP = 0.12
 const TAN_HALF_FOV = Math.tan((CAMERA_FOV * Math.PI) / 360)
 
 /**
@@ -66,11 +72,6 @@ const TRANSITION_TURNS = 1
  * fitting by it would leave the model looking small.
  */
 const FIT_HALF_WIDTH = 0.62
-/**
- * Where the model's centre rests in Scene 3, in world units at the origin:
- * negative sits it below the middle of the frame.
- */
-const REST_Y = -0.4
 
 /**
  * Scene 1 has no model — only the ring, empty inside. It rises into Scene 3
@@ -151,8 +152,9 @@ export function createWorld(aspect: number): WorldLayer {
   camera.lookAt(CAMERA_TARGET.x, CAMERA_TARGET.y, CAMERA_TARGET.z)
 
   const modelCamera = new PerspectiveCamera(CAMERA_FOV, aspect, 0.1, 200)
-  modelCamera.position.set(MODEL_CAMERA_POS.x, MODEL_CAMERA_POS.y, MODEL_CAMERA_POS.z)
-  modelCamera.lookAt(0, 0, 0)
+  modelCamera.position.set(0, 0, MODEL_CAMERA_DIST)
+  // Ratios only, so any full size works; it survives every projection update.
+  modelCamera.setViewOffset(1, 1, 0, -LENS_DROP, 1, 1)
 
   // Pure-white lights only — they shape the model without tinting it.
   const key = new DirectionalLight(0xffffff, 2.2)
@@ -248,7 +250,7 @@ export function createWorld(aspect: number): WorldLayer {
     const s = scale * (RISE_SCALE_FROM + (1 - RISE_SCALE_FROM) * rise)
     pivot.visible = progress > RISE_START
     pivot.scale.setScalar(s)
-    pivot.position.y = REST_Y - RISE_DROP * (1 - rise) - modelMidY * s
+    pivot.position.y = -RISE_DROP * (1 - rise) - modelMidY * s
   }
 
   function resize(nextAspect: number): void {
