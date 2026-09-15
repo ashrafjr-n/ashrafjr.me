@@ -7,7 +7,7 @@
  *
  * `transition` is the value every star and model constant was tuned
  * against, so none of them change: identity is inserted by pausing it. HOLD is
- * ENTER_AT / RISE_START (0.45) — the ambient cloud has flown past, a scattered
+ * RISE_START (0.45) — the ambient cloud has flown past, a scattered
  * third of the ring is still orbiting on screen, and the model has not
  * started. Those few stars are the identity scene's sky.
  *
