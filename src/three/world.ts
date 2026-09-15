@@ -26,7 +26,7 @@ import {
   Scene,
   Vector3,
 } from 'three'
-import type { Object3D } from 'three'
+import type { Mesh, MeshStandardMaterial, Object3D } from 'three'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { clamp } from '../lib/math'
 
@@ -39,12 +39,12 @@ const CAMERA_TARGET = { x: 0, y: 0.25, z: 0 } // model's own mid-height: centers
 
 /**
  * The model's own camera: level with it and looking straight at its face,
- * where the bird's-eye camera above now frames only the stars. Same fov and
- * ~10-unit distance, so the model's on-screen width (and MODEL_SCALE_PER_ASPECT
- * below) carries over. It looks at the origin, where `update()` holds the
- * model's centre once it has risen.
+ * where the bird's-eye camera above now frames only the stars. It looks at the
+ * origin; `update()` sizes and places the model against it.
  */
 const MODEL_CAMERA_POS = { x: 0, y: 1.2, z: 10.1 }
+const MODEL_CAMERA_DIST = Math.hypot(MODEL_CAMERA_POS.y, MODEL_CAMERA_POS.z)
+const TAN_HALF_FOV = Math.tan((CAMERA_FOV * Math.PI) / 360)
 
 /**
  * Full turns the model makes across the scroll transition, on top of its idle
@@ -58,41 +58,21 @@ const MODEL_CAMERA_POS = { x: 0, y: 1.2, z: 10.1 }
 const TRANSITION_TURNS = 1
 
 /**
- * How much larger the model runs by Scene 2. Mixed in by the same `progress`
- * as the spin, so it grows through the transition and is at full size exactly
- * when the folders are.
+ * Scene 3's model fills the middle of the frame: its **visible** half-width is
+ * solved to this fraction of the screen width, per aspect, every frame. The
+ * wide composition's folders start ~0.281 of the width out from centre, so
+ * 0.26 leaves just a sliver of black beside each one.
  *
- * Applied to the pivot `Group`, not to the model's own `fitModel()` scale: the
- * pivot's local origin already sits on the model's ground-centre point, so
- * scaling it in place doesn't lift the model off `y = 0` or shift its x/z
- * centre, and uniform scale commutes with the Y-axis spin.
+ * "Visible" is the model's white geometry only — the black base slab reads as
+ * the page and is ignored, and it is far wider than the rings and planets, so
+ * fitting by it would leave the model looking small.
  */
-const MODEL_SCENE2_SCALE = 1.35
-
+const FIT_HALF_WIDTH = 0.26
 /**
- * Ceiling on that growth, per unit of aspect ratio — and **what it is
- * protecting is the two folders, not the frame's edges.**
- *
- * The model's on-screen half-width is `0.3124 * scale / aspect` of the screen
- * width (`CAMERA_FOV` 35 at ~10.15 units with `MODEL_SPAN` 3.5, plus the
- * near edge's perspective magnification). The flanking folders' inner edges
- * sit at about 0.281 of the screen width out from the centre at every width
- * the wide query covers — `--folder-side-inset` and the folder's own `15vw`
- * ceiling both scale with the viewport, which is what makes that figure
- * constant. So the model has to stay under it.
- *
- * Because the cap is proportional to aspect, `0.3124 * cap` is a constant:
- * this pins the model's half-width at **23.7% of the screen width** whenever
- * the cap binds, leaving ~4.4% of clear black between it and each folder. That
- * is the real reason for the shape of this constant — it holds the gap, rather
- * than holding a scale.
- *
- * `Math.max(1, ...)` is what keeps it safe outside the wide query: on a phone
- * (aspect ~0.46) the cap computes to 0.35, and without the floor this would
- * *shrink* the model rather than leave it alone. Narrow viewports get no
- * growth at all, which is correct — they have no room for it.
+ * Where the model's centre rests in Scene 3, in world units at the origin:
+ * negative sits it below the middle of the frame.
  */
-const MODEL_SCALE_PER_ASPECT = 0.76
+const REST_Y = -0.9
 
 /**
  * Scene 1 has no model — only the ring, empty inside. It rises into Scene 2
@@ -103,7 +83,7 @@ const MODEL_SCALE_PER_ASPECT = 0.76
 const RISE_START = 0.45
 const RISE_END = 0.92
 /** World units below its resting centre it starts at: clear of the frame's bottom edge. */
-const RISE_DROP = 6
+const RISE_DROP = 8
 /** Fraction of its final size it starts the rise at, growing to full as it lands. */
 const RISE_SCALE_FROM = 0.4
 
@@ -191,8 +171,10 @@ export function createWorld(aspect: number): WorldLayer {
   pivot.visible = false
   scene.add(pivot)
 
-  /** Half the fitted model's height: lifts its centre, not its base, onto the camera's aim. */
+  /** Centre height of the visible geometry, so that — not the base — is what gets placed. */
   let modelMidY = 0
+  /** Furthest the visible geometry reaches from the spin axis, at pivot scale 1. */
+  let visibleRadius = 1
 
   // Async — the starfield renders immediately, the model pops in when it has
   // loaded.
@@ -200,12 +182,51 @@ export function createWorld(aspect: number): WorldLayer {
     MODEL_URL,
     (gltf) => {
       fitModel(gltf.scene)
-      modelMidY = new Box3().setFromObject(gltf.scene).max.y / 2
+      measureVisible(gltf.scene)
       pivot.add(gltf.scene)
     },
     undefined,
     (err) => console.error(`[world] failed to load ${MODEL_URL}`, err),
   )
+
+  /**
+   * Walk every vertex of the non-black meshes once: the max distance from the
+   * Y axis (what a spinning model sweeps) and the vertical extent. Runs once
+   * on load, before the model is parented, so its matrices are model-local.
+   */
+  function measureVisible(model: Object3D): void {
+    model.updateMatrixWorld(true)
+    const v = new Vector3()
+    let r = 0
+    let minY = Infinity
+    let maxY = -Infinity
+    model.traverse((obj) => {
+      const mesh = obj as Mesh
+      const material = mesh.material as MeshStandardMaterial | undefined
+      if (!mesh.isMesh || !material?.color || material.color.getHex() === 0) return
+      const pos = mesh.geometry.getAttribute('position')
+      for (let i = 0; i < pos.count; i++) {
+        v.fromBufferAttribute(pos, i).applyMatrix4(mesh.matrixWorld)
+        r = Math.max(r, Math.hypot(v.x, v.z))
+        minY = Math.min(minY, v.y)
+        maxY = Math.max(maxY, v.y)
+      }
+    })
+    if (r > 0) {
+      visibleRadius = r
+      modelMidY = (minY + maxY) / 2
+    }
+  }
+
+  /**
+   * Pivot scale that puts the visible edge at FIT_HALF_WIDTH of the screen.
+   * A point at radius R swinging toward a camera D away projects widest at
+   * tan = R / sqrt(D² - R²), so R = D·tan / sqrt(1 + tan²).
+   */
+  function fitScale(): number {
+    const tan = 2 * FIT_HALF_WIDTH * TAN_HALF_FOV * modelCamera.aspect
+    return (MODEL_CAMERA_DIST * tan) / Math.sqrt(1 + tan * tan) / visibleRadius
+  }
 
   /** Idle spin only, accumulated over elapsed time. */
   let idleAngle = 0
@@ -222,11 +243,7 @@ export function createWorld(aspect: number): WorldLayer {
     // scroll turn continues in the idle direction instead of fighting it.
     pivot.rotation.y = idleAngle - TRANSITION_TURNS * Math.PI * 2 * progress
 
-    // Grow into Scene 2, capped so the model never reaches the folders
-    // standing either side of it. `camera.aspect` is read per frame rather
-    // than cached off a resize listener, so a window dragged wider retunes the
-    // cap the same way the CSS retunes the folders.
-    const scale = Math.max(1, Math.min(MODEL_SCENE2_SCALE, MODEL_SCALE_PER_ASPECT * camera.aspect))
+    const scale = fitScale()
 
     // Rise from below and grow, eased out so it settles into place. A pure
     // function of progress, so scrolling back up sinks it away again.
@@ -234,7 +251,7 @@ export function createWorld(aspect: number): WorldLayer {
     const s = scale * (RISE_SCALE_FROM + (1 - RISE_SCALE_FROM) * rise)
     pivot.visible = progress > RISE_START
     pivot.scale.setScalar(s)
-    pivot.position.y = -RISE_DROP * (1 - rise) - modelMidY * s
+    pivot.position.y = REST_Y - RISE_DROP * (1 - rise) - modelMidY * s
   }
 
   function resize(nextAspect: number): void {
