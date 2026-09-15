@@ -546,7 +546,7 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
     renderer.clear()
     renderer.render(starfield, world.camera) // same vantage -> same orbital plane
     renderer.clearDepth() // world layer sits in front of the starfield
-    renderer.render(world.scene, world.camera)
+    renderer.render(world.scene, world.modelCamera) // front-on, not bird's-eye
     renderer.clearDepth() // the constellations sit in front of both
     constellation.render(renderer) // no-op unless stars are actually in flight
 

@@ -42,6 +42,15 @@ const CAMERA_POS = { x: 0, y: 9.3, z: 4.6 }
 const CAMERA_TARGET = { x: 0, y: 0.25, z: 0 } // model's own mid-height: centers it on screen
 
 /**
+ * The model's own camera: level with it and looking straight at its face,
+ * where the bird's-eye camera above now frames only the stars. Same fov and
+ * ~10-unit distance, so the model's on-screen width (and MODEL_SCALE_PER_ASPECT
+ * below) carries over. It looks at the origin, where `update()` holds the
+ * model's centre once it has risen.
+ */
+const MODEL_CAMERA_POS = { x: 0, y: 1.2, z: 10.1 }
+
+/**
  * Full turns the model makes across the scroll transition, on top of its idle
  * spin. Driven by progress rather than elapsed time, so it lands on exactly
  * this many turns however fast or slow the page is scrolled.
@@ -134,7 +143,10 @@ function fitModel(model: Object3D): void {
 
 export interface WorldLayer {
   scene: Scene
+  /** Bird's-eye: the starfield and the constellations' ring are drawn through it. */
   camera: PerspectiveCamera
+  /** Front-on: the model alone is drawn through it. */
+  modelCamera: PerspectiveCamera
   /**
    * Advance the spin. Driven by the single RAF loop; `delta` is in seconds and
    * `progress` is the 0..1 Scene 1 -> Scene 2 scroll position. The camera is
@@ -152,6 +164,10 @@ export function createWorld(aspect: number): WorldLayer {
   const camera = new PerspectiveCamera(CAMERA_FOV, aspect, 0.1, 200)
   camera.position.set(CAMERA_POS.x, CAMERA_POS.y, CAMERA_POS.z)
   camera.lookAt(CAMERA_TARGET.x, CAMERA_TARGET.y, CAMERA_TARGET.z)
+
+  const modelCamera = new PerspectiveCamera(CAMERA_FOV, aspect, 0.1, 200)
+  modelCamera.position.set(MODEL_CAMERA_POS.x, MODEL_CAMERA_POS.y, MODEL_CAMERA_POS.z)
+  modelCamera.lookAt(0, 0, 0)
 
   // Pure-white lights only — they shape the model without tinting it.
   const key = new DirectionalLight(0xffffff, 2.2)
@@ -202,9 +218,11 @@ export function createWorld(aspect: number): WorldLayer {
   }
 
   function resize(nextAspect: number): void {
-    camera.aspect = nextAspect
-    camera.updateProjectionMatrix()
+    for (const cam of [camera, modelCamera]) {
+      cam.aspect = nextAspect
+      cam.updateProjectionMatrix()
+    }
   }
 
-  return { scene, camera, update, resize }
+  return { scene, camera, modelCamera, update, resize }
 }
