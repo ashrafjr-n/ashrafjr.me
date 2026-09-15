@@ -7,13 +7,10 @@
  * embedded in the model rather than as a separate dolly-ing backdrop. Mouse
  * parallax is layered on top via shared input state, lerped for smooth motion.
  *
- * Three render passes share one renderer. The starfield is drawn through the
+ * Two render passes share one renderer. The starfield is drawn through the
  * world layer's bird's-eye camera, then — behind a depth clear, so the model
- * always sits in front of the stars — the Scene 2 model through its own
- * front-on camera. The third is the folder
- * constellations (`three/constellation.ts`), which are screen-space and drawn
- * through their own orthographic camera, on top of everything and skipped
- * entirely except while they are actually flying.
+ * always sits in front of the stars — the model through its own front-on
+ * camera.
  * Palette: white/silver/gray only — no color pops.
  */
 import {
@@ -32,10 +29,8 @@ import {
 import { clamp, rand } from '../lib/math'
 import { HOLD, toTransition } from '../lib/phases'
 import type { InputState } from '../lib/state'
-import { createConstellation, type Constellation } from './constellation'
 import { createCircleTexture } from './sprite'
-// The ambient field's own shading, shared with the folder constellations so
-// the two cannot drift apart — see star-look.ts.
+// The ambient field's own shading — see star-look.ts.
 import { STAR_BRIGHT_MIN, STAR_BRIGHT_MAX, STAR_OPACITY } from './star-look'
 import { createWorld, MODEL_SPIN_RATE } from './world'
 
@@ -51,12 +46,6 @@ export interface SceneController {
    */
   resync(): void
   resize(): void
-  /**
-   * The Scene 2 folder constellations. Owned here because they are a render
-   * pass on this renderer and ride this loop's `progress`; the two folders are
-   * registered with it from main.ts, which is what holds the DOM.
-   */
-  constellation: Constellation
 }
 
 // The camera sits inside the cloud and only a narrow cone of it is ever on
@@ -164,7 +153,7 @@ const BAND_CLEAR_LEVEL = 4.0
  * How fast the transition value chases raw scroll, **per second**. Scroll
  * events arrive in coarse jumps; every part of the transition reads this one
  * smoothed value, so the spin, the growth, the scatter, the fly-past and the
- * folder constellations stay locked together.
+ * identity scene stay locked together.
  *
  * Applied as `1 - exp(-rate * delta)`, not as a flat per-frame fraction. The
  * flat form (`progress += (target - progress) * 0.08` every frame) makes the
@@ -222,8 +211,7 @@ function ramp(p: number, from: number, to: number): number {
 
 /**
  * How far out the band is, 0..1 of each star's scatter, at a transition
- * value: the eased scatter up to HOLD, then gathered back in to 0. Shared with
- * the constellation, which departs from wherever this puts the ring.
+ * value: the eased scatter up to HOLD, then gathered back in to 0.
  */
 function bandScatterAt(p: number): number {
   const out = Math.pow(Math.min(p, HOLD), BAND_SCATTER_EASE)
@@ -516,24 +504,6 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
   // --- Scene 1 world layer (the model), drawn over the starfield ---
   const world = createWorld(window.innerWidth / window.innerHeight)
 
-  // --- Scene 2 folder constellations, drawn over both in screen space ---
-  //
-  // They are handed the band's shape and this layer's camera so their stars can
-  // leave *from* the ring as it scatters, rather than arriving from off the
-  // screen's edges as an unrelated second event. The values stay here and are
-  // read one way — the same arrangement `star-look.ts` sets up for the shading.
-  // Nothing in `constellation.ts` writes to the band.
-  const constellation = createConstellation({
-    camera: world.camera,
-    radiusMin: BAND_RADIUS_MIN,
-    radiusMax: BAND_RADIUS_MAX,
-    yMin: BAND_Y_MIN,
-    yMax: BAND_Y_MAX,
-    scatterMin: BAND_SCATTER_MIN,
-    scatterMax: BAND_SCATTER_MAX,
-    scatterAt: bandScatterAt,
-  })
-
   /** Both layers, in one array so the frame loop allocates nothing per frame. */
   const layers = [cloud, band]
 
@@ -586,15 +556,12 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
     }
 
     world.update(delta, progress)
-    constellation.update(progress)
     bandMaterial.opacity = BAND_OPACITY * (1 - ramp(progress, BAND_FADE_FROM, BAND_FADE_TO))
 
     renderer.clear()
     renderer.render(starfield, world.camera) // same vantage -> same orbital plane
     renderer.clearDepth() // world layer sits in front of the starfield
     renderer.render(world.scene, world.modelCamera) // front-on, not bird's-eye
-    renderer.clearDepth() // the constellations sit in front of both
-    constellation.render(renderer) // no-op unless stars are actually in flight
 
     return page
   }
@@ -622,10 +589,9 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
     const w = window.innerWidth
     const h = window.innerHeight
     world.resize(w / h) // one camera drives the starfield and world passes
-    constellation.resize() // its own screen-space camera, and re-aims its targets
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
     renderer.setSize(w, h, false)
   }
 
-  return { update, resync, resize, constellation }
+  return { update, resync, resize }
 }
