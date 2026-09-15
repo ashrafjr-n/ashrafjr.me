@@ -65,12 +65,12 @@ const TRANSITION_TURNS = 1
  * the page and is ignored, and it is far wider than the rings and planets, so
  * fitting by it would leave the model looking small.
  */
-const FIT_HALF_WIDTH = 0.26
+const FIT_HALF_WIDTH = 0.62
 /**
  * Where the model's centre rests in Scene 3, in world units at the origin:
  * negative sits it below the middle of the frame.
  */
-const REST_Y = -0.9
+const REST_Y = -0.4
 
 /**
  * Scene 1 has no model — only the ring, empty inside. It rises into Scene 3
