@@ -7,10 +7,10 @@
  * embedded in the model rather than as a separate dolly-ing backdrop. Mouse
  * parallax is layered on top via shared input state, lerped for smooth motion.
  *
- * Three render passes share one renderer. The first two are drawn through the
- * world layer's bird's-eye camera — sharing the vantage is what makes the star
- * orbits line up with the model's — with depth cleared between them so the
- * model always sits in front of the stars. The third is the folder
+ * Three render passes share one renderer. The starfield is drawn through the
+ * world layer's bird's-eye camera, then — behind a depth clear, so the model
+ * always sits in front of the stars — the Scene 2 model through its own
+ * front-on camera. The third is the folder
  * constellations (`three/constellation.ts`), which are screen-space and drawn
  * through their own orthographic camera, on top of everything and skipped
  * entirely except while they are actually flying.
