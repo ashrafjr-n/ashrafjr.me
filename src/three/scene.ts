@@ -194,6 +194,13 @@ const BAND_SCATTER_MIN = 8
 const BAND_SCATTER_MAX = 26
 /** Ease-in on the scatter, so the ring holds its shape before breaking up. */
 const BAND_SCATTER_EASE = 2.2
+/**
+ * Extra orbit angle the band sweeps by full scroll, on the same eased curve as
+ * the scatter — so the ring spirals outward instead of flying straight apart.
+ * Positive: the band's own clockwise direction. Pure function of progress, so
+ * scrolling back up unwinds it exactly.
+ */
+const BAND_SWIRL = Math.PI * 2
 
 /**
  * How far each ambient star travels toward the camera by full scroll. The
@@ -224,6 +231,8 @@ interface StarLayer {
   scatter: Float32Array | null
   /** Per-star travel toward the camera at full scroll — the ambient fly-past. */
   fly: Float32Array | null
+  /** Extra orbit angle at full scroll — the band spiralling as it scatters. */
+  swirl: number
   /** Exponent applied to scroll progress before displacing this layer. */
   ease: number
   /**
@@ -272,9 +281,10 @@ function advance(
     layer.angles[i] = angle
 
     const radius = layer.scatter ? layer.radii[i] + layer.scatter[i] * t : layer.radii[i]
-    let x = Math.cos(angle) * radius
+    const shown = angle + layer.swirl * t
+    let x = Math.cos(shown) * radius
     let y = layer.heights[i]
-    let z = Math.sin(angle) * radius
+    let z = Math.sin(shown) * radius
 
     if (layer.fly) {
       const travelled = layer.fly[i] * t
@@ -349,7 +359,7 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
       /** Defaults to the mipmapped cloud sprite; the band passes its own. */
       sprite?: CanvasTexture
     } = {},
-    transition: { scatter?: () => number; fly?: () => number; ease?: number } = {},
+    transition: { scatter?: () => number; fly?: () => number; swirl?: number; ease?: number } = {},
   ): StarLayer {
     const positions = new Float32Array(count * 3)
     const colors = new Float32Array(count * 3)
@@ -427,6 +437,7 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
       speeds,
       scatter,
       fly,
+      swirl: transition.swirl ?? 0,
       ease: transition.ease ?? 1,
       // The attribute's copy of `positions`, not `positions` itself.
       positions: posAttr.array as Float32Array,
@@ -465,8 +476,9 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
     clearLevel: BAND_CLEAR_LEVEL,
     sprite: bandSprite,
   }, {
-    // On scroll these widen out of their tight orbit and scatter away.
+    // On scroll these spiral out of their tight orbit and scatter away.
     scatter: () => rand(BAND_SCATTER_MIN, BAND_SCATTER_MAX),
+    swirl: BAND_SWIRL,
     ease: BAND_SCATTER_EASE,
   })
 
