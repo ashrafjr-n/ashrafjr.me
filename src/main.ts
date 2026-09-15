@@ -9,13 +9,14 @@
  */
 import './style.css'
 import { clamp } from './lib/math'
-import { toTransition } from './lib/phases'
+import { toIdentity, toTransition } from './lib/phases'
 import { initScene } from './three/scene'
 import type { Side } from './three/constellation'
 import { lockScroll, unlockScroll } from './lib/scroll-lock'
 import { state, initPointer, initScroll } from './lib/state'
 import { buildSocialBadges } from './ui/social'
 import { createFolderIcon, type FolderIcon } from './ui/folder'
+import { createIdentity } from './ui/identity'
 import { createRevealWindow } from './ui/reveal-window'
 
 /**
@@ -132,8 +133,9 @@ const canvas = document.createElement('canvas')
 canvas.id = 'scene'
 
 const intro = buildIntro()
+const identity = createIdentity()
 const { row: scene2Row, projects, words: scene2Words } = buildScene2Row()
-app.append(canvas, intro, scene2Row)
+app.append(canvas, intro, identity.el, scene2Row)
 
 // --- Starfield + model, and the input they read ---
 const scene = initScene(canvas)
@@ -270,6 +272,7 @@ function raf(time: number) {
     const page = scene.update(time, state)
     const progress = toTransition(page)
     updateIntro(progress)
+    identity.update(toIdentity(page))
     updateScene2Row(progress)
     // Each word's own label waits for that word's own folder mark to arrive
     // before it is allowed to show (see .is-label-shown in style.css, scoped

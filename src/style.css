@@ -180,6 +180,37 @@ body {
 }
 
 /* ===========================================================
+   02 — Identity: three words on one axis (ui/identity.ts drives every
+   transform, opacity and blur; nothing here animates on its own)
+   =========================================================== */
+.identity {
+  position: fixed;
+  inset: 0;
+  z-index: 15;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.identity-word {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(1rem, 4.4vw, 3.6rem);
+  font-weight: 400;
+  letter-spacing: 0.3em;
+  /* Letter-spacing trails the last glyph too; matching it on the left keeps
+     the word optically centred on the axis. */
+  padding-left: 0.3em;
+  white-space: nowrap;
+  color: #ffffff;
+  text-shadow: 0 0 24px rgba(255, 255, 255, 0.18);
+  transform: translate(-50%, -50%);
+  will-change: transform, opacity, filter;
+}
+
+/* ===========================================================
    Scene 2 row — base rules: SYSTEM — the portrait — PROJECTS, on one line,
    centred on each other and on the screen. Every band uses that line; only
    the anchoring differs. Phones (767.98px and below) keep it bottom-centred
