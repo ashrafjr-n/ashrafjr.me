@@ -30,8 +30,6 @@ import { clamp, rand } from '../lib/math'
 import { HOLD, toTransition } from '../lib/phases'
 import type { InputState } from '../lib/state'
 import { createCircleTexture } from './sprite'
-// The ambient field's own shading — see star-look.ts.
-import { STAR_BRIGHT_MIN, STAR_BRIGHT_MAX, STAR_OPACITY } from './star-look'
 import { createWorld, MODEL_SPIN_RATE } from './world'
 
 export interface SceneController {
@@ -94,6 +92,15 @@ const SPEED_TIERS = [
   { chance: 0.18, min: 1.4, max: 2.6 }, // some: clearly quicker
   { chance: 0.04, min: 2.6, max: 5.0 }, // few: streak past
 ]
+
+/**
+ * The ambient field's shading: grayscale from pure white down to a slightly
+ * dimmer silver-white, never tinted. Deliberately not the band's brighter look
+ * (`BAND_BRIGHT_*` below).
+ */
+const STAR_BRIGHT_MIN = 0.78
+const STAR_BRIGHT_MAX = 1.0
+const STAR_OPACITY = 0.85
 
 // --- Close-in orbit band ---
 // The wide cloud can never show a full loop: the camera sits *inside* it

@@ -4,8 +4,7 @@
  *
  * Inlined, that stylesheet is document-level: on a light-mode system it would
  * flip the artwork's greys to near-black on the site's black page. Shared by
- * every ASCII-art SVG that gets fetched and injected (see ui/mark.ts,
- * ui/folder.ts).
+ * every ASCII-art SVG that gets fetched and injected (see ui/mark.ts).
  */
 export function stripLightScheme(svg: string): string {
   const at = svg.indexOf('@media(prefers-color-scheme:light){')

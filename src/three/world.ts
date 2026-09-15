@@ -58,10 +58,8 @@ const TAN_HALF_FOV = Math.tan((CAMERA_FOV * Math.PI) / 360)
 const TRANSITION_TURNS = 1
 
 /**
- * Scene 3's model fills the middle of the frame: its **visible** half-width is
- * solved to this fraction of the screen width, per aspect, every frame. The
- * wide composition's folders start ~0.281 of the width out from centre, so
- * 0.26 leaves just a sliver of black beside each one.
+ * Scene 3's model fills the frame: its **visible** half-width is solved to this
+ * fraction of the screen width, per aspect, every frame.
  *
  * "Visible" is the model's white geometry only — the black base slab reads as
  * the page and is ignored, and it is far wider than the rings and planets, so
@@ -75,10 +73,9 @@ const FIT_HALF_WIDTH = 0.26
 const REST_Y = -0.9
 
 /**
- * Scene 1 has no model — only the ring, empty inside. It rises into Scene 2
- * from below the frame across this stretch of the scroll, the same window the
- * folder constellations build in (ENTER_AT..FORM_AT in `constellation.ts`), so
- * it lands as the folders do.
+ * Scene 1 has no model — only the ring, empty inside. It rises into Scene 3
+ * from below the frame across this stretch of the transition, while the ring
+ * gathers back in behind it.
  */
 const RISE_START = 0.45
 const RISE_END = 0.92
