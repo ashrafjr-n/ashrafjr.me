@@ -117,7 +117,7 @@ function raf(time: number) {
     const page = scene.update(time, state)
     const progress = toTransition(page)
     updateIntro(progress)
-    identity.update(toIdentity(page))
+    identity.update(toIdentity(page), time)
   }
   revealWindow.update(state)
   requestAnimationFrame(raf)
