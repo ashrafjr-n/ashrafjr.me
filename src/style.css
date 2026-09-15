@@ -161,8 +161,9 @@ body {
 }
 
 /* ===========================================================
-   02 — Identity: three words on one axis (ui/identity.ts drives every
-   transform, opacity and blur; nothing here animates on its own)
+   02 — Identity: three statements on one axis, over a thread of stars.
+   ui/identity.ts drives every transform, opacity, blur and letter-spacing
+   from the scroll; nothing here animates on its own.
    =========================================================== */
 .identity {
   position: fixed;
@@ -172,26 +173,43 @@ body {
   pointer-events: none;
 }
 
-.identity-word {
+.identity-item {
   position: absolute;
   top: 50%;
   left: 50%;
-  margin: 0;
-  font-family: var(--font-display);
-  font-size: clamp(1rem, 4.4vw, 3.6rem);
-  font-weight: 400;
-  letter-spacing: 0.3em;
-  /* Letter-spacing trails the last glyph too; matching it on the left keeps
-     the word optically centred on the axis. */
-  padding-left: 0.3em;
-  white-space: nowrap;
-  color: #ffffff;
-  text-shadow: 0 0 24px rgba(255, 255, 255, 0.18);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: clamp(0.9rem, 2.2vh, 1.6rem);
   transform: translate(-50%, -50%);
   will-change: transform, opacity, filter;
 }
 
-/* The line of stars between the words. Size and sideways jitter are set per
+.identity-caption {
+  margin: 0;
+  font-family: var(--font-code);
+  font-size: clamp(0.62rem, 0.8vw, 0.78rem);
+  font-weight: 400;
+  letter-spacing: 0.42em;
+  padding-left: 0.42em; /* balances the trailing letter-spacing */
+  white-space: nowrap;
+  color: var(--text-dim);
+}
+
+.identity-word {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(1.25rem, 4.6vw, 5.4rem);
+  font-weight: 300;
+  line-height: 1;
+  /* letter-spacing and the matching padding-left are written from JS: the
+     tracking tightens as a statement comes into focus. */
+  white-space: nowrap;
+  color: #ffffff;
+  text-shadow: 0 0 32px rgba(255, 255, 255, 0.16);
+}
+
+/* A star in the thread down the axis. Size and sideways jitter are set per
    star from JS; the glow is the same soft white the starfield reads as. */
 .identity-star {
   position: absolute;

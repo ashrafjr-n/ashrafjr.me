@@ -1,45 +1,59 @@
 /**
- * 02 — IDENTITY: three words on one vertical axis, moved by the scroll like a
- * lens pulling focus. Type and motion only — no boxes, images or gradients.
+ * 02 — IDENTITY: three statements on one vertical axis, moved by the scroll
+ * like a lens pulling focus. Type and motion only — no boxes, images or
+ * gradients.
  *
- * A single focus position `f` runs past the words as the scroll does. Each
- * word's distance from it, `d`, sets everything about how it draws: at 0 it is
- * centred, full size and sharp; either side it shrinks, dims, blurs and is
- * pulled toward the centre line (dividing by `1 + DEPTH * |d|` bunches the far
- * ones together, which is what reads as depth rather than as a slide). So the
- * word behind recedes while the next one arrives out of the distance.
+ * A single focus position `f` walks the list, and it **dwells**: each
+ * statement holds, sharp and centred, for part of the scroll before focus
+ * travels on. A statement's distance from focus, `d`, sets how it draws, and
+ * the two sides are deliberately not mirror images:
+ *   - ahead (d > 0): below, small, blurred and wide-tracked — still forming;
+ *   - in focus (d = 0): centred, full size, sharp, tight tracking;
+ *   - behind (d < 0): above, small and dim but crisp — settled.
+ * So arriving reads as a lens racking in and leaving reads as memory.
+ *
+ * Behind it all runs a thread of stars down the screen's axis (see
+ * `thread()`), hidden where it would cross a statement.
  *
  * A pure function of the identity progress (`lib/phases.ts`), so scrolling
  * back up plays it backwards exactly. Driven from main.ts's one RAF loop.
  */
+import { clamp } from '../lib/math'
 
-const WORDS = ['COMPUTER SCIENCE', 'FULL-STACK DEVELOPER', 'BUILDING TOWARD AI']
+const ITEMS = [
+  { label: 'ACADEMIC ROOT', text: 'COMPUTER SCIENCE' },
+  { label: 'CURRENT CRAFT', text: 'FULL-STACK DEVELOPER' },
+  { label: 'DIRECTION', text: 'BUILDING TOWARD AI' },
+]
 
-/** Where focus sits at the start and end of the scene, in word indices. */
-const FOCUS_FROM = -0.7
-const FOCUS_TO = WORDS.length - 1 + 0.7
-/** Vertical distance, in vh, one word-step covers at the centre. */
-const SPACING_VH = 30
-/** How hard distant words are pulled together. */
-const DEPTH = 0.35
-/** Shrink, fade and blur per word-step away from focus. */
-const SHRINK = 0.5
-const FADE = 0.6
-const BLUR_PX = 3
+/** Focus runs from one step before the first statement to one after the last. */
+const RUN_FROM = -0.8
+const RUN_TO = ITEMS.length - 1 + 0.8
+/** Fraction of each step spent holding still, split either side of the statement. */
+const DWELL = 0.5
+/** Vertical distance, in vh, one step covers near the centre. */
+const GAP_VH = 27
+/** How hard further statements are pulled toward the centre line. */
+const DEPTH = 0.3
+/** Letter-spacing in focus, and for a statement one step ahead (em). */
+const TRACK_FOCUS = 0.16
+const TRACK_AHEAD = 0.85
 /** Fraction of the scene spent fading the whole thing in, and again out. */
-const EDGE = 0.1
+const EDGE = 0.08
 
-/**
- * The line between each pair of words is made of stars, not drawn: a column of
- * small glowing dots that flow down it as the scroll runs, so the line itself
- * moves. They fade at both ends of a segment, which is what keeps them clear
- * of the words.
- */
-const STARS_PER_SEGMENT = 16
-/** Gap left above and below each word, in vh at full size. */
-const LINE_PAD_VH = 5
-/** How many times a star travels the whole segment across the scene. */
-const LINE_FLOW = 2
+/** Stars in the thread, top of the screen to the bottom. */
+const THREAD_STARS = 72
+/** How many star-spacings the thread flows across the whole scene. */
+const THREAD_FLOW = 22
+/** Half-height, in vh at full size, of the gap the thread leaves around a statement. */
+const CLEAR_VH = 7.5
+
+/** Keep `u`'s ends flat for `DWELL` of the step, and ease across the middle. */
+function dwell(x: number): number {
+  const k = Math.floor(x)
+  const u = clamp((x - k - DWELL / 2) / (1 - DWELL), 0, 1)
+  return k + u * u * (3 - 2 * u)
+}
 
 export interface Identity {
   el: HTMLDivElement
@@ -51,66 +65,86 @@ export function createIdentity(): Identity {
   const el = document.createElement('div')
   el.className = 'identity'
 
-  // One segment per pair of neighbouring words. Each star keeps its own size,
-  // brightness and a hair of sideways jitter, so the line reads as stars.
-  const segments = WORDS.slice(1).map(() =>
-    Array.from({ length: STARS_PER_SEGMENT }, () => {
-      const star = document.createElement('i')
-      star.className = 'identity-star'
-      const size = 1.4 + Math.random() * 1.4
-      star.style.width = star.style.height = `${size}px`
-      star.style.marginLeft = `${(Math.random() - 0.5) * 3 - size / 2}px`
-      el.append(star)
-      return { star, level: 0.45 + Math.random() * 0.55 }
-    }),
-  )
+  // The thread first, so the statements paint over it.
+  const thread = Array.from({ length: THREAD_STARS }, (_, k) => {
+    const star = document.createElement('i')
+    star.className = 'identity-star'
+    const size = 1.2 + Math.random() * 1.3
+    star.style.width = star.style.height = `${size}px`
+    star.style.marginLeft = `${(Math.random() - 0.5) * 2.5 - size / 2}px`
+    el.append(star)
+    return { star, k, level: 0.35 + Math.random() * 0.65, phase: Math.random() * Math.PI * 2 }
+  })
 
-  const words = WORDS.map((text) => {
+  const items = ITEMS.map(({ label, text }, i) => {
+    const item = document.createElement('div')
+    item.className = 'identity-item'
+    const caption = document.createElement('p')
+    caption.className = 'identity-caption'
+    caption.textContent = `0${i + 1} — ${label}`
     const word = document.createElement('p')
     word.className = 'identity-word'
     word.textContent = text
-    el.append(word)
-    return word
+    item.append(caption, word)
+    el.append(item)
+    return { item, caption, word }
   })
 
+  const ys = new Float64Array(ITEMS.length)
+  const scales = new Float64Array(ITEMS.length)
   let shown = -1
 
+  /**
+   * Stars evenly down the axis, flowing with the scroll, each twinkling on its
+   * own phase. A star fades out as it nears any statement (its clearance
+   * shrinks with the statement's scale) and toward the top and bottom edges.
+   */
+  function drawThread(t: number): void {
+    const step = 100 / THREAD_STARS
+    const flow = (t * THREAD_FLOW) % 1
+    for (const { star, k, level, phase } of thread) {
+      const y = (k + flow) * step // 0..100vh
+      const centred = y - 50
+      let clear = 1
+      for (let i = 0; i < ITEMS.length; i++) {
+        clear = Math.min(clear, clamp((Math.abs(centred - ys[i]) - CLEAR_VH * scales[i]) / 4, 0, 1))
+      }
+      const twinkle = 0.65 + 0.35 * Math.sin(phase + t * 60)
+      star.style.transform = `translateY(${centred}vh)`
+      star.style.opacity = String(Math.sin((Math.PI * y) / 100) * level * twinkle * clear)
+    }
+  }
+
   function update(t: number): void {
-    if (Math.abs(t - shown) < 0.0005) return // skip redundant style writes
+    if (Math.abs(t - shown) < 0.0003) return // skip redundant style writes
     shown = t
 
     const fade = Math.min(t / EDGE, (1 - t) / EDGE, 1)
     el.style.opacity = String(fade)
     if (fade <= 0) return
 
-    const f = FOCUS_FROM + t * (FOCUS_TO - FOCUS_FROM)
-    const ys: number[] = []
-    const scales: number[] = []
-    const opacities: number[] = []
-    words.forEach((word, i) => {
+    const f = dwell(RUN_FROM + t * (RUN_TO - RUN_FROM))
+
+    items.forEach(({ item, caption, word }, i) => {
       const d = i - f
       const a = Math.abs(d)
-      const y = (SPACING_VH * d) / (1 + DEPTH * a)
-      const scale = 1 / (1 + SHRINK * a)
-      const opacity = Math.max(0, 1 - FADE * a)
-      ys.push(y)
-      scales.push(scale)
-      opacities.push(opacity)
-      word.style.transform = `translate(-50%, -50%) translateY(${y}vh) scale(${scale})`
-      word.style.opacity = String(opacity)
-      word.style.filter = `blur(${Math.min(a * BLUR_PX, 6)}px)`
+      const near = Math.min(a, 1)
+      const ahead = d > 0
+
+      const y = ((ahead ? 1 : -1) * GAP_VH * a) / (1 + DEPTH * a)
+      const scale = 1 - (ahead ? 0.42 : 0.5) * Math.min(a, 1.4)
+      ys[i] = y
+      scales[i] = scale
+
+      item.style.transform = `translate(-50%, -50%) translateY(${y}vh) scale(${scale})`
+      item.style.opacity = String(ahead ? Math.max(0, 1 - 0.8 * a) : Math.max(0, 1 - 0.72 * a))
+      item.style.filter = `blur(${ahead ? near * 7 : near * 1.2}px)`
+      word.style.letterSpacing = `${TRACK_FOCUS + (ahead ? near * (TRACK_AHEAD - TRACK_FOCUS) : 0)}em`
+      word.style.paddingLeft = word.style.letterSpacing
+      caption.style.opacity = String(Math.max(0, 1 - a * 2.2))
     })
 
-    segments.forEach((stars, i) => {
-      const top = ys[i] + LINE_PAD_VH * scales[i]
-      const bottom = ys[i + 1] - LINE_PAD_VH * scales[i + 1]
-      const strength = (opacities[i] + opacities[i + 1]) / 2
-      stars.forEach(({ star, level }, k) => {
-        const u = (k / STARS_PER_SEGMENT + t * LINE_FLOW) % 1
-        star.style.transform = `translateY(${top + (bottom - top) * u}vh)`
-        star.style.opacity = String(Math.sin(Math.PI * u) * level * strength)
-      })
-    })
+    drawThread(t)
   }
 
   return { el, update }
