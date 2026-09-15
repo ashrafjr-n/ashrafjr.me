@@ -2,10 +2,10 @@
  * App entry: mounts the page's elements, starts the scenes and runs the single
  * RAF loop.
  *
- * The loop reads one number — the smoothed scroll progress the 3D scene
- * returns — and drives the DOM side of the Scene 1 -> Scene 2 transition off
- * exactly that value, so nothing here can drift out of sync with the camera,
- * the spin or the stars. Never read `state.scroll` directly for animation.
+ * The loop reads one number — the smoothed page scroll the 3D scene returns —
+ * splits it into scenes with `lib/phases.ts`, and drives the DOM side (intro,
+ * identity, row) off exactly that value, so nothing here can drift out of sync
+ * with the spin or the stars. Never read `state.scroll` directly for animation.
  */
 import './style.css'
 import { clamp } from './lib/math'
