@@ -186,8 +186,10 @@ export function createIdentity(): Identity {
       const d = i - f
       const a = Math.abs(d)
       const ahead = d > 0
-      // How far "out of focus" an upcoming statement is, 0..1.
-      const blur = ahead ? smooth(Math.min(a, 1)) : 0
+      // How far "out of focus" an upcoming statement is, 0..1. It is fully
+      // sharp for the last stretch of its approach, so the two copies only
+      // overlap while the statement is still small and dim.
+      const blur = ahead ? smooth((a - 0.4) / 0.5) : 0
 
       const y = ((ahead ? 1 : -1) * GAP_VH * a) / (1 + DEPTH * a)
       const scale = 1 - (ahead ? 0.42 : 0.5) * Math.min(a, 1.4)
