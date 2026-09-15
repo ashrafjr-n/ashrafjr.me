@@ -24,7 +24,7 @@ const INTRO_FADE_END = 0.28
 /** How far the line drifts upward as it goes, in px. */
 const INTRO_DRIFT = 70
 
-/** Scene 1 intro line, dead centre of the viewport, inside the ring. */
+/** Scene 1 intro line, centred near the top of the viewport. */
 function buildIntro(): HTMLParagraphElement {
   const intro = document.createElement('p')
   intro.className = 'intro'
@@ -102,7 +102,7 @@ function updateIntro(progress: number): void {
   if (Math.abs(t - introShown) < 0.002) return // skip redundant style writes
   introShown = t
   intro.style.opacity = String(1 - t)
-  intro.style.transform = `translate(-50%, calc(-50% - ${t * INTRO_DRIFT}px))`
+  intro.style.transform = `translate(-50%, ${-t * INTRO_DRIFT}px)`
 }
 
 // --- Single RAF loop: the only one in the app; hook new per-frame work in here
