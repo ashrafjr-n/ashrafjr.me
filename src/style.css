@@ -112,10 +112,10 @@ body {
   background: var(--bg);
   /* Scroll length for all three scenes. Everything on screen is
      position:fixed, so the page has no content to scroll — this is what
-     creates the scroll range that drives `state.scroll`. 500vh = four viewport
-     heights of travel; lib/phases.ts splits them 90 / 200 / 110 and has to
+     creates the scroll range that drives `state.scroll`. 800vh = seven viewport
+     heights of travel; lib/phases.ts splits them 90 / 300 / 310 and has to
      change with this. */
-  min-height: 500vh;
+  min-height: 800vh;
   color: var(--text-dim);
   font-family: var(--font-code);
   -webkit-font-smoothing: antialiased;

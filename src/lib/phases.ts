@@ -11,18 +11,23 @@
  * third of the ring is still orbiting on screen, and the model has not
  * started. Those few stars are the identity scene's sky.
  *
- * The page bounds keep the first and last stretches at the scroll length they
- * had before (90vh and 110vh of a 200vh range), with identity given 200vh in
- * between — body is 500vh in style.css, a 400vh range. Change them together.
+ * Scroll lengths, of a 700vh range (body is 800vh in style.css — change them
+ * together): Scene 1's break-up keeps its original 90vh, identity gets 300vh,
+ * and the move into Scene 3 gets 310vh — nearly three times what it had —
+ * **eased in and out**, so the transition leaves identity gently instead of
+ * resuming at full speed, and settles as the model lands.
  */
 export const HOLD = 0.45
-const IDENTITY_FROM = 0.225
-const IDENTITY_TO = 0.725
+const IDENTITY_FROM = 90 / 700
+const IDENTITY_TO = 390 / 700
 
 /** The Scene 1 -> Scene 3 transition value, paused through identity. */
 export function toTransition(page: number): number {
   if (page < IDENTITY_FROM) return (page / IDENTITY_FROM) * HOLD
-  if (page > IDENTITY_TO) return HOLD + ((page - IDENTITY_TO) / (1 - IDENTITY_TO)) * (1 - HOLD)
+  if (page > IDENTITY_TO) {
+    const u = (page - IDENTITY_TO) / (1 - IDENTITY_TO)
+    return HOLD + u * u * (3 - 2 * u) * (1 - HOLD)
+  }
   return HOLD
 }
 
