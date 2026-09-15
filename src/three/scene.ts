@@ -30,6 +30,7 @@ import {
   WebGLRenderer,
 } from 'three'
 import { rand } from '../lib/math'
+import { toTransition } from '../lib/phases'
 import type { InputState } from '../lib/state'
 import { createConstellation, type Constellation } from './constellation'
 import { createCircleTexture } from './sprite'
@@ -39,8 +40,9 @@ import { STAR_BRIGHT_MIN, STAR_BRIGHT_MAX, STAR_OPACITY } from './star-look'
 import { createWorld, MODEL_SPIN_RATE } from './world'
 
 export interface SceneController {
-  /** Advances and renders a frame. Returns the smoothed 0..1 scroll progress
-   *  so DOM-side pieces of the transition stay on the exact same driver. */
+  /** Advances and renders a frame. Returns the smoothed 0..1 page scroll so
+   *  DOM-side pieces stay on the exact same driver — map it through
+   *  `lib/phases.ts` the same way this does. */
   update(time: number, state: InputState): number
   /**
    * Re-anchor the frame clock to now, after a stretch of frames was skipped.
@@ -508,8 +510,8 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
 
   // --- Animation: orbits, smoothed mouse parallax, scroll transition ---
   let prevTime = performance.now()
-  /** Smoothed scroll position. The single driver for the whole transition. */
-  let progress = 0
+  /** Smoothed page scroll, 0..1. The single driver for every scene. */
+  let page = 0
   const flyDir = new Vector3()
   const layerFly = new Vector3()
   const invRotation = new Quaternion()
@@ -522,7 +524,9 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
     // — that is what keeps them simultaneous rather than sequential. Smoothed
     // against elapsed time, not per frame, so the transition takes the same
     // time to settle at 60Hz and at 120Hz — see SCROLL_RATE.
-    progress += (state.scroll - progress) * (1 - Math.exp(-SCROLL_RATE * delta))
+    page += (state.scroll - page) * (1 - Math.exp(-SCROLL_RATE * delta))
+    // Paused through the identity scene — see lib/phases.ts.
+    const progress = toTransition(page)
 
     // Mouse parallax — tilt the wide field a few degrees, lerped. The band is
     // deliberately left untilted: its full-loop visibility was solved for a
@@ -562,7 +566,7 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
     renderer.clearDepth() // the constellations sit in front of both
     constellation.render(renderer) // no-op unless stars are actually in flight
 
-    return progress
+    return page
   }
 
   /**

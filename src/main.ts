@@ -9,6 +9,7 @@
  */
 import './style.css'
 import { clamp } from './lib/math'
+import { toTransition } from './lib/phases'
 import { initScene } from './three/scene'
 import type { Side } from './three/constellation'
 import { lockScroll, unlockScroll } from './lib/scroll-lock'
@@ -266,7 +267,8 @@ function updateScene2Row(progress: number): void {
 // stops the model's spin from running unseen.
 function raf(time: number) {
   if (!isPaused) {
-    const progress = scene.update(time, state)
+    const page = scene.update(time, state)
+    const progress = toTransition(page)
     updateIntro(progress)
     updateScene2Row(progress)
     // Each word's own label waits for that word's own folder mark to arrive
