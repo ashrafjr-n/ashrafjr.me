@@ -29,8 +29,8 @@ import {
   Vector3,
   WebGLRenderer,
 } from 'three'
-import { rand } from '../lib/math'
-import { toTransition } from '../lib/phases'
+import { clamp, rand } from '../lib/math'
+import { HOLD, toTransition } from '../lib/phases'
 import type { InputState } from '../lib/state'
 import { createConstellation, type Constellation } from './constellation'
 import { createCircleTexture } from './sprite'
@@ -205,6 +205,32 @@ const BAND_SCATTER_EASE = 2.2
 const BAND_SWIRL = Math.PI * 2
 
 /**
+ * Identity -> Scene 3: the ring plays its scatter **backwards**, pulling in
+ * from wherever it was held (`HOLD`) to its original tight orbit by
+ * GATHER_END, unwinding the swirl with it, while the model rises — and fades
+ * out entirely across FADE_FROM..FADE_TO. Transition units, like the rest.
+ */
+const GATHER_END = 0.8
+const BAND_FADE_FROM = 0.62
+const BAND_FADE_TO = 0.82
+
+/** Smooth 0..1 ramp of `p` across `from..to`. */
+function ramp(p: number, from: number, to: number): number {
+  const u = clamp((p - from) / (to - from), 0, 1)
+  return u * u * (3 - 2 * u)
+}
+
+/**
+ * How far out the band is, 0..1 of each star's scatter, at a transition
+ * value: the eased scatter up to HOLD, then gathered back in to 0. Shared with
+ * the constellation, which departs from wherever this puts the ring.
+ */
+function bandScatterAt(p: number): number {
+  const out = Math.pow(Math.min(p, HOLD), BAND_SCATTER_EASE)
+  return p <= HOLD ? out : out * (1 - ramp(p, HOLD, GATHER_END))
+}
+
+/**
  * How far each ambient star travels toward the camera by full scroll. The
  * furthest a star can start behind the camera along this axis is 62 (cloud
  * radius) + 10.2 (the camera's own offset) = 72.2. Sizing the travel just under
@@ -235,8 +261,8 @@ interface StarLayer {
   fly: Float32Array | null
   /** Extra orbit angle at full scroll — the band spiralling as it scatters. */
   swirl: number
-  /** Exponent applied to scroll progress before displacing this layer. */
-  ease: number
+  /** Maps scroll progress to how far along this layer's displacement is. */
+  curve: (progress: number) => number
   /**
    * The attribute's **own** backing array, written directly each frame.
    *
@@ -276,7 +302,7 @@ function advance(
 ): void {
   const arr = layer.positions
   // Same scroll value for every layer; each just responds on its own curve.
-  const t = layer.ease === 1 ? progress : Math.pow(progress, layer.ease)
+  const t = layer.curve(progress)
 
   for (let i = 0; i < layer.count; i++) {
     const angle = layer.angles[i] + layer.speeds[i] * delta
@@ -361,7 +387,7 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
       /** Defaults to the mipmapped cloud sprite; the band passes its own. */
       sprite?: CanvasTexture
     } = {},
-    transition: { scatter?: () => number; fly?: () => number; swirl?: number; ease?: number } = {},
+    transition: { scatter?: () => number; fly?: () => number; swirl?: number; curve?: (progress: number) => number } = {},
   ): StarLayer {
     const positions = new Float32Array(count * 3)
     const colors = new Float32Array(count * 3)
@@ -440,7 +466,7 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
       scatter,
       fly,
       swirl: transition.swirl ?? 0,
-      ease: transition.ease ?? 1,
+      curve: transition.curve ?? ((p) => p),
       // The attribute's copy of `positions`, not `positions` itself.
       positions: posAttr.array as Float32Array,
       posAttr,
@@ -463,7 +489,7 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
     // On scroll these fly toward and past the camera, and are never wrapped
     // back around — the field thins out as Scene 1 is left behind.
     fly: () => rand(FLY_DISTANCE_MIN, FLY_DISTANCE_MAX),
-    ease: FLY_EASE,
+    curve: (p) => Math.pow(p, FLY_EASE),
   })
 
   // The close-in band — the orbits that stay on screen for a whole revolution.
@@ -481,8 +507,11 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
     // On scroll these spiral out of their tight orbit and scatter away.
     scatter: () => rand(BAND_SCATTER_MIN, BAND_SCATTER_MAX),
     swirl: BAND_SWIRL,
-    ease: BAND_SCATTER_EASE,
+    curve: bandScatterAt,
   })
+
+  /** Faded out as the band gathers back in — see BAND_FADE_FROM. */
+  const bandMaterial = band.points.material as PointsMaterial
 
   // --- Scene 1 world layer (the model), drawn over the starfield ---
   const world = createWorld(window.innerWidth / window.innerHeight)
@@ -502,7 +531,7 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
     yMax: BAND_Y_MAX,
     scatterMin: BAND_SCATTER_MIN,
     scatterMax: BAND_SCATTER_MAX,
-    scatterEase: BAND_SCATTER_EASE,
+    scatterAt: bandScatterAt,
   })
 
   /** Both layers, in one array so the frame loop allocates nothing per frame. */
@@ -558,6 +587,7 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
 
     world.update(delta, progress)
     constellation.update(progress)
+    bandMaterial.opacity = BAND_OPACITY * (1 - ramp(progress, BAND_FADE_FROM, BAND_FADE_TO))
 
     renderer.clear()
     renderer.render(starfield, world.camera) // same vantage -> same orbital plane

@@ -15,7 +15,7 @@
  * had before (90vh and 110vh of a 200vh range), with identity given 200vh in
  * between — body is 500vh in style.css, a 400vh range. Change them together.
  */
-const HOLD = 0.45
+export const HOLD = 0.45
 const IDENTITY_FROM = 0.225
 const IDENTITY_TO = 0.725
 

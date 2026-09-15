@@ -98,10 +98,11 @@ export interface RingOrigin {
   /** The heights its stars sit at. */
   yMin: number
   yMax: number
-  /** Extra orbit radius a band star gains by full scroll, and its ease curve. */
+  /** Extra orbit radius a band star gains by full scroll. */
   scatterMin: number
   scatterMax: number
-  scatterEase: number
+  /** 0..1 of that scatter the band is at, for a scroll progress — out, then back in. */
+  scatterAt: (progress: number) => number
 }
 
 /**
@@ -378,10 +379,10 @@ export function createConstellation(origin: RingOrigin): Constellation {
     project(Math.cos(angle) * radius, height, Math.sin(angle) * radius, ringPx)
 
     // The scroll position this star departs at, and therefore how far the band
-    // has scattered by then — the same `progress ^ ease` curve `scene.ts`
+    // has scattered (or gathered back) by then — the same curve `scene.ts`
     // advances the band on, read from RingOrigin rather than restated here.
     const departAt = ENTER_AT + src.delays[i] * (FORM_AT - ENTER_AT)
-    const scattered = src.ringScatter[i] * Math.pow(departAt, origin.scatterEase)
+    const scattered = src.ringScatter[i] * origin.scatterAt(departAt)
     const reach = 1 + scattered / radius
 
     src.starts[i3] = axisPx.x + (ringPx.x - axisPx.x) * reach
