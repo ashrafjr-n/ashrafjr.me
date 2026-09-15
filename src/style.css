@@ -157,16 +157,16 @@ body {
 }
 
 /* ===========================================================
-   Scene 1 intro line (top-centre, above the model)
+   Scene 1 intro line (dead centre, inside the ring)
    =========================================================== */
 .intro {
   position: fixed;
-  top: 10vh;
+  top: 50%;
   left: 50%;
   z-index: 20;
-  /* translateX centres it; the Y offset is driven from the RAF loop as the
-     scroll transition runs, so the line drifts up as it fades. */
-  transform: translate(-50%, 0);
+  /* Centred on both axes; the extra Y offset is driven from the RAF loop as
+     the scroll transition runs, so the line drifts up as it fades. */
+  transform: translate(-50%, -50%);
   margin: 0;
   font-family: var(--font-code);
   font-size: clamp(0.85rem, 1.9vw, 1.35rem);
@@ -624,13 +624,6 @@ body {
    have to be changed together.
    =========================================================== */
 @media (max-width: 767.98px) {
-  /* The intro line sits a little lower on a phone. Scene 1 only, and only the
-     resting position: main.ts still drives its fade and its upward drift from
-     the scroll, on top of whatever `top` is set here. */
-  .intro {
-    top: 15vh;
-  }
-
   :root {
     /* Smaller portrait, and closer to the bottom edge than the base 9vh. The
        row is bottom-anchored, so the smaller box and the smaller offset both

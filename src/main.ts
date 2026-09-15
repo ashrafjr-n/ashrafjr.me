@@ -41,7 +41,7 @@ const ROW_FADE_START = 0.82
  */
 const ROW_ACTIVE_AT = 0.9
 
-/** Scene 1 intro line, centred near the top of the viewport above the model. */
+/** Scene 1 intro line, dead centre of the viewport, inside the ring. */
 function buildIntro(): HTMLParagraphElement {
   const intro = document.createElement('p')
   intro.className = 'intro'
@@ -227,7 +227,7 @@ function updateIntro(progress: number): void {
   if (Math.abs(t - introShown) < 0.002) return // skip redundant style writes
   introShown = t
   intro.style.opacity = String(1 - t)
-  intro.style.transform = `translate(-50%, ${-t * INTRO_DRIFT}px)`
+  intro.style.transform = `translate(-50%, calc(-50% - ${t * INTRO_DRIFT}px))`
 }
 
 /**
