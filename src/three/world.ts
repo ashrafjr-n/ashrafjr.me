@@ -33,6 +33,7 @@ import {
 } from 'three'
 import type { Object3D } from 'three'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
+import { clamp } from '../lib/math'
 
 // --- Framing ---
 const CAMERA_FOV = 35
@@ -97,6 +98,19 @@ const MODEL_SCENE2_SCALE = 1.35
  * growth at all, which is correct — they have no room for it.
  */
 const MODEL_SCALE_PER_ASPECT = 0.76
+
+/**
+ * Scene 1 has no model — only the ring, empty inside. It rises into Scene 2
+ * from below the frame across this stretch of the scroll, the same window the
+ * folder constellations build in (ENTER_AT..FORM_AT in `constellation.ts`), so
+ * it lands as the folders do.
+ */
+const RISE_START = 0.45
+const RISE_END = 0.92
+/** World units below its resting centre it starts at: clear of the frame's bottom edge. */
+const RISE_DROP = 6
+/** Fraction of its final size it starts the rise at, growing to full as it lands. */
+const RISE_SCALE_FROM = 0.4
 
 const MODEL_URL = '/models/space_boi.glb'
 /**
@@ -180,7 +194,11 @@ export function createWorld(aspect: number): WorldLayer {
   // centre up with. Spinning and scaling this Group keeps the model exactly in
   // place; its `position` is never written, so the model stays dead centre.
   const pivot = new Group()
+  pivot.visible = false
   scene.add(pivot)
+
+  /** Half the fitted model's height: lifts its centre, not its base, onto the camera's aim. */
+  let modelMidY = 0
 
   // Async — the starfield renders immediately, the model pops in when it has
   // loaded.
@@ -188,6 +206,7 @@ export function createWorld(aspect: number): WorldLayer {
     MODEL_URL,
     (gltf) => {
       fitModel(gltf.scene)
+      modelMidY = new Box3().setFromObject(gltf.scene).max.y / 2
       pivot.add(gltf.scene)
     },
     undefined,
@@ -214,7 +233,14 @@ export function createWorld(aspect: number): WorldLayer {
     // than cached off a resize listener, so a window dragged wider retunes the
     // cap the same way the CSS retunes the folders.
     const scale = Math.max(1, Math.min(MODEL_SCENE2_SCALE, MODEL_SCALE_PER_ASPECT * camera.aspect))
-    pivot.scale.setScalar(1 + (scale - 1) * progress)
+
+    // Rise from below and grow, eased out so it settles into place. A pure
+    // function of progress, so scrolling back up sinks it away again.
+    const rise = 1 - Math.pow(1 - clamp((progress - RISE_START) / (RISE_END - RISE_START), 0, 1), 3)
+    const s = scale * (RISE_SCALE_FROM + (1 - RISE_SCALE_FROM) * rise)
+    pivot.visible = progress > RISE_START
+    pivot.scale.setScalar(s)
+    pivot.position.y = -RISE_DROP * (1 - rise) - modelMidY * s
   }
 
   function resize(nextAspect: number): void {
