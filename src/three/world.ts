@@ -1,24 +1,19 @@
 /**
- * Scene 1 world layer — the model, lit and framed from a bird's-eye camera.
+ * World layer — the bird's-eye camera the starfield is drawn through, and the
+ * Scene 2 model with its own front-on camera.
  *
  * Kept as its own scene so the depth clear between the two passes can put the
  * model in front of the stars whatever their real depth. `scene.ts` renders
- * the starfield first, clears depth, then renders this layer on top — both
- * passes through this camera, which is what lines the star orbits up with the
- * model's own plane. The starfield has no camera of its own.
+ * the starfield through `camera` (bird's-eye), clears depth, then renders this
+ * layer through `modelCamera` (level, facing the model).
  *
  * There is deliberately no ground/platform mesh: the model's own base is pure
  * black and the page background is the same black, so it reads as one
  * continuous surface.
  *
- * **The camera never moves.** This layer answers to the scroll in exactly two
- * ways — one extra turn, and a modest growth — and both are on the model
- * itself. Scene 2 is reached by the stars scattering away and the two folder
- * constellations arriving, not by recomposing the shot. An earlier version
- * dollied the camera in, levelled it, tilted it back up and anchored the model
- * to the bottom edge of the frame across the same scroll; all of that was
- * removed deliberately (see the Removed section of CLAUDE.md) and none of it
- * should come back without the whole composition being rethought.
+ * **Neither camera moves.** Scene 1 has no model at all — only the ring, empty
+ * inside. Across the scroll the model rises from below the frame, grows, and
+ * spins; all of it is on the pivot, as a pure function of progress.
  *
  * Palette: white/black/silver-gray only.
  */
@@ -163,8 +158,8 @@ export interface WorldLayer {
   modelCamera: PerspectiveCamera
   /**
    * Advance the spin. Driven by the single RAF loop; `delta` is in seconds and
-   * `progress` is the 0..1 Scene 1 -> Scene 2 scroll position. The camera is
-   * not touched — see the note at the top of the file.
+   * `progress` is the 0..1 Scene 1 -> Scene 2 scroll position. Neither camera
+   * is touched — see the note at the top of the file.
    */
   update(delta: number, progress: number): void
   resize(aspect: number): void
@@ -173,8 +168,7 @@ export interface WorldLayer {
 export function createWorld(aspect: number): WorldLayer {
   const scene = new Scene()
 
-  // Set once, never written again: this vantage is Scene 1's and Scene 2's
-  // alike.
+  // Set once, never written again: the stars' vantage in both scenes.
   const camera = new PerspectiveCamera(CAMERA_FOV, aspect, 0.1, 200)
   camera.position.set(CAMERA_POS.x, CAMERA_POS.y, CAMERA_POS.z)
   camera.lookAt(CAMERA_TARGET.x, CAMERA_TARGET.y, CAMERA_TARGET.z)
@@ -191,8 +185,8 @@ export function createWorld(aspect: number): WorldLayer {
   scene.add(new AmbientLight(0xffffff, 1.1), key, fill)
 
   // Rotation pivot: sits at the origin, which fitModel() lines the model's own
-  // centre up with. Spinning and scaling this Group keeps the model exactly in
-  // place; its `position` is never written, so the model stays dead centre.
+  // centre up with. Spinning and scaling this Group keeps the model in place on
+  // x/z; only `position.y` is written, for the rise.
   const pivot = new Group()
   pivot.visible = false
   scene.add(pivot)
