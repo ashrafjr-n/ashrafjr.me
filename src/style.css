@@ -176,39 +176,57 @@ body {
   pointer-events: none;
 }
 
-/* One statement. The outer box is the **mask** and carries only the position
-   (and the small drift ui/identity.ts writes); the inner <p> is what slides.
-   Two elements, and that split is load-bearing — a mask that also carried the
-   slide would move its own clip with it and never hide anything.
-
-   Sits in the upper part of the frame because the model holds the lower part:
-   the statements are read against it, not over it. */
-.identity-line {
+/* The block: three statements, flush to both margins, centred in the frame.
+   ui/identity.ts sets each statement's own font size so they justify, which is
+   why none is set here. */
+.identity-block {
   position: absolute;
-  top: 24%;
+  top: 50%;
   left: 50%;
-  transform: translate(-50%, 0);
-  overflow: hidden;
-  will-change: transform;
+  transform: translate(-50%, -50%);
+  width: 92%;
 }
 
-/* **The breathing room lives here, not on the mask**, and that is what lets
-   ui/identity.ts slide the word by a flat 100% of itself. Padding on the mask
-   instead would make the mask taller than the word, so a word slid its own
-   height would still be showing inside it — and the glow, which the mask
-   clips, would be cut into a visible rectangle around the type. */
-.identity-word {
+/* One statement's row. It takes its height from the outline copy, which is in
+   normal flow — so the leading follows each statement's own size with nothing
+   to keep in step from JS. */
+.identity-row {
+  position: relative;
+}
+
+/* Both copies of a statement, exactly on top of each other.
+
+   The outline is the resting state and the fill is swept across it by the
+   scroll — so **both carry the same stroke**, or the fill's edge would sit
+   half a pixel off the outline's and shimmer as it passed. Nothing here
+   animates: the only thing that changes is the fill copy's clip. */
+.identity-line {
+  display: block;
+  /* **`max-content`, not the row's width**, and that is what makes the block
+     justify: ui/identity.ts sizes each statement by measuring this element,
+     and an absolutely-positioned box stretched to its row measures the row
+     instead — every statement then comes back the same size and overruns. */
+  width: max-content;
   margin: 0;
-  padding: 0.42em 0.7em;
   font-family: var(--font-display);
-  font-size: clamp(1.5rem, 5.4vw, 5.6rem);
   font-weight: 300;
-  line-height: 1.04;
-  letter-spacing: 0.14em;
+  /* Under 1 on purpose: these are caps, so the line box is most of it empty
+     above and below, and this is what closes the three up into one block. */
+  line-height: 0.82;
+  letter-spacing: 0.01em;
   white-space: nowrap;
+  color: transparent;
+  -webkit-text-stroke: 1px rgba(255, 255, 255, 0.5);
+  will-change: clip-path;
+}
+
+.identity-line--fill {
+  position: absolute;
+  top: 0;
+  left: 0;
   color: #ffffff;
-  text-shadow: 0 0 34px rgba(255, 255, 255, 0.18);
-  will-change: transform;
+  -webkit-text-stroke-color: #ffffff;
+  clip-path: inset(0 100% 0 0);
 }
 
 /* The scene's name, bottom-left. The `01 / 03` counter that used to face it

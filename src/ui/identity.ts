@@ -1,29 +1,30 @@
 /**
- * 02 — IDENTITY: three statements read against the model, not a scene of their
- * own.
+ * 02 — IDENTITY: the three statements set as one typographic block, all three
+ * on screen the whole time. **Nothing moves. The scroll moves the fill.**
  *
- * The model is already standing when this begins and keeps turning all the way
- * through it (see `IDENTITY_TURNS` in `three/world.ts`); it holds the lower
- * half of the frame and the statements take the upper. Each one **rises out of
- * a mask**, holds while the model turns, and wipes up and out as the next one
- * arrives. That is the whole mechanic — one idea, executed exactly.
+ * Each statement is drawn twice, exactly on top of itself: an outline copy
+ * (hairline stroke, no fill) and a solid white copy clipped to nothing. As the
+ * scroll passes a statement its solid copy is unclipped from the left, so the
+ * white sweeps across the word and stays. By the end all three are solid — the
+ * block fills in rather than playing through, so there is a real final state
+ * and scrolling back drains it exactly.
  *
- * **What this replaced, and why none of it should come back.** Three stacked
- * headings that scrolled past each other with a dwell; then a thread of stars
- * down a central axis, with a hairline and a comet on it; then the statements
- * rasterised into a particle field with the camera flying through them,
- * bursting and reassembling. Each was a separate visual language invented for
- * this one scene, and each read as a demo bolted onto the site. The model was
- * already the site's one idea — this scene now uses it instead of competing
- * with it.
+ * **This is deliberately the least animated thing on the site, and that is the
+ * point.** Four earlier versions each answered the brief with more motion —
+ * three stacked headings with a dwell, a thread of stars with a comet on it, a
+ * particle fly-through that burst and reassembled, a masked roll read against
+ * the model — and every one of them read as an effect bolted onto the page.
+ * Do not add an entrance, a parallax, a drift or a marker here. The
+ * composition is complete on arrival; the fill is the whole interaction.
  *
- * **Only transform and opacity change per frame**, and the wipe is a
- * `translateY` inside an `overflow: hidden` box rather than an animated
- * `clip-path` — so it composites and never re-rasterises the type.
+ * The block is **justified**: `fitType()` measures each statement once and
+ * sets its own font size so all three are flush to both margins. They come out
+ * at different sizes, shortest statement largest, which is the hierarchy
+ * falling out of the text rather than being imposed on it.
  *
  * Driven from main.ts's one RAF loop. The identity progress is chased with its
- * own time-based smoothing (on top of the page's), so the motion stays soft
- * however the wheel arrives; scrolling back plays it in reverse.
+ * own time-based smoothing (on top of the page's), so the fill stays soft
+ * however the wheel arrives.
  */
 import { clamp } from '../lib/math'
 
@@ -32,35 +33,29 @@ const STATEMENTS = ['COMPUTER SCIENCE', 'FULL-STACK DEVELOPER', 'BUILDING TOWARD
 /** Per-second rate the drawn progress chases the scroll at (`1 - exp(-rate * dt)`). */
 const CHASE_RATE = 3.2
 /** Fraction of the scene spent fading the layer in at the start and out at the end. */
-const EDGE = 0.07
+const EDGE = 0.08
 
 /**
- * Fraction of a statement's own third spent rising out of the mask, and again
- * wiping out of it. The rest is the hold.
+ * Where each statement's fill begins, and how long it takes, as fractions of
+ * the scene.
  *
- * **The hold is in the type only — the model never stops turning**, which is
- * what keeps this from reading as a scroll that snaps. An earlier version held
- * the *scroll* between statements and that is exactly how it felt.
+ * `FILL_SPAN` is a little longer than the step between statements, so one is
+ * still finishing as the next starts — the three reads as a single sweep down
+ * the block rather than as three separate events. The last finishes well
+ * before the scene ends, so the block is complete and still for a while before
+ * the page moves on.
  */
-const WIPE_IN = 0.3
-const WIPE_OUT = 0.26
-/**
- * How far into the statement before it a statement starts arriving.
- *
- * **Equal to `WIPE_OUT`, so the two cross exactly**: the outgoing line leaves
- * through the top of the mask as the incoming one arrives through the bottom,
- * which is the roll this mechanic is for. Without it the two windows merely
- * met, and at the join both lines were outside their masks and the upper half
- * of the frame was empty for a beat.
- */
-const OVERLAP = WIPE_OUT
+const FILL_FROM = 0.06
+const FILL_STEP = 0.28
+const FILL_SPAN = 0.32
 
 /**
- * How far a statement's own line drifts up across its hold, in vh. Small on
- * purpose: it is there so a held statement is not perfectly static, not as a
- * move of its own.
+ * The size everything is measured at before being scaled to fit. Arbitrary,
+ * but large enough that the measurement is not dominated by rounding.
  */
-const DRIFT_VH = 1.6
+const MEASURE_PX = 200
+/** Fraction of the viewport the block spans, and where its left margin sits. */
+const BLOCK_WIDTH = 0.92
 
 function smooth(u: number): number {
   const x = clamp(u, 0, 1)
@@ -77,24 +72,56 @@ export function createIdentity(): Identity {
   const el = document.createElement('div')
   el.className = 'identity'
 
-  // Every statement sits in the same place and replaces the one before it.
-  // Two elements each, and that is load-bearing: the outer box is the mask and
-  // must never carry a transform of ours, the inner one is what slides.
+  const block = document.createElement('div')
+  block.className = 'identity-block'
+  el.append(block)
+
+  // Two copies per statement, exactly on top of each other. Both carry the
+  // stroke, so their glyph geometry is identical and the fill's edge cannot
+  // shimmer half a pixel off the outline's.
   const lines = STATEMENTS.map((text) => {
-    const mask = document.createElement('div')
-    mask.className = 'identity-line'
-    const word = document.createElement('p')
-    word.className = 'identity-word'
-    word.textContent = text
-    mask.append(word)
-    el.append(mask)
-    return { mask, word }
+    const row = document.createElement('div')
+    row.className = 'identity-row'
+    const outline = document.createElement('p')
+    outline.className = 'identity-line'
+    outline.textContent = text
+    const fill = document.createElement('p')
+    fill.className = 'identity-line identity-line--fill'
+    fill.textContent = text
+    fill.setAttribute('aria-hidden', 'true')
+    row.append(outline, fill)
+    block.append(row)
+    return { outline, fill }
   })
 
   const name = document.createElement('p')
   name.className = 'identity-meta identity-meta--name'
   name.textContent = '02 — IDENTITY'
   el.append(name)
+
+  /**
+   * Set each statement's own size so all three are flush to both margins.
+   *
+   * Measured off the rendered element rather than a canvas, so it accounts for
+   * the real face, tracking and stroke. Runs once the font is in and again on
+   * resize — never per frame.
+   */
+  function fitType(): void {
+    const target = window.innerWidth * BLOCK_WIDTH
+    for (const { outline, fill } of lines) {
+      outline.style.fontSize = `${MEASURE_PX}px`
+      const natural = outline.getBoundingClientRect().width
+      if (natural <= 0) continue
+      const size = (MEASURE_PX * target) / natural
+      outline.style.fontSize = `${size.toFixed(2)}px`
+      fill.style.fontSize = `${size.toFixed(2)}px`
+    }
+  }
+
+  let fittedAt = 0
+  // The face has to be in before anything is measured, or all three are sized
+  // against a fallback and stay that way.
+  document.fonts.ready.then(fitType)
 
   /** The drawn progress, chasing the scroll's. */
   let tt = 0
@@ -119,31 +146,17 @@ export function createIdentity(): Identity {
       hidden = false
       el.style.visibility = 'visible'
     }
+    if (window.innerWidth !== fittedAt) {
+      fittedAt = window.innerWidth
+      fitType()
+    }
     el.style.opacity = fade.toFixed(3)
 
-    // Each statement owns one third of the scene, and `p` is how far through
-    // its own third the scroll is: below 0 it has not arrived, above 1 it has
-    // gone. Both ends of that are outside the mask, so a statement is only
-    // ever drawn where it is meant to be seen.
-    const run = tt * STATEMENTS.length
     for (let i = 0; i < lines.length; i++) {
-      const { mask, word } = lines[i]
-      const p = run - i
-      if (p <= -OVERLAP - 0.02 || p >= 1.02) {
-        mask.style.visibility = 'hidden'
-        continue
-      }
-      mask.style.visibility = 'visible'
-
-      // Up from below the mask, hold, then up and out of it. One value, so the
-      // two halves cannot disagree at the join.
-      const inAt = smooth((p + OVERLAP) / WIPE_IN)
-      const outAt = smooth((p - (1 - WIPE_OUT)) / WIPE_OUT)
-      const slide = (1 - inAt) * 100 - outAt * 100
-      const drift = -smooth(p + OVERLAP) * DRIFT_VH
-
-      word.style.transform = `translateY(${slide.toFixed(2)}%)`
-      mask.style.transform = `translate(-50%, ${drift.toFixed(2)}vh)`
+      const filled = smooth((tt - (FILL_FROM + i * FILL_STEP)) / FILL_SPAN)
+      // Unclipped from the left, so the white sweeps across the word. The only
+      // property written per frame, on the only element that changes.
+      lines[i].fill.style.clipPath = `inset(0 ${(100 - filled * 100).toFixed(2)}% 0 0)`
     }
   }
 
