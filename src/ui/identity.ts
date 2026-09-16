@@ -55,11 +55,24 @@ const D_FAR = 9
 const D_NEAR = 0.42
 /**
  * Projected size of one world unit at one focal length, as a fraction of the
- * viewport height. A statement is normalised to exactly one unit wide, so at
- * `d = 1` it spans this much of the height — and by `D_NEAR` it is more than
- * twenty times that, which is what runs the letters off every edge.
+ * frame (see `frameSize`). A statement is normalised to exactly one unit
+ * **wide**, so at `d = 1` it spans this much of the frame — and by `D_NEAR` it
+ * is more than twenty times that, which is what runs the letters off every
+ * edge.
  */
-const FOCAL = 1
+const FOCAL = 0.56
+/**
+ * What "the frame" means for that: the viewport's width, unless the window is
+ * wide and short enough that the width would put the type taller than the
+ * screen.
+ *
+ * **It has to be the width, because a statement is normalised by its width.**
+ * Sizing it off the height instead looked right on a desktop only by
+ * coincidence of aspect — on a phone it made every statement several times
+ * wider than the screen, so the fly-through never showed a readable word at
+ * all, just a passing fragment of one.
+ */
+const FRAME_TALLEST = 1.8
 
 /**
  * Fraction of a statement's own stretch spent gathering at the start and
@@ -378,7 +391,7 @@ export function createIdentity(): Identity {
 
     const halfW = cssW / 2
     const halfH = cssH / 2
-    const unit = FOCAL * cssH
+    const unit = FOCAL * Math.min(cssW, cssH * FRAME_TALLEST)
     
     const maxR = PARTICLE_R_MAX_VH * cssH
     // Dimmed while apart, and taken to a hard glow once it is one point.
