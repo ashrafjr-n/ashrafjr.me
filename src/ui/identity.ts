@@ -417,9 +417,11 @@ export function createIdentity(): Identity {
         maxR,
       )
       // Smeared along its own travel while it flies — the word coming apart in
-      // streaks rather than in dots.
-      const w = r * (1 + STREAK * apart * Math.abs(sx))
-      const h = r * (1 + STREAK * apart * Math.abs(sy))
+      // streaks rather than in dots. Capped on both axes: the burst is the one
+      // frame where every particle is large and on screen at once, and an
+      // uncapped streak multiplies the worst case's fill several times over.
+      const w = Math.min(r * (1 + STREAK * apart * Math.abs(sx)), maxR)
+      const h = Math.min(r * (1 + STREAK * apart * Math.abs(sy)), maxR)
       if (x + w < 0 || x - w > cssW || y + h < 0 || y - h > cssH) continue
 
       // Fades up out of the far distance and back down as it reaches the lens,
