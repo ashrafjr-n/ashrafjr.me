@@ -17,11 +17,14 @@
  * `letter-spacing` directly re-rasterised big glowing type every frame, which
  * is what made this scene's scroll stutter.
  *
- * Behind it runs a thread of stars down the axis. It drifts on the clock as
- * well as with the scroll, so it never stops, and every way a star appears or
- * goes — the thread's own fade, the gaps around statements, the screen edges —
- * is a smooth ramp. While focus travels between two statements a comet runs
- * down the thread from one to the next. Two small labels hold the corners.
+ * Behind it runs a thread down the axis: a **hairline**, broken into one
+ * segment per gap between statements, with stars riding on it. The line is
+ * what makes it read as a thread rather than as loose dots; the stars are the
+ * highlights on it. Both drift on the clock as well as with the scroll, so
+ * the thread never stops, and every way a star appears or goes — the thread's
+ * own fade, the gaps around statements, the screen edges — is a smooth ramp.
+ * While focus travels between two statements a comet runs down the thread from
+ * one to the next. The scene's name holds the bottom-left corner.
  *
  * Driven from main.ts's one RAF loop. The identity progress is chased with its
  * own time-based smoothing (on top of the page's), so the motion stays soft
@@ -49,11 +52,21 @@ const DEPTH = 0.22
 /** Fraction of the scene spent fading the whole thing in, and again out. */
 const EDGE = 0.12
 
-/** Stars in the thread, top of the screen to the bottom. */
-const THREAD_STARS = 72
+/**
+ * Stars in the thread, top of the screen to the bottom. Deliberately fewer
+ * than the 72 this ran at before the hairline existed: the line carries the
+ * thread's continuity now, so the stars only have to be its highlights — and
+ * every one of them is an element with `will-change` written twice a frame,
+ * which is the whole of this scene's per-frame cost.
+ */
+const THREAD_STARS = 44
 /** Star-spacings the thread drifts per second on its own, and across the whole scene with the scroll. */
 const THREAD_DRIFT = 0.35
 const THREAD_FLOW = 10
+/** Lit segments of the hairline: one per gap, so one more than there are statements. */
+const THREAD_SEGMENTS = ITEMS.length + 1
+/** A segment shorter than this many vh is faded out rather than drawn as a stub. */
+const SEG_MIN_VH = 7
 /** Half-height, in vh at full size, of the gap the thread leaves around a statement, and the soft edge beyond it. */
 const CLEAR_VH = 8
 const CLEAR_SOFT_VH = 9
@@ -84,13 +97,28 @@ export function createIdentity(): Identity {
   const el = document.createElement('div')
   el.className = 'identity'
 
-  // The thread first, so the statements paint over it.
+  // The thread first, so the statements paint over it — the hairline, then the
+  // stars that ride it.
+  //
+  // A segment is one vh tall and stretched with `scaleY` from its own top, so
+  // only `transform` and `opacity` are ever written. Its fade at both ends is
+  // in the gradient rather than applied per frame, which means it stretches
+  // with the segment: a long gap fades gently, a short one quickly.
+  const segments = Array.from({ length: THREAD_SEGMENTS }, () => {
+    const seg = document.createElement('i')
+    seg.className = 'identity-seg'
+    el.append(seg)
+    return seg
+  })
+
   const thread = Array.from({ length: THREAD_STARS }, (_, k) => {
     const star = document.createElement('i')
     star.className = 'identity-star'
     const size = 1.4 + Math.random() * 1.4
     star.style.width = star.style.height = `${size}px`
-    star.style.marginLeft = `${(Math.random() - 0.5) * 2.5 - size / 2}px`
+    // Barely any sideways jitter now: off the hairline a star reads as a
+    // stray dot rather than as a bead on the thread.
+    star.style.marginLeft = `${(Math.random() - 0.5) * 1.1 - size / 2}px`
     el.append(star)
     return { star, k, level: 0.5 + Math.random() * 0.5, phase: Math.random() * Math.PI * 2 }
   })
@@ -130,10 +158,7 @@ export function createIdentity(): Identity {
   const name = document.createElement('p')
   name.className = 'identity-meta identity-meta--name'
   name.textContent = '02 — IDENTITY'
-  const counter = document.createElement('p')
-  counter.className = 'identity-meta identity-meta--count'
-  el.append(name, counter)
-  let counted = -1
+  el.append(name)
 
   const ys = new Float64Array(ITEMS.length)
   const scales = new Float64Array(ITEMS.length)
@@ -143,20 +168,40 @@ export function createIdentity(): Identity {
   let hidden = true
 
   function drawThread(time: number): void {
-    const step = 100 / THREAD_STARS
-    const flow = (((time / 1000) * THREAD_DRIFT + tt * THREAD_FLOW) % 1 + 1) % 1
     const strength = smooth(tt / THREAD_EDGE) * smooth((1 - tt) / THREAD_EDGE)
-    for (const { star, k, level, phase } of thread) {
-      const y = (k + flow) * step // 0..100vh
+
+    // The hairline: one lit run per gap between statements, from the screen's
+    // top edge down to the first and on from the last. The statements' own
+    // clear zones are exactly the unlit parts, so the line never crosses type.
+    let from = -50
+    for (let j = 0; j < THREAD_SEGMENTS; j++) {
+      const to = j < ITEMS.length ? ys[j] - CLEAR_VH * scales[j] : 50
+      const len = to - from
+      segments[j].style.transform = `translateY(${from.toFixed(2)}vh) scaleY(${Math.max(len, 0).toFixed(2)})`
+      segments[j].style.opacity = (strength * smooth(len / SEG_MIN_VH)).toFixed(3)
+      if (j < ITEMS.length) from = ys[j] + CLEAR_VH * scales[j]
+    }
+
+    // The stars riding it. `phase` is an unbounded slot position, and each
+    // star's own slot is that modulo the thread's length — so a star walks the
+    // whole way down and re-enters at the top, alone, where the envelope below
+    // has it at zero. Adding the fraction to a *fixed* index instead (what
+    // this did before) shifted every star's size and brightness one slot
+    // sideways the instant the fraction wrapped, which is the jolt that ran
+    // through the whole thread several times a scene.
+    const step = 100 / THREAD_STARS
+    const phase = (time / 1000) * THREAD_DRIFT + tt * THREAD_FLOW
+    for (const { star, k, level, phase: twinklePhase } of thread) {
+      const y = ((((k + phase) % THREAD_STARS) + THREAD_STARS) % THREAD_STARS) * step // 0..100vh
       const centred = y - 50
       let clear = 1
       for (let i = 0; i < ITEMS.length; i++) {
         const gap = Math.abs(centred - ys[i]) - CLEAR_VH * scales[i]
         clear = Math.min(clear, smooth(gap / CLEAR_SOFT_VH))
       }
-      const twinkle = 0.75 + 0.25 * Math.sin(phase + time / 700)
-      star.style.transform = `translateY(${centred}vh)`
-      star.style.opacity = String(Math.sin((Math.PI * y) / 100) * level * twinkle * clear * strength)
+      const twinkle = 0.75 + 0.25 * Math.sin(twinklePhase + time / 700)
+      star.style.transform = `translateY(${centred.toFixed(2)}vh)`
+      star.style.opacity = (Math.sin((Math.PI * y) / 100) * level * twinkle * clear * strength).toFixed(3)
     }
   }
 
@@ -214,15 +259,10 @@ export function createIdentity(): Identity {
     const head = from + (to - from) * u
     const glow = Math.sin(Math.PI * u)
     comet.forEach((star, j) => {
-      star.style.transform = `translateY(${head - j * TAIL_STEP_VH}vh)`
-      star.style.opacity = String(glow * (1 - j / (TAIL + 1)))
+      star.style.transform = `translateY(${(head - j * TAIL_STEP_VH).toFixed(2)}vh)`
+      star.style.opacity = (glow * (1 - j / (TAIL + 1))).toFixed(3)
     })
 
-    const current = clamp(Math.round(f), 0, ITEMS.length - 1)
-    if (current !== counted) {
-      counted = current
-      counter.textContent = `0${current + 1} / 0${ITEMS.length}`
-    }
   }
 
   return { el, update }

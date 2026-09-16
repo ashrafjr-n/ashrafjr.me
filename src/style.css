@@ -231,6 +231,30 @@ body {
   opacity: 0;
 }
 
+/* One lit run of the hairline down the axis — the thread's continuity; the
+   stars are only its highlights. It is a 1vh stub stretched with `scaleY` from
+   its own top, so ui/identity.ts still writes nothing but transform and
+   opacity. The fade at each end lives in the gradient rather than being
+   applied per frame, so it stretches with the run: a long gap between
+   statements fades gently, a short one quickly. */
+.identity-seg {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 1px;
+  height: 1vh;
+  margin-left: -0.5px;
+  transform-origin: 50% 0;
+  background: linear-gradient(
+    to bottom,
+    rgba(255, 255, 255, 0),
+    rgba(255, 255, 255, 0.34) 20%,
+    rgba(255, 255, 255, 0.34) 80%,
+    rgba(255, 255, 255, 0)
+  );
+  will-change: transform, opacity;
+}
+
 /* A star in the thread down the axis. Size and sideways jitter are set per
    star from JS; the glow is the same soft white the starfield reads as. */
 .identity-star {
@@ -248,7 +272,8 @@ body {
   box-shadow: 0 0 10px 2px rgba(255, 255, 255, 0.85);
 }
 
-/* The two corner labels: the scene's name and which statement is in focus. */
+/* The scene's name, bottom-left. The `01 / 03` counter that used to face it
+   across the bottom edge was removed on request. */
 .identity-meta {
   position: absolute;
   bottom: clamp(1.5rem, 5vh, 3rem);
@@ -262,11 +287,6 @@ body {
 
 .identity-meta--name {
   left: clamp(1.25rem, 3vw, 2.5rem);
-}
-
-.identity-meta--count {
-  right: clamp(1.25rem, 3vw, 2.5rem);
-  font-variant-numeric: tabular-nums;
 }
 
 /* ===========================================================
