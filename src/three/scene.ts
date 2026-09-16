@@ -157,27 +157,33 @@ const BAND_CLEAR_LEVEL = 4.0
 
 // --- Scene 1 -> Scene 2 scroll transition ---
 /**
- * How fast the transition value chases raw scroll, **per second**. Scroll
- * events arrive in coarse jumps; every part of the transition reads this one
- * smoothed value, so the spin, the growth, the scatter, the fly-past and the
- * identity scene stay locked together.
+ * How fast the page value chases raw scroll — the natural frequency of the
+ * **critically damped spring** it is chased with, in radians per second.
  *
- * Applied as `1 - exp(-rate * delta)`, not as a flat per-frame fraction. The
- * flat form (`progress += (target - progress) * 0.08` every frame) makes the
- * smoothing a function of the refresh rate rather than of time: on a 120Hz
- * display it takes twice as many steps per second and the whole transition
- * settles about twice as fast as it does at 60Hz. Same page, same scroll,
- * different animation.
+ * Every part of the transition reads this one smoothed value, so the spin, the
+ * growth, the scatter, the fly-past and the identity scene stay locked
+ * together. What it is smoothed *with* is what decides whether the scroll
+ * feels smooth:
  *
- * `5.0` is solved to reproduce the old behaviour exactly on a 60Hz display,
- * which is what it was tuned against: `1 - exp(-5 / 60) = 0.0800`. So this is
- * a correctness fix with no change of feel where it was already right — it is
- * the other refresh rates that move.
+ * - The old form was a first-order chase, `page += (target - page) * (1 -
+ *   exp(-rate * delta))`. That has no memory of its own speed, so the instant
+ *   the target moves the output's velocity moves with it. Scroll does not
+ *   arrive continuously — a wheel delivers it in coarse notches — so the
+ *   output's velocity was a sawtooth even while the value itself looked
+ *   smooth, and that is what reads as a rough scroll.
+ * - A critically damped spring carries velocity as state, so it can only
+ *   *accelerate* toward a new target. Velocity is continuous whatever shape
+ *   the input arrives in, and critical damping is what guarantees it settles
+ *   without ever overshooting past the scroll position the reader chose.
  *
- * `delta` is clamped upstream, so a backgrounded tab cannot jump the
- * transition on the first frame back.
+ * Integrated semi-implicitly (velocity first, then position), which stays
+ * stable for any `OMEGA * delta` well under 2 — `delta` is clamped to 0.1s
+ * upstream, so the worst case here is 0.7.
+ *
+ * 7.0 tracks a held scroll with the same ~0.29s lag the old rate-5 chase had,
+ * so the transition has not been slowed down; only its velocity was smoothed.
  */
-const SCROLL_RATE = 5.0
+const SCROLL_OMEGA = 7.0
 
 /**
  * Extra orbit radius each band star gains by full scroll — it flies apart.
@@ -518,6 +524,8 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
   let prevTime = performance.now()
   /** Smoothed page scroll, 0..1. The single driver for every scene. */
   let page = 0
+  /** Its velocity, in page units per second — the spring's other half. */
+  let pageVel = 0
   const flyDir = new Vector3()
   const layerFly = new Vector3()
   const invRotation = new Quaternion()
@@ -527,10 +535,18 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
     prevTime = time
 
     // One value, advanced once per frame, read by all four moving parts below
-    // — that is what keeps them simultaneous rather than sequential. Smoothed
-    // against elapsed time, not per frame, so the transition takes the same
-    // time to settle at 60Hz and at 120Hz — see SCROLL_RATE.
-    page += (state.scroll - page) * (1 - Math.exp(-SCROLL_RATE * delta))
+    // — that is what keeps them simultaneous rather than sequential. Driven by
+    // a critically damped spring against elapsed time, so the transition
+    // settles identically at 60Hz and at 120Hz and its velocity is continuous
+    // however coarsely the wheel delivers the scroll — see SCROLL_OMEGA.
+    pageVel += (SCROLL_OMEGA * SCROLL_OMEGA * (state.scroll - page) - 2 * SCROLL_OMEGA * pageVel) * delta
+    page += pageVel * delta
+    // Critical damping does not overshoot, but the integrator can by a hair on
+    // a long frame, and past 1 the Scene 3 smoothstep turns back on itself.
+    if (page < 0 || page > 1) {
+      page = clamp(page, 0, 1)
+      pageVel = 0
+    }
     // Paused through the identity scene — see lib/phases.ts.
     const progress = toTransition(page)
 
@@ -590,6 +606,10 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
    */
   function resync(): void {
     prevTime = performance.now()
+    // The scroll was frozen for the whole pause, so the spring has nowhere
+    // left to travel; whatever speed it was carrying when frames stopped would
+    // only arrive as a kick on the first frame back.
+    pageVel = 0
   }
 
   function resize(): void {
