@@ -49,13 +49,15 @@ const MODEL_CAMERA_DIST = 10.1
  * height, and the model draws that much off centre with its level, head-on
  * perspective untouched.
  *
- * **Negative, so the frame slides down and the model draws above centre** —
- * the camera dropping, in effect. It was +0.12 and the model sat low with the
- * top third of the screen empty while the outer ripples ran off the bottom
- * edge; at -0.09 the whole ripple field is in frame and the composition sits
- * centred. Keep it negative unless the model is meant to sink again.
+ * **This is the only thing that should move the model up or down the screen.**
+ * How high the camera sits *relative to the model* is a separate question, and
+ * it is answered by what the model is anchored to (see `figureMidY`) — that
+ * one sets the perspective, this one sets the composition. Changing the anchor
+ * to the figure raised the model most of the way out of the frame, and +0.06
+ * is what brings it back down to sit centred with the figure a little above
+ * the middle.
  */
-const LENS_DROP = -0.09
+const LENS_DROP = 0.06
 const TAN_HALF_FOV = Math.tan((CAMERA_FOV * Math.PI) / 360)
 
 /**
@@ -86,8 +88,17 @@ const FIT_HALF_WIDTH = 0.62
  */
 const RISE_START = 0.45
 const RISE_END = 0.92
-/** World units below its resting centre it starts at: clear of the frame's bottom edge. */
-const RISE_DROP = 8
+/**
+ * World units below its resting centre it starts at: clear of the frame's
+ * bottom edge, and not much more.
+ *
+ * It was 8, which is more than twice the frame's own half-height (3.19 at this
+ * camera and fov) — so the model spent most of Scene 3's scroll still below
+ * the screen and the page went through a long stretch with nothing on it. The
+ * frame's half-height plus the model's own at its starting 0.4 scale is about
+ * 4.0, so 5 clears it with a margin and nothing more.
+ */
+const RISE_DROP = 5
 /** Fraction of its final size it starts the rise at, growing to full as it lands. */
 const RISE_SCALE_FROM = 0.4
 
@@ -206,8 +217,20 @@ export function createWorld(aspect: number): WorldLayer {
    */
   const planets: { pivot: Group; rate: number }[] = []
 
-  /** Centre height of the visible geometry, so that — not the base — is what gets placed. */
+  /** Centre height of the visible geometry — the fallback anchor, and what the figure is measured against. */
   let modelMidY = 0
+  /**
+   * Centre height of the **figure** in the model, and what the model is
+   * actually placed by.
+   *
+   * `modelCamera` sits at y = 0 and never pitches, so whatever is put at y = 0
+   * is what the camera is level with — and placing the model by its overall
+   * visible centre put the camera well above the figure, looking down onto the
+   * water and drawing its ripples as a wide ellipse. Levelling with the figure
+   * is what flattens that out. Where the model then sits on *screen* is
+   * LENS_DROP's job, which is why the two are separate.
+   */
+  let figureMidY = 0
   /** Furthest the visible geometry reaches from the spin axis, at pivot scale 1. */
   let visibleRadius = 1
 
@@ -222,6 +245,7 @@ export function createWorld(aspect: number): WorldLayer {
       rigPlanets(gltf.scene)
       fitModel(gltf.scene)
       measureVisible(gltf.scene)
+      measureFigure(gltf.scene)
       pivot.add(gltf.scene)
     },
     undefined,
@@ -300,6 +324,15 @@ export function createWorld(aspect: number): WorldLayer {
   }
 
   /**
+   * Where the figure's own centre sits, so the camera can be levelled with it.
+   * Falls back to the visible centre if the GLB ever stops naming the node.
+   */
+  function measureFigure(model: Object3D): void {
+    const body = model.getObjectByName('body')
+    figureMidY = body ? new Box3().setFromObject(body).getCenter(new Vector3()).y : modelMidY
+  }
+
+  /**
    * Pivot scale that puts the visible edge at FIT_HALF_WIDTH of the screen.
    * A point at radius R swinging toward a camera D away projects widest at
    * tan = R / sqrt(D² - R²), so R = D·tan / sqrt(1 + tan²).
@@ -337,7 +370,7 @@ export function createWorld(aspect: number): WorldLayer {
     const s = scale * (RISE_SCALE_FROM + (1 - RISE_SCALE_FROM) * rise)
     pivot.visible = progress > RISE_START
     pivot.scale.setScalar(s)
-    pivot.position.y = -RISE_DROP * (1 - rise) - modelMidY * s
+    pivot.position.y = -RISE_DROP * (1 - rise) - figureMidY * s
   }
 
   function resize(nextAspect: number): void {
