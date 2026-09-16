@@ -36,32 +36,55 @@ export const IDENTITY_FROM = 240 / 900
 export const IDENTITY_TO = 560 / 900
 
 /**
- * Fraction of the last stretch of Scene 1 spent decelerating into the hold.
+ * 0..1 with **zero slope at both ends**, easing over only `head` and `tail` of
+ * the run and travelling at a constant rate in between.
  *
- * Any curve that lands at a standstill has to make that time up earlier, so a
- * full ease-out would run the break-up at 2x linear from the very first pixel
- * of scroll — Scene 1's pacing is not up for retuning. Rounding only the tail
- * costs 1 / (1 - TAIL / 2) = 1.29x at the top instead, which is the cheapest
- * start that still arrives at rest.
+ * Zero-slope ends are what make the two scene boundaries velocity-continuous:
+ * whatever is moving arrives at a standstill and leaves from one, instead of
+ * stopping dead or setting off at full speed. But a curve that does that has
+ * to make the time up somewhere, and `smoothstep` — which is this with
+ * head = tail = 0.5 — spends the whole run doing it. That is why Scene 3 used
+ * to leave a long stretch of scroll where nothing had visibly happened yet.
+ *
+ * Naming the two ramps separately buys the ends back: the linear middle runs
+ * at `1 / (1 - head / 2 - tail / 2)`, so short ramps cost very little.
+ */
+function easeEnds(u: number, head: number, tail: number): number {
+  const rate = 1 / (1 - head / 2 - tail / 2)
+  if (u < head) return (rate * u * u) / (2 * head)
+  if (u > 1 - tail) {
+    const d = 1 - u
+    return 1 - (rate * d * d) / (2 * tail)
+  }
+  return rate * (u - head / 2)
+}
+
+/**
+ * Scene 1 sets off at once and settles into the hold over its last 45%.
+ *
+ * No head ramp: the first pixel of scroll has to do something, and a full
+ * ease-in-out would have run the break-up at 2x linear in the middle to pay
+ * for it. This costs 1.29x, and Scene 1's pacing is not up for retuning.
  */
 const HOLD_TAIL = 0.45
-/** Slope of the linear stretch, solved so the eased tail still reaches 1. */
-const HOLD_SLOPE = 2 / (2 - HOLD_TAIL)
 
-/** 0..1 across Scene 1: linear, then a quadratic settle over the last HOLD_TAIL. */
-function easeIntoHold(u: number): number {
-  const a = 1 - HOLD_TAIL
-  if (u <= a) return HOLD_SLOPE * u
-  const d = u - a
-  return HOLD_SLOPE * (a + d - (d * d) / (2 * HOLD_TAIL))
-}
+/**
+ * Scene 3 leaves the hold over its first 18% and lands over its last 40%.
+ *
+ * The head has to exist — it is the other half of the identity boundary — but
+ * it is deliberately short. At `smoothstep`'s implied 0.5 the model was still
+ * below the frame a third of the way through Scene 3's scroll, which is most
+ * of the black gap the page used to have between identity and the model.
+ */
+const SCENE3_HEAD = 0.18
+const SCENE3_TAIL = 0.4
 
 /** The Scene 1 -> Scene 3 transition value, paused through identity. */
 export function toTransition(page: number): number {
-  if (page < IDENTITY_FROM) return easeIntoHold(page / IDENTITY_FROM) * HOLD
+  if (page < IDENTITY_FROM) return easeEnds(page / IDENTITY_FROM, 0, HOLD_TAIL) * HOLD
   if (page > IDENTITY_TO) {
     const u = (page - IDENTITY_TO) / (1 - IDENTITY_TO)
-    return HOLD + u * u * (3 - 2 * u) * (1 - HOLD)
+    return HOLD + easeEnds(u, SCENE3_HEAD, SCENE3_TAIL) * (1 - HOLD)
   }
   return HOLD
 }
@@ -79,8 +102,8 @@ export function toTransition(page: number): number {
  * Scene 1 is still breaking up, and reaching forward keeps the last statement
  * fading as the model rises into it.
  */
-const IDENTITY_LEAD = 0.055
-const IDENTITY_TRAIL = 0.05
+const IDENTITY_LEAD = 0.1
+const IDENTITY_TRAIL = 0.09
 
 /** 0..1 across the identity stretch, 0 before it and 1 after. */
 export function toIdentity(page: number): number {

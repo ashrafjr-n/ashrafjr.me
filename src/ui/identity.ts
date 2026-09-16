@@ -59,11 +59,11 @@ const EDGE = 0.12
  * arrives *with* the thread rather than behind it, and the scene never stands
  * still waiting for one of them to finish.
  */
-const RISE_END = 0.2
+const RISE_END = 0.13
 /** Softness of the climbing front, as a fraction of the screen's height. */
 const RISE_SOFT = 0.14
-const ITEMS_FROM = 0.11
-const ITEMS_IN = 0.15
+const ITEMS_FROM = 0.08
+const ITEMS_IN = 0.13
 /** How far, in vh, a statement is lifted from as it arrives. */
 const ENTRY_LIFT_VH = 9
 /** Scroll left at the end for the last statement to settle before the scene goes. */
