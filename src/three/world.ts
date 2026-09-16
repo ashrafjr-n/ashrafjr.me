@@ -49,7 +49,7 @@ const MODEL_CAMERA_DIST = 10.1
  * height, so the model draws that much below centre with its level, head-on
  * perspective untouched.
  */
-const LENS_DROP = 0.12
+const LENS_DROP = -0.09
 const TAN_HALF_FOV = Math.tan((CAMERA_FOV * Math.PI) / 360)
 
 /**
