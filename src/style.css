@@ -231,49 +231,22 @@ body {
   opacity: 0;
 }
 
-/* One lit run of the hairline down the axis — the thread's continuity; the
-   stars are only its highlights. It is a 1vh stub stretched with `scaleY` from
-   its own top, so ui/identity.ts still writes nothing but transform and
-   opacity. The fade at each end lives in the gradient rather than being
-   applied per frame, so it stretches with the run: a long gap between
-   statements fades gently, a short one quickly. */
-.identity-seg {
+/* The thread of stars down the axis, drawn by ui/identity.ts.
+   One canvas rather than an element per star: as DOM this was 44 boxes each
+   with `will-change`, and a thread that sparse reads as loose dots. The
+   hairline that used to run behind them, and the comet that used to ride it,
+   were both removed — each read as a scroll indicator rather than as scenery.
+   Sized from JS to the viewport; it carries no transform of its own. */
+.identity-thread {
   position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 1px;
-  height: 1vh;
-  margin-left: -0.5px;
-  transform-origin: 50% 0;
-  background: linear-gradient(
-    to bottom,
-    rgba(255, 255, 255, 0),
-    rgba(255, 255, 255, 0.34) 20%,
-    rgba(255, 255, 255, 0.34) 80%,
-    rgba(255, 255, 255, 0)
-  );
-  will-change: transform, opacity;
-}
-
-/* A star in the thread down the axis. Size and sideways jitter are set per
-   star from JS; the glow is the same soft white the starfield reads as. */
-.identity-star {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  border-radius: 50%;
-  background: #ffffff;
-  box-shadow: 0 0 6px rgba(255, 255, 255, 0.7);
-  will-change: transform, opacity;
-}
-
-/* The comet running down the thread between two statements. */
-.identity-comet {
-  box-shadow: 0 0 10px 2px rgba(255, 255, 255, 0.85);
+  inset: 0;
+  width: 100%;
+  height: 100%;
 }
 
 /* The scene's name, bottom-left. The `01 / 03` counter that used to face it
-   across the bottom edge was removed on request. */
+   across the bottom edge was removed on request; ui/identity.ts fades this one
+   in with the statements. */
 .identity-meta {
   position: absolute;
   bottom: clamp(1.5rem, 5vh, 3rem);

@@ -66,7 +66,25 @@ export function toTransition(page: number): number {
   return HOLD
 }
 
+/**
+ * How far the identity scene reaches past its own stretch, at each end, in
+ * page units.
+ *
+ * **This is what closes the black gap between the scenes.** The transition is
+ * held through identity, so at the hold the ambient cloud has already streamed
+ * past the camera and all that is left of Scene 1 is a scattered handful of
+ * ring stars — and the model does not clear the bottom of the frame until well
+ * into Scene 3. Without an overlap the page passes through two stretches with
+ * nothing on them at all. Reaching back lets the thread start climbing while
+ * Scene 1 is still breaking up, and reaching forward keeps the last statement
+ * fading as the model rises into it.
+ */
+const IDENTITY_LEAD = 0.055
+const IDENTITY_TRAIL = 0.05
+
 /** 0..1 across the identity stretch, 0 before it and 1 after. */
 export function toIdentity(page: number): number {
-  return Math.min(Math.max((page - IDENTITY_FROM) / (IDENTITY_TO - IDENTITY_FROM), 0), 1)
+  const from = IDENTITY_FROM - IDENTITY_LEAD
+  const to = IDENTITY_TO + IDENTITY_TRAIL
+  return Math.min(Math.max((page - from) / (to - from), 0), 1)
 }
