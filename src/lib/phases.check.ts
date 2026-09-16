@@ -7,15 +7,15 @@
  * — the scatter travelling at full speed one frame and frozen the next — and
  * it is exactly what the linear version of Scene 1 used to do.
  */
-import { HOLD, toTransition, toIdentity } from './phases.ts'
+import { HOLD, IDENTITY_FROM, IDENTITY_TO, toTransition, toIdentity } from './phases.ts'
 
 /** Deliberately not `node:assert` — that would drag `@types/node` in for one file. */
 function ok(condition: boolean, what: string): void {
   if (!condition) throw new Error(what)
 }
 
-const FROM = 90 / 700
-const TO = 390 / 700
+const FROM = IDENTITY_FROM
+const TO = IDENTITY_TO
 const h = 1e-6
 const slope = (p: number): number => (toTransition(p + h) - toTransition(p)) / h
 

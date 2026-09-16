@@ -11,11 +11,16 @@
  * third of the ring is still orbiting on screen, and the model has not
  * started. Those few stars are the identity scene's sky.
  *
- * Scroll lengths, of a 700vh range (body is 800vh in style.css — change them
- * together): Scene 1's break-up keeps its original 90vh, identity gets 300vh,
- * and the move into Scene 3 gets 310vh — nearly three times what it had —
- * **eased in and out**, so the transition leaves identity gently instead of
- * resuming at full speed, and settles as the model lands.
+ * Scroll lengths, of a 900vh range (body is 1000vh in style.css — change them
+ * together): Scene 1's break-up gets 240vh, identity 320vh, and the move into
+ * Scene 3 340vh — **eased in and out**, so the transition leaves identity
+ * gently instead of resuming at full speed, and settles as the model lands.
+ *
+ * **Scene 1's 240vh is what paces the scatter.** The ring flying apart and the
+ * cloud streaming past the camera are pure functions of this value, and their
+ * own distances and easings are solved against the camera frustum and must not
+ * be retuned — so the only honest way to slow the break-up down is to spend
+ * more scroll on it. It ran in 90vh and read as far too quick.
  *
  * **Both ends of the hold are velocity-continuous, and that is the point.**
  * Scene 1's break-up used to run dead linear and then stop the instant
@@ -26,8 +31,9 @@
  * either boundary.
  */
 export const HOLD = 0.45
-const IDENTITY_FROM = 90 / 700
-const IDENTITY_TO = 390 / 700
+/** Exported for `phases.check.ts`, so its boundaries cannot go stale. */
+export const IDENTITY_FROM = 240 / 900
+export const IDENTITY_TO = 560 / 900
 
 /**
  * Fraction of the last stretch of Scene 1 spent decelerating into the hold.
