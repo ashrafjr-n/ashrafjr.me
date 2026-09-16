@@ -45,9 +45,15 @@ const CAMERA_TARGET = { x: 0, y: 0.25, z: 0 } // model's own mid-height: centers
 const MODEL_CAMERA_DIST = 10.1
 /**
  * Where the model sits on screen is set by shifting the lens, not by tilting
- * the camera or moving the model: the frame slides up by this fraction of its
- * height, so the model draws that much below centre with its level, head-on
+ * the camera or moving the model: the frame slides by this fraction of its
+ * height, and the model draws that much off centre with its level, head-on
  * perspective untouched.
+ *
+ * **Negative, so the frame slides down and the model draws above centre** —
+ * the camera dropping, in effect. It was +0.12 and the model sat low with the
+ * top third of the screen empty while the outer ripples ran off the bottom
+ * edge; at -0.09 the whole ripple field is in frame and the composition sits
+ * centred. Keep it negative unless the model is meant to sink again.
  */
 const LENS_DROP = -0.09
 const TAN_HALF_FOV = Math.tan((CAMERA_FOV * Math.PI) / 360)
