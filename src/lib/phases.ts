@@ -16,14 +16,43 @@
  * and the move into Scene 3 gets 310vh — nearly three times what it had —
  * **eased in and out**, so the transition leaves identity gently instead of
  * resuming at full speed, and settles as the model lands.
+ *
+ * **Both ends of the hold are velocity-continuous, and that is the point.**
+ * Scene 1's break-up used to run dead linear and then stop the instant
+ * identity began — the scatter was travelling at full speed one frame and
+ * frozen the next, which is the lurch you feel between the two scenes. It is
+ * now rounded off into the hold (`easeIntoHold`), and Scene 3 already leaves
+ * the hold on a smoothstep, so nothing on screen changes speed abruptly at
+ * either boundary.
  */
 export const HOLD = 0.45
 const IDENTITY_FROM = 90 / 700
 const IDENTITY_TO = 390 / 700
 
+/**
+ * Fraction of the last stretch of Scene 1 spent decelerating into the hold.
+ *
+ * Any curve that lands at a standstill has to make that time up earlier, so a
+ * full ease-out would run the break-up at 2x linear from the very first pixel
+ * of scroll — Scene 1's pacing is not up for retuning. Rounding only the tail
+ * costs 1 / (1 - TAIL / 2) = 1.29x at the top instead, which is the cheapest
+ * start that still arrives at rest.
+ */
+const HOLD_TAIL = 0.45
+/** Slope of the linear stretch, solved so the eased tail still reaches 1. */
+const HOLD_SLOPE = 2 / (2 - HOLD_TAIL)
+
+/** 0..1 across Scene 1: linear, then a quadratic settle over the last HOLD_TAIL. */
+function easeIntoHold(u: number): number {
+  const a = 1 - HOLD_TAIL
+  if (u <= a) return HOLD_SLOPE * u
+  const d = u - a
+  return HOLD_SLOPE * (a + d - (d * d) / (2 * HOLD_TAIL))
+}
+
 /** The Scene 1 -> Scene 3 transition value, paused through identity. */
 export function toTransition(page: number): number {
-  if (page < IDENTITY_FROM) return (page / IDENTITY_FROM) * HOLD
+  if (page < IDENTITY_FROM) return easeIntoHold(page / IDENTITY_FROM) * HOLD
   if (page > IDENTITY_TO) {
     const u = (page - IDENTITY_TO) / (1 - IDENTITY_TO)
     return HOLD + u * u * (3 - 2 * u) * (1 - HOLD)
