@@ -176,34 +176,39 @@ body {
   pointer-events: none;
 }
 
-/* The fly-through canvas: every statement on screen is ink on this, sampled
-   into points by ui/identity.ts and projected by hand. It carries no transform
-   of its own and is sized from JS to the viewport.
+/* One statement. The outer box is the **mask** and carries only the position
+   (and the small drift ui/identity.ts writes); the inner <p> is what slides.
+   Two elements, and that split is load-bearing — a mask that also carried the
+   slide would move its own clip with it and never hide anything.
 
-   Gone with the rewrite: .identity-item, .identity-caption, .identity-words,
-   .identity-word and its blurred --soft twin (the three stacked headings), and
-   .identity-thread / .identity-seg / .identity-star / .identity-comet (the
-   thread of stars, the hairline and the comet). None of them should come back
-   — the statements are not laid out any more. */
-.identity-canvas {
+   Sits in the upper part of the frame because the model holds the lower part:
+   the statements are read against it, not over it. */
+.identity-line {
   position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
+  top: 24%;
+  left: 50%;
+  transform: translate(-50%, 0);
+  overflow: hidden;
+  will-change: transform;
 }
 
-/* The statements for a screen reader and a crawler; on the canvas they are
-   only ink. Clipped rather than `display: none`, which would hide it from
-   assistive tech too. */
-.identity-sr {
-  position: absolute;
-  width: 1px;
-  height: 1px;
+/* **The breathing room lives here, not on the mask**, and that is what lets
+   ui/identity.ts slide the word by a flat 100% of itself. Padding on the mask
+   instead would make the mask taller than the word, so a word slid its own
+   height would still be showing inside it — and the glow, which the mask
+   clips, would be cut into a visible rectangle around the type. */
+.identity-word {
   margin: 0;
-  padding: 0;
-  overflow: hidden;
-  clip-path: inset(50%);
+  padding: 0.42em 0.7em;
+  font-family: var(--font-display);
+  font-size: clamp(1.5rem, 5.4vw, 5.6rem);
+  font-weight: 300;
+  line-height: 1.04;
+  letter-spacing: 0.14em;
   white-space: nowrap;
+  color: #ffffff;
+  text-shadow: 0 0 34px rgba(255, 255, 255, 0.18);
+  will-change: transform;
 }
 
 /* The scene's name, bottom-left. The `01 / 03` counter that used to face it

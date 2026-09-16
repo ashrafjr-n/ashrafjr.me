@@ -27,7 +27,7 @@ import {
   WebGLRenderer,
 } from 'three'
 import { clamp, rand } from '../lib/math'
-import { HOLD, toTransition } from '../lib/phases'
+import { HOLD, toIdentity, toTransition } from '../lib/phases'
 import type { InputState } from '../lib/state'
 import { createCircleTexture } from './sprite'
 import { createWorld, MODEL_SPIN_RATE } from './world'
@@ -578,7 +578,10 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
       advance(layer, delta, progress, layerFly.x, layerFly.y, layerFly.z)
     }
 
-    world.update(delta, progress)
+    // Identity is the only thing moving while the transition is held, so the
+    // model reads it directly rather than being frozen along with everything
+    // else — see `world.update`.
+    world.update(delta, progress, toIdentity(page))
     bandMaterial.opacity = BAND_OPACITY * (1 - ramp(progress, BAND_FADE_FROM, BAND_FADE_TO))
 
     renderer.clear()

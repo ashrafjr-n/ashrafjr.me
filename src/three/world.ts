@@ -29,6 +29,7 @@ import {
 import type { Mesh, MeshStandardMaterial, Object3D } from 'three'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { clamp } from '../lib/math'
+import { HOLD } from '../lib/phases'
 
 // --- Framing ---
 const CAMERA_FOV = 35
@@ -47,7 +48,8 @@ const MODEL_CAMERA_DIST = 10.1
  * Where the model sits on screen is set by shifting the lens, not by tilting
  * the camera or moving the model: the frame slides by this fraction of its
  * height, and the model draws that much off centre with its level, head-on
- * perspective untouched.
+ * perspective untouched. The scene blends between two of these — see
+ * `IDENTITY_LENS` and `SCENE3_LENS`.
  *
  * **This is the only thing that should move the model up or down the screen.**
  * How high the camera sits *relative to the model* is a separate question, and
@@ -57,7 +59,31 @@ const MODEL_CAMERA_DIST = 10.1
  * is what brings it back down to sit centred with the figure a little above
  * the middle.
  */
-const LENS_DROP = 0.06
+/**
+ * The two compositions the model is framed by, and the one thing that moves
+ * between them.
+ *
+ * **Identity keeps the model low and small**, so the statements have the upper
+ * half of the frame to themselves; **Scene 3 is the model alone**, large and
+ * dropped well below centre. Both are lens shifts and a fit width, so neither
+ * touches the camera, and Scene 3's scroll is what crossfades one into the
+ * other.
+ */
+const IDENTITY_LENS = 0.25
+const IDENTITY_FIT = 0.42
+const SCENE3_LENS = 0.2
+const SCENE3_FIT = 0.7
+
+/**
+ * How far below the figure's own centre the camera is levelled, in the
+ * model's units at fit scale 1.
+ *
+ * Zero is dead level with the figure. Positive drops the camera, so the model
+ * is looked at slightly from below — which is what gives Scene 3 its height.
+ * It is not the same knob as the lens: this one changes the perspective, the
+ * lens only changes where the result sits on screen.
+ */
+const CAMERA_DROP = 0.22
 const TAN_HALF_FOV = Math.tan((CAMERA_FOV * Math.PI) / 360)
 
 /**
@@ -72,22 +98,53 @@ const TAN_HALF_FOV = Math.tan((CAMERA_FOV * Math.PI) / 360)
 const TRANSITION_TURNS = 1
 
 /**
- * Scene 3's model fills the frame: its **visible** half-width is solved to this
- * fraction of the screen width, per aspect, every frame.
+ * Turns the model makes across the identity scene, on top of everything else.
+ *
+ * Three quarters over three statements: a quarter-turn between one and the
+ * next, so each is read against a different facing. Driven by identity
+ * progress, not by elapsed time, for the same reason `TRANSITION_TURNS` is —
+ * it has to land in the same place however fast the page is scrolled.
+ */
+const IDENTITY_TURNS = 0.75
+
+/**
+ * How far into Scene 3 the model has finished moving from the identity
+ * composition to the final one. Short of 1, so the last stretch of the scroll
+ * is spent on the model already framed rather than still growing.
+ */
+const SCENE3_FRAMED_BY = 0.86
+
+/** Smooth 0..1 ramp of `p` across `from..to`. */
+function ramp(p: number, from: number, to: number): number {
+  const u = clamp((p - from) / (to - from), 0, 1)
+  return u * u * (3 - 2 * u)
+}
+
+function mix(a: number, b: number, u: number): number {
+  return a + (b - a) * u
+}
+
+/**
+ * The model is fitted to the frame by its **visible** half-width, solved per
+ * aspect every frame against whichever composition is in force.
  *
  * "Visible" is the model's white geometry only — the black base slab reads as
  * the page and is ignored, and it is far wider than the rings and planets, so
  * fitting by it would leave the model looking small.
  */
-const FIT_HALF_WIDTH = 0.62
 
 /**
- * Scene 1 has no model — only the ring, empty inside. It rises into Scene 3
- * from below the frame across this stretch of the transition, while the ring
- * gathers back in behind it.
+ * Scene 1 has no model — only the ring, empty inside. The model rises into the
+ * frame from below across this stretch of the transition, **finishing at the
+ * hold**, so it is already standing when the identity scene begins and the
+ * statements have something to be placed around.
+ *
+ * It used to rise across Scene 3 instead (0.45..0.92), which was right when
+ * identity was a scene of its own with nothing in it. Identity is now read
+ * against the model, so the model has to arrive first.
  */
-const RISE_START = 0.45
-const RISE_END = 0.92
+const RISE_START = 0.26
+const RISE_END = 0.45
 /**
  * World units below its resting centre it starts at: clear of the frame's
  * bottom edge, and not much more.
@@ -175,11 +232,13 @@ export interface WorldLayer {
   /** Front-on: the model alone is drawn through it. */
   modelCamera: PerspectiveCamera
   /**
-   * Advance the spin. Driven by the single RAF loop; `delta` is in seconds and
-   * `progress` is the 0..1 Scene 1 -> Scene 2 scroll position. Neither camera
-   * is touched — see the note at the top of the file.
+   * Advance the spin and the framing. Driven by the single RAF loop; `delta`
+   * is in seconds, `progress` is the 0..1 transition and `identity` is 0..1
+   * across the identity scene. Neither camera is ever *moved* — only the
+   * model's own lens shift is written, which changes where it draws without
+   * changing the vantage. See the note at the top of the file.
    */
-  update(delta: number, progress: number): void
+  update(delta: number, progress: number, identity: number): void
   resize(aspect: number): void
 }
 
@@ -194,7 +253,9 @@ export function createWorld(aspect: number): WorldLayer {
   const modelCamera = new PerspectiveCamera(CAMERA_FOV, aspect, 0.1, 200)
   modelCamera.position.set(0, 0, MODEL_CAMERA_DIST)
   // Ratios only, so any full size works; it survives every projection update.
-  modelCamera.setViewOffset(1, 1, 0, -LENS_DROP, 1, 1)
+  // Written every frame from `update()`, since the two compositions have
+  // different lens shifts. Ratios only, so any full size works.
+  modelCamera.setViewOffset(1, 1, 0, -IDENTITY_LENS, 1, 1)
 
   // Pure-white lights only — they shape the model without tinting it.
   const key = new DirectionalLight(0xffffff, 2.2)
@@ -333,20 +394,31 @@ export function createWorld(aspect: number): WorldLayer {
   }
 
   /**
-   * Pivot scale that puts the visible edge at FIT_HALF_WIDTH of the screen.
+   * Pivot scale that puts the visible edge at `halfWidth` of the screen.
    * A point at radius R swinging toward a camera D away projects widest at
    * tan = R / sqrt(D² - R²), so R = D·tan / sqrt(1 + tan²).
    */
-  function fitScale(): number {
-    const tan = 2 * FIT_HALF_WIDTH * TAN_HALF_FOV * modelCamera.aspect
+  function fitScale(halfWidth: number): number {
+    const tan = 2 * halfWidth * TAN_HALF_FOV * modelCamera.aspect
     return (MODEL_CAMERA_DIST * tan) / Math.sqrt(1 + tan * tan) / visibleRadius
   }
+
+  /** The lens shift currently written, so the projection is only rebuilt when it moves. */
+  let lensAt = -1
 
   /** Idle spin only, accumulated over elapsed time. */
   let idleAngle = 0
 
+  /**
+   * Advance the model.
+   *
+   * `progress` is the 0..1 transition and `identity` is 0..1 across the
+   * identity scene. The transition is **held** through identity, so during it
+   * `progress` says nothing and `identity` is the only thing moving — which is
+   * exactly what the model's extra turn there is driven by.
+   */
   // Frame-rate independent: the angle advances by elapsed time, not per frame.
-  function update(delta: number, progress: number): void {
+  function update(delta: number, progress: number, identity: number): void {
     idleAngle += SPIN_SPEED * delta
 
     // Each planet on its own axis, at its own rate. Accumulated over elapsed
@@ -360,9 +432,24 @@ export function createWorld(aspect: number): WorldLayer {
     // page is scrolled — a time-integrated boost cannot, since the total then
     // depends on how long the user took. Negative to match SPIN_SPEED, so the
     // scroll turn continues in the idle direction instead of fighting it.
-    pivot.rotation.y = idleAngle - TRANSITION_TURNS * Math.PI * 2 * progress
+    // The identity term turns the model while the reader is reading — the
+    // statements hold, the model does not. Continuous rather than stepped: a
+    // model that stopped between statements would put the snap back into the
+    // scroll that stepping the *type* used to.
+    pivot.rotation.y =
+      idleAngle -
+      Math.PI * 2 * (TRANSITION_TURNS * progress + IDENTITY_TURNS * identity)
 
-    const scale = fitScale()
+    // Scene 3 is what crossfades the identity composition into the final one.
+    // Held at 0 through identity, since `progress` is held at HOLD there.
+    const toScene3 = ramp(progress, HOLD, SCENE3_FRAMED_BY)
+    const lens = mix(IDENTITY_LENS, SCENE3_LENS, toScene3)
+    const scale = fitScale(mix(IDENTITY_FIT, SCENE3_FIT, toScene3))
+
+    if (lens !== lensAt) {
+      lensAt = lens
+      modelCamera.setViewOffset(1, 1, 0, -lens, 1, 1)
+    }
 
     // Rise from below and grow, eased out so it settles into place. A pure
     // function of progress, so scrolling back up sinks it away again.
@@ -370,7 +457,7 @@ export function createWorld(aspect: number): WorldLayer {
     const s = scale * (RISE_SCALE_FROM + (1 - RISE_SCALE_FROM) * rise)
     pivot.visible = progress > RISE_START
     pivot.scale.setScalar(s)
-    pivot.position.y = -RISE_DROP * (1 - rise) - figureMidY * s
+    pivot.position.y = -RISE_DROP * (1 - rise) - (figureMidY - CAMERA_DROP) * s
   }
 
   function resize(nextAspect: number): void {
