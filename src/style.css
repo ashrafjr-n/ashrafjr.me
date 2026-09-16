@@ -161,10 +161,11 @@ body {
 }
 
 /* ===========================================================
-   02 — Identity: three statements on one axis, over a thread of stars.
-   ui/identity.ts drives every transform and opacity from the scroll; only
-   those two ever change per frame, so the blur and tracking below are static
-   and focus crossfades between two copies of each statement.
+   02 — IDENTITY (ui/identity.ts)
+   The three statements as one particle field on an axis in depth, with the
+   camera flying through them. Everything on screen in this scene is drawn on
+   one canvas and projected by hand, so there is almost nothing to style: the
+   layer, the canvas, a screen-reader copy of the text and one corner label.
    =========================================================== */
 .identity {
   position: fixed;
@@ -175,73 +176,34 @@ body {
   pointer-events: none;
 }
 
-.identity-item {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: clamp(0.9rem, 2.2vh, 1.6rem);
-  transform: translate(-50%, -50%);
-  will-change: transform, opacity;
-}
+/* The fly-through canvas: every statement on screen is ink on this, sampled
+   into points by ui/identity.ts and projected by hand. It carries no transform
+   of its own and is sized from JS to the viewport.
 
-/* Holds the two copies of a statement on top of each other. */
-.identity-words {
-  position: relative;
-}
-
-.identity-caption {
-  margin: 0;
-  font-family: var(--font-code);
-  font-size: clamp(0.62rem, 0.8vw, 0.78rem);
-  font-weight: 400;
-  letter-spacing: 0.42em;
-  padding-left: 0.42em; /* balances the trailing letter-spacing */
-  white-space: nowrap;
-  color: var(--text-dim);
-}
-
-.identity-word {
-  margin: 0;
-  font-family: var(--font-display);
-  font-size: clamp(1.25rem, 4.6vw, 5.4rem);
-  font-weight: 300;
-  line-height: 1;
-  letter-spacing: 0.16em;
-  padding-left: 0.16em; /* balances the trailing letter-spacing */
-  white-space: nowrap;
-  color: #ffffff;
-  text-shadow: 0 0 32px rgba(255, 255, 255, 0.16);
-  will-change: opacity;
-}
-
-/* The out-of-focus copy: wide-tracked and blurred, laid over the sharp one's
-   centre. Static — focus only changes the two copies' opacities. */
-.identity-word--soft {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  letter-spacing: 0.5em;
-  padding-left: 0.5em;
-  filter: blur(6px);
-  text-shadow: none;
-  opacity: 0;
-}
-
-/* The thread of stars down the axis, drawn by ui/identity.ts.
-   One canvas rather than an element per star: as DOM this was 44 boxes each
-   with `will-change`, and a thread that sparse reads as loose dots. The
-   hairline that used to run behind them, and the comet that used to ride it,
-   were both removed — each read as a scroll indicator rather than as scenery.
-   Sized from JS to the viewport; it carries no transform of its own. */
-.identity-thread {
+   Gone with the rewrite: .identity-item, .identity-caption, .identity-words,
+   .identity-word and its blurred --soft twin (the three stacked headings), and
+   .identity-thread / .identity-seg / .identity-star / .identity-comet (the
+   thread of stars, the hairline and the comet). None of them should come back
+   — the statements are not laid out any more. */
+.identity-canvas {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
+}
+
+/* The statements for a screen reader and a crawler; on the canvas they are
+   only ink. Clipped rather than `display: none`, which would hide it from
+   assistive tech too. */
+.identity-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
 /* The scene's name, bottom-left. The `01 / 03` counter that used to face it

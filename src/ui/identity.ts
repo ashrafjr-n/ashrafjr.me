@@ -1,132 +1,244 @@
 /**
- * 02 — IDENTITY: three statements on one vertical axis, moved by the scroll
- * like a lens pulling focus. Type and motion only — no boxes, images or
- * gradients.
+ * 02 — IDENTITY: the three statements as one object in depth, with the camera
+ * travelling through them.
  *
- * A single focus position `f` walks the list **linearly with the scroll**. It
- * used to dwell — each statement held still for part of its step before focus
- * travelled on — and that read as the page snapping between the statements
- * rather than as scrolling through them. Nothing here paces the reader now;
- * the scroll is the scroll. A statement's distance from focus, `d`, sets how
- * it draws, and the two sides are deliberately not mirror images:
- *   - ahead (d > 0): below, small, blurred and wide-tracked — still forming;
- *   - in focus (d = 0): centred, full size, sharp, tight tracking;
- *   - behind (d < 0): above, small and dim but crisp — settled.
+ * The words are not animated — the **camera is**. Each statement is sampled
+ * into a cloud of particles standing on one axis in front of the viewer, and
+ * the scroll drives a fly-through: a statement starts far off and nearly
+ * hidden, swells until its letters run off all four edges, blows apart as it
+ * passes, and the same cloud gathers again further down the axis as the next
+ * one. The last statement does not blow past; it collapses into a single lit
+ * point deep in the field — the thing being built toward.
  *
- * **Only transform and opacity ever change per frame.** Each statement is two
- * stacked copies — a sharp, tightly tracked one and a blurred, wide-tracked
- * one — and focus crossfades between them. Animating `filter` and
- * `letter-spacing` directly re-rasterised big glowing type every frame, which
- * is what made this scene's scroll stutter.
+ * **This replaced three stacked headings that scrolled past each other**, and
+ * the difference is the perspective divide: everything on screen here is one
+ * cloud at one depth, projected. Nothing is laid out, nothing is centred, and
+ * a statement is never a heading.
  *
- * Behind the type runs a **thread of stars on a canvas** — see `drawThread`.
- * Not a line, and not a comet riding one: both were tried and both read as a
- * scroll indicator rather than as scenery. The scene opens by drawing that
- * thread up from the bottom edge, and the statements rise in behind it while
- * it is still climbing.
+ * Deleted with that: the thread of stars down the axis (and the hairline and
+ * comet before it), the per-statement captions, and the two stacked DOM copies
+ * of each word that used to crossfade sharp against blurred. The type is
+ * rasterised once per statement and lives as points from then on; the DOM
+ * keeps only a screen-reader copy and the corner label.
  *
  * Driven from main.ts's one RAF loop. The identity progress is chased with its
  * own time-based smoothing (on top of the page's), so the motion stays soft
- * however the wheel arrives; scrolling back plays it backwards.
+ * however the wheel arrives; scrolling back flies the camera out again.
  */
 import { clamp } from '../lib/math'
 
-const ITEMS = [
-  { label: 'ACADEMIC ROOT', text: 'COMPUTER SCIENCE' },
-  { label: 'CURRENT CRAFT', text: 'FULL-STACK DEVELOPER' },
-  { label: 'DIRECTION', text: 'BUILDING TOWARD AI' },
-]
+const PHRASES = ['COMPUTER SCIENCE', 'FULL-STACK DEVELOPER', 'BUILDING TOWARD AI']
 
 /** Per-second rate the drawn progress chases the scroll at (`1 - exp(-rate * dt)`). */
 const CHASE_RATE = 3.2
-/** Focus runs from one step before the first statement to one after the last. */
-const RUN_FROM = -0.8
-const RUN_TO = ITEMS.length - 1 + 0.8
-/** Vertical distance, in vh, one step covers near the centre. */
-const GAP_VH = 40
-/** How hard further statements are pulled toward the centre line. */
-const DEPTH = 0.22
-/** Fraction of the scene spent fading the whole thing back out at the end. */
-const EDGE = 0.12
+/**
+ * Fraction of the scene spent fading the whole thing back out at the end.
+ *
+ * Deliberately short: the ending is the collapse into a point, not a fade, and
+ * at the 0.1 this started on the fade took the point away at exactly the
+ * moment it had finished forming. This is only the cut at the very end, after
+ * the point has been sitting there for a while.
+ */
+const EDGE = 0.05
 
-// --- The entrance ---
+// --- The fly-through ---
 /**
- * The scene opens in two overlapping beats: the thread draws itself up from
- * the bottom edge, and the statements rise in behind it while it is still
- * climbing. Both are fractions of the identity scene.
+ * Depth of a statement, in focal lengths, as the camera arrives at it and as
+ * it leaves. One statement's `D_NEAR` is the next one's `D_FAR`: the camera
+ * runs the same stretch of axis three times, and that is what makes the
+ * hand-over read as one continuous travel rather than as three entrances.
  *
- * The overlap is the point — `ITEMS_FROM` sits inside the climb, so the type
- * arrives *with* the thread rather than behind it, and the scene never stands
- * still waiting for one of them to finish.
+ * `D_NEAR` is small but never zero — at zero the projection divides by nothing
+ * and the cloud covers the screen in a single frame.
  */
-const RISE_END = 0.13
-/** Softness of the climbing front, as a fraction of the screen's height. */
-const RISE_SOFT = 0.14
-const ITEMS_FROM = 0.08
-const ITEMS_IN = 0.13
-/** How far, in vh, a statement is lifted from as it arrives. */
-const ENTRY_LIFT_VH = 9
-/** Scroll left at the end for the last statement to settle before the scene goes. */
-const EXIT_PAD = 0.06
+const D_FAR = 9
+const D_NEAR = 0.42
+/**
+ * Projected size of one world unit at one focal length, as a fraction of the
+ * viewport height. A statement is normalised to exactly one unit wide, so at
+ * `d = 1` it spans this much of the height — and by `D_NEAR` it is more than
+ * twenty times that, which is what runs the letters off every edge.
+ */
+const FOCAL = 1
 
-// --- The thread ---
 /**
- * Stars in the thread, and how far either side of the axis they may sit.
- *
- * They are drawn on a canvas rather than as elements, which is what lets there
- * be this many: as DOM this was 44 boxes with `will-change` on each, and a
- * thread that sparse reads as loose dots. They sit close enough together to
- * suggest a line without ever touching — that scattered spacing is what keeps
- * it a thread of stars rather than a dotted rule.
+ * Fraction of a statement's own stretch spent gathering at the start and
+ * flying apart at the end. The rest of it is the statement whole, growing.
  */
-const THREAD_STARS = 420
-const THREAD_SPREAD = 7
+const MORPH = 0.3
 /**
- * Star radius range, in CSS px, and the shades they are drawn at.
+ * The last statement runs to its own timetable, because it has three things to
+ * do in one stretch where the others have one: arrive, collapse, and then
+ * **hold as a point long enough to be seen**.
  *
- * These are radii of a *soft* dot, so most of that width is falloff — at the
- * 0.4..1.7 they were first written at, a star was a 2px stamp of a gradient
- * that is near-transparent everywhere but its centre, and the whole thread
- * read as a smudge. Size it against what the sprite actually inks.
+ * Splitting it this way is the fix for an ending nobody ever saw. Sharing the
+ * others' timing put the point at full collapse only at the very last of the
+ * scene, which is exactly where the scene's own fade is — it formed and was
+ * taken away in the same breath. Now it is complete by 72% of the stretch and
+ * simply sits there for the rest.
  */
-const STAR_R_MIN = 0.9
-const STAR_R_MAX = 2.6
-const STAR_LEVEL_MIN = 0.3
-const STAR_LEVEL_MAX = 1
-/** Screen-heights the stars flow per second on the clock, and across the whole scene with the scroll. */
-const THREAD_DRIFT = 0.012
-const THREAD_FLOW = 0.16
-/** Half-height, in vh at full size, of the gap the thread leaves around a statement, and the soft edge beyond it. */
-const CLEAR_VH = 8
-const CLEAR_SOFT_VH = 9
+const LAST_APPROACH = 0.45
+const LAST_COLLAPSE = 0.27
+/**
+ * How far along the shared depth run the last statement gets before it
+ * collapses. Short of the lens on purpose: it is not there to blow past, and
+ * past this it would be inside the near fade and going out anyway.
+ */
+const LAST_REACH = 0.72
+/** How far a particle strays from its letter while the cloud is apart, in world units. */
+const SCATTER_XY = 0.42
+/** And in depth, which is what makes the cloud pass *through* the camera rather than across it. */
+const SCATTER_Z = 2.6
+/** How far a flying particle is smeared along its own travel, at full scatter. */
+const STREAK = 2.6
+
+/**
+ * Where each statement stands off the axis, in world units, and what the
+ * camera pans between.
+ *
+ * The camera arrives at each statement's own offset, so a statement is square
+ * on as it approaches and swings off to one side as it blows past — which is
+ * what keeps the big one off centre. Dead-centre framing on all three was the
+ * thing that made this read as a slideshow.
+ */
+const STATIONS = [
+  { x: 0.07, y: -0.03 },
+  { x: -0.13, y: 0.04 },
+  { x: 0.05, y: -0.02 },
+]
+
+// --- The particles ---
+const COUNT = 2600
+/** Radius of a particle at one focal length, in fractions of the viewport height. */
+const PARTICLE_R = 0.0021
+/** Clamp on the drawn radius, so a particle at the lens does not fill the frame. */
+const PARTICLE_R_MAX_VH = 0.02
+/**
+ * Floor on the drawn radius, in CSS px. A statement out at `D_FAR` projects a
+ * tenth of the viewport height wide, which puts its particles under half a
+ * pixel each — the cloud is meant to read as a faint dust at that distance,
+ * not to disappear.
+ */
+const PARTICLE_R_MIN_PX = 0.85
+const LEVEL_MIN = 0.45
+const LEVEL_MAX = 1
+
+// --- The ending ---
+/**
+ * Depth the collapsed point recedes to.
+ *
+ * **It has to sit inside the far fade, not past it.** Anything beyond
+ * `D_FAR * 1.5` is faded to nothing by distance, and at the 16 this was first
+ * given the point was drawn perfectly and then multiplied by zero — the
+ * ending simply did not appear.
+ */
+const D_DEEP = 6
+/**
+ * The point is a small cloud, not a mathematical dot: each particle keeps its
+ * own offset from the centre, in world units. Isotropic, so what is left reads
+ * as a round entity rather than as the flattened remains of a wide word.
+ */
+const POINT_SPREAD = 0.016
+/**
+ * How much bigger a particle draws once it belongs to the point.
+ *
+ * At this depth a particle is under the minimum radius and the whole point
+ * came out as a two-pixel speck. It is meant to be the one lit thing left in
+ * the field, so it is given the size back here rather than by hauling `D_DEEP`
+ * closer, which would make it a blob instead of something far away.
+ */
+const POINT_R_BOOST = 4.2
+/** How bright the point is, against a particle's own level. */
+const POINT_GLOW = 2.4
 
 function smooth(u: number): number {
   const x = clamp(u, 0, 1)
   return x * x * x * (x * (x * 6 - 15) + 10)
 }
 
+function mix(a: number, b: number, u: number): number {
+  return a + (b - a) * u
+}
+
+/** A statement, rasterised once and kept as points. */
+interface Layout {
+  /** `COUNT` pairs of world-space offsets from the statement's own centre. */
+  xy: Float32Array
+  /** Where "AI" sits in it — what the field collapses into at the end. */
+  aiX: number
+  aiY: number
+}
+
 /**
- * One soft white dot, drawn once and stamped per star.
+ * Rasterise a statement and take `COUNT` points off its ink.
  *
- * A radial gradient per star per frame would be the expensive way to do this.
- * The site's 3D fields solve the same problem the same way, with one sprite.
+ * The result is normalised so the statement is exactly **one world unit wide**,
+ * centred on its own ink rather than on the canvas — so every statement
+ * projects to the same width at the same depth however long its text is, and
+ * the fly-through is paced by the camera alone.
  */
-function createDotSprite(): HTMLCanvasElement {
-  const size = 32
-  const dot = document.createElement('canvas')
-  dot.width = dot.height = size
-  const ctx = dot.getContext('2d')!
-  // A solid core out to nearly half the radius, then falloff. A gradient that
-  // starts dropping at the centre has almost no ink left by the time it is
-  // stamped two pixels wide.
-  const grad = ctx.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2)
-  grad.addColorStop(0, 'rgba(255, 255, 255, 1)')
-  grad.addColorStop(0.42, 'rgba(255, 255, 255, 0.98)')
-  grad.addColorStop(0.62, 'rgba(255, 255, 255, 0.45)')
-  grad.addColorStop(1, 'rgba(255, 255, 255, 0)')
-  ctx.fillStyle = grad
-  ctx.fillRect(0, 0, size, size)
-  return dot
+function sampleText(text: string): Layout {
+  const FONT_PX = 200
+  const PAD = 30
+  const TRACKING = '0.06em'
+  const canvas = document.createElement('canvas')
+  const ctx = canvas.getContext('2d', { willReadFrequently: true })!
+  const font = `300 ${FONT_PX}px "Space Grotesk", sans-serif`
+
+  // Letter spacing has to be set *before* measuring as well as before drawing:
+  // `measureText` honours it, so measuring without it and then drawing with it
+  // sizes the canvas too narrow and the last glyph is clipped off the edge.
+  ctx.font = font
+  ctx.letterSpacing = TRACKING
+  const width = Math.ceil(ctx.measureText(text).width) + PAD * 2
+  const height = Math.ceil(FONT_PX * 1.7)
+  canvas.width = width
+  canvas.height = height
+  // Resizing the canvas resets the context, so everything is set again here.
+  ctx.font = font
+  ctx.letterSpacing = TRACKING
+  ctx.fillStyle = '#ffffff'
+  ctx.textBaseline = 'middle'
+  ctx.fillText(text, PAD, height / 2)
+
+  const data = ctx.getImageData(0, 0, width, height).data
+  const ink: number[] = []
+  let minX = Infinity
+  let maxX = -Infinity
+  let minY = Infinity
+  let maxY = -Infinity
+  // Every other pixel in each direction: four times fewer to walk, and still
+  // far more candidates than there are particles to place.
+  for (let y = 0; y < height; y += 2) {
+    for (let x = 0; x < width; x += 2) {
+      if (data[(y * width + x) * 4 + 3] < 128) continue
+      ink.push(x, y)
+      if (x < minX) minX = x
+      if (x > maxX) maxX = x
+      if (y < minY) minY = y
+      if (y > maxY) maxY = y
+    }
+  }
+
+  const span = maxX - minX || 1
+  const cx = (minX + maxX) / 2
+  const cy = (minY + maxY) / 2
+  const xy = new Float32Array(COUNT * 2)
+  const points = ink.length / 2
+  for (let i = 0; i < COUNT; i++) {
+    const p = ((Math.random() * points) | 0) * 2
+    xy[i * 2] = (ink[p] - cx) / span
+    xy[i * 2 + 1] = (ink[p + 1] - cy) / span
+  }
+
+  // Where "AI" sits, measured rather than guessed — the collapse aims at it.
+  const at = text.lastIndexOf('AI')
+  let aiX = 0
+  if (at >= 0) {
+    const before = PAD + ctx.measureText(text.slice(0, at)).width
+    aiX = (before + ctx.measureText('AI').width / 2 - cx) / span
+  }
+  return { xy, aiX, aiY: (height / 2 - cy) / span }
 }
 
 export interface Identity {
@@ -139,62 +251,66 @@ export function createIdentity(): Identity {
   const el = document.createElement('div')
   el.className = 'identity'
 
-  // The thread first, so the statements paint over it.
   const canvas = document.createElement('canvas')
-  canvas.className = 'identity-thread'
+  canvas.className = 'identity-canvas'
   canvas.setAttribute('aria-hidden', 'true')
   el.append(canvas)
   const ctx = canvas.getContext('2d')!
-  const sprite = createDotSprite()
 
-  /**
-   * Every star's own place and look, rolled once.
-   *
-   * `u` is a position along the thread rather than an index, so the stars are
-   * scattered along it instead of evenly spaced — and it is what flows: a
-   * star's place is `(u + flow) mod 1`, so each one walks the whole height and
-   * re-enters at the top alone, where the envelope has it at nothing.
-   */
-  const stars = Array.from({ length: THREAD_STARS }, () => ({
-    u: Math.random(),
-    // Biased toward the axis — three rolls averaged — so the thread has a
-    // dense core and a few strays rather than an even band.
-    x: ((Math.random() + Math.random() + Math.random()) / 3 - 0.5) * 2 * THREAD_SPREAD,
-    r: STAR_R_MIN + Math.random() * (STAR_R_MAX - STAR_R_MIN),
-    level: STAR_LEVEL_MIN + Math.random() * (STAR_LEVEL_MAX - STAR_LEVEL_MIN),
-    phase: Math.random() * Math.PI * 2,
-    // Its own twinkle rate, so the thread never pulses as one.
-    rate: 0.7 + Math.random() * 1.6,
-  }))
-
-  const items = ITEMS.map(({ label, text }, i) => {
-    const item = document.createElement('div')
-    item.className = 'identity-item'
-    const caption = document.createElement('p')
-    caption.className = 'identity-caption'
-    caption.textContent = `0${i + 1} — ${label}`
-    const words = document.createElement('div')
-    words.className = 'identity-words'
-    const sharp = document.createElement('p')
-    sharp.className = 'identity-word'
-    sharp.textContent = text
-    const soft = document.createElement('p')
-    soft.className = 'identity-word identity-word--soft'
-    soft.textContent = text
-    soft.setAttribute('aria-hidden', 'true')
-    words.append(sharp, soft)
-    item.append(caption, words)
-    el.append(item)
-    return { item, caption, sharp, soft }
-  })
+  // The statements still have to be readable to a screen reader and to a
+  // crawler; on the canvas they are only ink.
+  const sr = document.createElement('p')
+  sr.className = 'identity-sr'
+  sr.textContent = PHRASES.join('. ') + '.'
+  el.append(sr)
 
   const name = document.createElement('p')
   name.className = 'identity-meta identity-meta--name'
   name.textContent = '02 — IDENTITY'
   el.append(name)
 
-  const ys = new Float64Array(ITEMS.length)
-  const scales = new Float64Array(ITEMS.length)
+  /** One soft dot, drawn once and stamped per particle. */
+  const sprite = document.createElement('canvas')
+  sprite.width = sprite.height = 32
+  {
+    const g = sprite.getContext('2d')!
+    const grad = g.createRadialGradient(16, 16, 0, 16, 16, 16)
+    grad.addColorStop(0, 'rgba(255, 255, 255, 1)')
+    grad.addColorStop(0.4, 'rgba(255, 255, 255, 0.95)')
+    grad.addColorStop(1, 'rgba(255, 255, 255, 0)')
+    g.fillStyle = grad
+    g.fillRect(0, 0, 32, 32)
+  }
+
+  /** Per particle, rolled once: how far it strays when the cloud is apart, and how bright it is. */
+  const stray = new Float32Array(COUNT * 3)
+  const level = new Float32Array(COUNT)
+  for (let i = 0; i < COUNT; i++) {
+    // A direction on the sphere, at a random radius — so the cloud comes apart
+    // as a ball rather than as a shell.
+    const a = Math.random() * Math.PI * 2
+    const z = Math.random() * 2 - 1
+    const r = Math.cbrt(Math.random()) * Math.sqrt(1 - z * z)
+    stray[i * 3] = Math.cos(a) * r
+    stray[i * 3 + 1] = Math.sin(a) * r
+    stray[i * 3 + 2] = z
+    level[i] = LEVEL_MIN + Math.random() * (LEVEL_MAX - LEVEL_MIN)
+  }
+
+  /** Filled once the font is in — nothing can be sampled before then. */
+  let layouts: Layout[] = []
+  document.fonts
+    // The font is no longer used by any rule, so it has to be asked for by
+    // name or the browser never fetches it and the type rasterises as a
+    // fallback.
+    .load(`300 200px "Space Grotesk"`)
+    .then(() => {
+      layouts = PHRASES.map(sampleText)
+    })
+    .catch(() => {
+      layouts = PHRASES.map(sampleText)
+    })
+
   /** The drawn progress, chasing the scroll's. */
   let tt = 0
   let prevTime = 0
@@ -202,7 +318,6 @@ export function createIdentity(): Identity {
   let cssW = 0
   let cssH = 0
 
-  /** Match the backing store to the viewport, and keep drawing in CSS pixels. */
   function sizeCanvas(): void {
     const w = window.innerWidth
     const h = window.innerHeight
@@ -216,48 +331,93 @@ export function createIdentity(): Identity {
   }
 
   /**
-   * The thread: stars scattered down the axis, drawn as one canvas.
+   * Fly the camera one step down the axis and draw whatever the cloud is
+   * being at that moment.
    *
-   * Four things multiply into a star's brightness, and every one of them is a
-   * smooth ramp, so nothing ever pops:
-   *   - the climbing front, which is the scene's entrance — the thread draws
-   *     upward from the bottom edge, so `front` runs from below the screen to
-   *     above it and a star lights only once the front has passed it;
-   *   - an envelope that fades the thread out at both screen edges;
-   *   - the gap it leaves around each statement, so it never crosses type;
-   *   - its own twinkle, on its own clock rather than the thread's.
+   * `travel` runs 0..PHRASES.length. Its whole part picks the statement, its
+   * fraction is the camera's run at that statement: depth falls from `D_FAR`
+   * to `D_NEAR` across it, so the statement swells the whole way, and the
+   * cloud is apart at both ends of the run and whole in the middle. The jump
+   * from one statement's near depth back to the next one's far depth happens
+   * while the cloud is fully apart and at its dimmest, which is what hides it.
    */
-  function drawThread(time: number, fade: number): void {
+  function draw(fade: number): void {
     ctx.clearRect(0, 0, cssW, cssH)
+    if (layouts.length === 0) return
 
-    // Runs from 1 + RISE_SOFT (wholly below the bottom edge) to -RISE_SOFT
-    // (wholly above the top), so the thread is fully out at one end of the
-    // climb and fully in at the other rather than clipped at either.
-    const front = (1 + 2 * RISE_SOFT) * (1 - smooth(tt / RISE_END)) - RISE_SOFT
+    const last = PHRASES.length - 1
+    const travel = tt * PHRASES.length
+    const k = clamp(Math.floor(travel), 0, last)
+    const u = clamp(travel - k, 0, 1)
+    const layout = layouts[k]
 
-    const seconds = time / 1000
-    const flow = seconds * THREAD_DRIFT + tt * THREAD_FLOW
-    const axis = cssW / 2
+    // Apart at the start of the run (gathering) and at the end (flying past),
+    // whole in between.
+    const isLast = k === last
+    const gather = 1 - smooth(u / MORPH)
+    const burst = smooth((u - (1 - MORPH)) / MORPH)
+    // The last statement never blows past: it arrives, draws in to where "AI"
+    // sits, and holds there as one lit point deep in the field.
+    const collapse = isLast ? smooth((u - LAST_APPROACH) / LAST_COLLAPSE) : 0
+    const apart = isLast ? gather : Math.max(gather, burst)
+    const approach = isLast ? Math.min(u / LAST_APPROACH, 1) * LAST_REACH : u
 
-    for (const star of stars) {
-      const yn = (((star.u + flow) % 1) + 1) % 1 // 0 at the top, 1 at the bottom
-      const reveal = smooth((yn - front) / RISE_SOFT)
-      if (reveal <= 0) continue
+    // **Geometric, not linear.** A camera at constant speed covers depth
+    // linearly, and apparent size goes as 1 / d — so a linear run spends
+    // almost all of itself with the statement too small to read and then
+    // crosses the whole legible range in its last fifth. Stepping the depth by
+    // a constant *ratio* instead makes the statement grow at a steady rate on
+    // screen, which is what the eye reads as travel.
+    const depth = mix(D_FAR * Math.pow(D_NEAR / D_FAR, approach), D_DEEP, collapse)
+    const station = STATIONS[k]
+    const next = STATIONS[Math.min(k + 1, last)]
+    // The camera arrives at the next statement's offset as it reaches it, so
+    // this one swings aside as it passes.
+    const camX = mix(station.x, next.x, smooth(u))
+    const camY = mix(station.y, next.y, smooth(u))
 
-      const centred = yn * 100 - 50 // vh from the middle, as the statements are measured
-      let clear = 1
-      for (let i = 0; i < ITEMS.length; i++) {
-        const gap = Math.abs(centred - ys[i]) - CLEAR_VH * scales[i]
-        clear = Math.min(clear, smooth(gap / CLEAR_SOFT_VH))
-      }
-      if (clear <= 0) continue
+    const halfW = cssW / 2
+    const halfH = cssH / 2
+    const unit = FOCAL * cssH
+    
+    const maxR = PARTICLE_R_MAX_VH * cssH
+    // Dimmed while apart, and taken to a hard glow once it is one point.
+    const spread = 1 - 0.4 * apart
+    const glow = mix(1, POINT_GLOW, collapse)
 
-      const twinkle = 0.72 + 0.28 * Math.sin(star.phase + seconds * star.rate)
-      const alpha = Math.sin(Math.PI * yn) * star.level * twinkle * clear * reveal * fade
-      if (alpha <= 0.004) continue
+    for (let i = 0; i < COUNT; i++) {
+      const sx = stray[i * 3]
+      const sy = stray[i * 3 + 1]
+      const sz = stray[i * 3 + 2]
 
-      ctx.globalAlpha = alpha
-      ctx.drawImage(sprite, axis + star.x - star.r, yn * cssH - star.r, star.r * 2, star.r * 2)
+      const tx = mix(layout.xy[i * 2], layout.aiX + sx * POINT_SPREAD, collapse)
+      const ty = mix(layout.xy[i * 2 + 1], layout.aiY + sy * POINT_SPREAD, collapse)
+      const d = depth + sz * SCATTER_Z * apart
+      if (d < 0.08) continue
+
+      const scale = unit / d
+      const x = halfW + (tx + sx * SCATTER_XY * apart + station.x - camX) * scale
+      const y = halfH + (ty + sy * SCATTER_XY * apart + station.y - camY) * scale
+
+      const r = Math.min(
+        Math.max(PARTICLE_R * scale, PARTICLE_R_MIN_PX) * mix(1, POINT_R_BOOST, collapse),
+        maxR,
+      )
+      // Smeared along its own travel while it flies — the word coming apart in
+      // streaks rather than in dots.
+      const w = r * (1 + STREAK * apart * Math.abs(sx))
+      const h = r * (1 + STREAK * apart * Math.abs(sy))
+      if (x + w < 0 || x - w > cssW || y + h < 0 || y - h > cssH) continue
+
+      // Fades up out of the far distance and back down as it reaches the lens,
+      // so nothing ever arrives or leaves as a hard edge.
+      const near = smooth((d - D_NEAR) / (D_NEAR * 1.4))
+      const far = smooth((D_FAR * 1.5 - d) / (D_FAR * 0.7))
+      const alpha = level[i] * near * far * spread * glow * fade
+      if (alpha <= 0.006) continue
+
+      ctx.globalAlpha = Math.min(alpha, 1)
+      ctx.drawImage(sprite, x - w, y - h, w * 2, h * 2)
     }
     ctx.globalAlpha = 1
   }
@@ -268,11 +428,8 @@ export function createIdentity(): Identity {
     tt += (t - tt) * (1 - Math.exp(-CHASE_RATE * dt))
     if (Math.abs(t - tt) < 1e-4) tt = t
 
-    const out = smooth((1 - tt) / EDGE)
-    const wordsFade = smooth((tt - ITEMS_FROM) / ITEMS_IN) * out
-    // The thread has no fade of its own on the way in — the climb *is* its
-    // entrance — so the scene is up as soon as there is any of it to draw.
-    if (tt <= 0 || out <= 0) {
+    const fade = smooth((1 - tt) / EDGE)
+    if (tt <= 0 || fade <= 0) {
       if (!hidden) {
         hidden = true
         el.style.visibility = 'hidden'
@@ -282,43 +439,12 @@ export function createIdentity(): Identity {
     if (hidden) {
       hidden = false
       el.style.visibility = 'visible'
-      // `.identity` rests at opacity 0; the layer is fully on from here and
-      // every fade is applied per child, so this is written once, not per frame.
+      // `.identity` rests at opacity 0; written once, never per frame.
       el.style.opacity = '1'
     }
     sizeCanvas()
-
-    // Linear in the scroll, over whatever is left once the entrance has run
-    // and before the exit — no dwell, nothing held.
-    const fu = clamp((tt - RISE_END) / (1 - RISE_END - EXIT_PAD), 0, 1)
-    const f = RUN_FROM + fu * (RUN_TO - RUN_FROM)
-    // Lifted from below as they arrive, settling as the thread finishes.
-    const lift = (1 - smooth((tt - ITEMS_FROM) / ITEMS_IN)) * ENTRY_LIFT_VH
-
-    items.forEach(({ item, caption, sharp, soft }, i) => {
-      const d = i - f
-      const a = Math.abs(d)
-      const ahead = d > 0
-      // How far "out of focus" an upcoming statement is, 0..1. It is fully
-      // sharp for the last stretch of its approach, so the two copies only
-      // overlap while the statement is still small and dim.
-      const blur = ahead ? smooth((a - 0.4) / 0.5) : 0
-
-      const y = ((ahead ? 1 : -1) * GAP_VH * a) / (1 + DEPTH * a)
-      const scale = 1 - (ahead ? 0.42 : 0.5) * Math.min(a, 1.4)
-      ys[i] = y
-      scales[i] = scale
-
-      item.style.transform = `translate(-50%, -50%) translateY(${(y + lift).toFixed(2)}vh) scale(${scale.toFixed(4)})`
-      const near = ahead ? Math.max(0, 1 - 0.8 * a) : Math.max(0, 1 - 0.72 * a)
-      item.style.opacity = (near * wordsFade).toFixed(3)
-      sharp.style.opacity = (1 - blur).toFixed(3)
-      soft.style.opacity = blur.toFixed(3)
-      caption.style.opacity = Math.max(0, 1 - a * 2.2).toFixed(3)
-    })
-
-    name.style.opacity = wordsFade.toFixed(3)
-    drawThread(time, out)
+    name.style.opacity = (smooth(tt / 0.08) * fade).toFixed(3)
+    draw(fade)
   }
 
   return { el, update }
