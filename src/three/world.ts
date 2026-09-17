@@ -65,11 +65,16 @@ const MODEL_CAMERA_DIST = 10.1
  * changes between the two — only the lens, which is what this pair is for.
  * The scale is `FIT_HALF_WIDTH`'s and it is the same in both.
  *
- * Positive drops the model down the screen. They are blended by how far the
- * Scene 3 lift has gone; see `update()`.
+ * Positive drops the model down the screen, 1:1 in frame heights — verified on
+ * screen, and it is what both were solved with. Measured at 1536x864 with the
+ * model's own composition spanning 605px: Scene 2 puts its base line on the
+ * bottom edge (864) with the model filling everything under the identity line,
+ * and Scene 3 lifts it 259px so the base sits at 605 — the **top 70% of the
+ * screen, the bottom 30% empty**, which is the brief. They are blended by how
+ * far the Scene 3 lift has gone; see `update()`.
  */
-const SCENE2_LENS = 0.5
-const SCENE3_LENS = -0.11
+const SCENE2_LENS = 0.548
+const SCENE3_LENS = 0.248
 
 /**
  * How far below the figure's own centre the camera is levelled, in the
@@ -119,21 +124,28 @@ const SCENE2_TURNS = 1
  * Height is linear in scale with no ceiling at all, so one screenshot
  * calibrates it exactly.
  *
- * It is **over 1 on purpose**. "Visible" is every non-black vertex, and most of
- * those are the model's own scattered star specks, which spread far wider and
- * taller than the planets-and-figure composition inside them. The composition
- * runs roughly 45% of this, so 1.55 is what puts it at ~70% of the screen.
+ * It is **just over 1 on purpose**. "Visible" is every non-black vertex, and
+ * most of those are the model's own scattered star specks, which spread wider
+ * and taller than the planets-and-figure composition inside them. Measured on
+ * the rendered page, that composition is **69% of the visible height**, so
+ * 1.015 is what lands it on 70% of the screen — which is the brief for Scene 3:
+ * the model takes the frame and only the bottom 30% is left empty.
  */
-const FIT_HEIGHT = 1.55
+const FIT_HEIGHT = 1.015
 
 /**
  * A cap on the above, as the visible half-width over the screen width, solved
  * per aspect. **It is a portrait guard and nothing else**: a height fit is
- * aspect-independent, so on a phone the same fraction of the height is eight
- * screens wide and all that is left on frame is the middle of the figure. It
- * does not bind on desktop.
+ * aspect-independent, so on a phone the same fraction of the height is several
+ * screens wide and all that is left on frame is the middle of the figure.
+ *
+ * **It must not bind on desktop, and 1.05 did** — silently, which made
+ * `FIT_HEIGHT` inert and the cap the real size knob. At 16:9 the height fit
+ * needs 1.079 of headroom, so 1.30 clears it; on a phone (0.465) the cap is
+ * what decides and holds the model to 46% of its desktop size. Re-check both
+ * ends after touching either constant.
  */
-const FIT_MAX_HALF_WIDTH = 1.05
+const FIT_MAX_HALF_WIDTH = 1.3
 
 /**
  * The stretch of the **transition** over which the model is carried from its
@@ -393,7 +405,6 @@ export function createWorld(aspect: number): WorldLayer {
       visibleRadius = r
       modelMidY = (minY + maxY) / 2
       visibleHalfHeight = (maxY - minY) / 2
-      console.log('[world] measured r=' + visibleRadius + ' hh=' + visibleHalfHeight + ' mid=' + modelMidY)
     }
   }
 
