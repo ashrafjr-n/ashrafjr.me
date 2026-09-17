@@ -73,8 +73,8 @@ const MODEL_CAMERA_DIST = 10.1
  * screen, the bottom 30% empty**, which is the brief. They are blended by how
  * far the Scene 3 lift has gone; see `update()`.
  */
-const SCENE2_LENS = 0.548
-const SCENE3_LENS = 0.248
+const SCENE2_LENS = 0.403
+const SCENE3_LENS = 0.103
 
 /**
  * How far below the figure's own centre the camera is levelled, in the
@@ -85,13 +85,13 @@ const SCENE3_LENS = 0.248
  * changes the perspective, the lens only changes where the result sits on
  * screen.
  *
- * **0.15, down from 0.34**, on request — the camera was sitting too low under
+ * **0.25, down from 0.34**, on request — the camera was sitting too low under
  * the figure and the model read as being looked up at. It is still under the
  * figure's own centre, so the slight upward look is kept, just far less of it.
  * Note this moves the model on screen as well as changing the angle (it is a
  * term in `pivot.position.y`), so both lens values want re-solving after it.
  */
-const CAMERA_DROP = 0.15
+const CAMERA_DROP = 0.25
 const TAN_HALF_FOV = Math.tan((CAMERA_FOV * Math.PI) / 360)
 
 /**
