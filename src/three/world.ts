@@ -68,8 +68,8 @@ const MODEL_CAMERA_DIST = 10.1
  * Positive drops the model down the screen. They are blended by how far the
  * Scene 3 lift has gone; see `update()`.
  */
-const SCENE2_LENS = 0.62
-const SCENE3_LENS = -0.2
+const SCENE2_LENS = 0.5
+const SCENE3_LENS = -0.11
 
 /**
  * How far below the figure's own centre the camera is levelled, in the
