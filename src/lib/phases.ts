@@ -101,8 +101,16 @@ export function toTransition(page: number): number {
  * nothing on them at all. Reaching back lets the thread start climbing while
  * Scene 1 is still breaking up, and reaching forward keeps the last statement
  * fading as the model rises into it.
+ *
+ * **The lead is 0.16, up from 0.1, because Scene 1 empties before its own
+ * stretch is over.** The ring reaches the edge of the frame on the scatter
+ * alone by about page 0.14 and is streaking off from 0.12, but identity used to
+ * arrive at 0.167 and the model at 0.22 — so the page passed through a stretch
+ * with a blank frame and nothing but the outline of a line that had not started
+ * yet. Reaching further back lands the text while the ring is still on its way
+ * out, which is what turns three separate events into one handover.
  */
-const IDENTITY_LEAD = 0.1
+const IDENTITY_LEAD = 0.16
 const IDENTITY_TRAIL = 0.09
 
 /**
@@ -114,15 +122,14 @@ const IDENTITY_TRAIL = 0.09
  * move during the scene it is now in. The page value keeps running, so the
  * rise is hung on that instead.
  *
- * **It starts where the ring finishes leaving, not before.** `MODEL_FROM` used
- * to be 0.22, inside Scene 1's last stretch, so the model was climbing into
- * frame while the ring was still streaking past the camera and the two moves
- * fought each other. The ring is clear at `IDENTITY_FROM` (0.2667); the model
- * sets off there and lands a little under halfway through identity, while the
- * first statement fills.
+ * **It sets off as the ring finishes leaving, and the overlap is the point.**
+ * The ring runs *outward and past the lens* while the model climbs *up from
+ * below the frame*; they are opposite moves, so they read as a handover rather
+ * than as two things competing. Holding the model back until the ring was
+ * completely gone was tried and it left a blank frame between them.
  */
-const MODEL_FROM = IDENTITY_FROM
-const MODEL_TO = 0.44
+const MODEL_FROM = 0.17
+const MODEL_TO = 0.42
 
 /** 0..1 across the model's rise into Scene 2, 0 before it and 1 after. */
 export function toModel(page: number): number {
