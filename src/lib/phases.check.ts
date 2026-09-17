@@ -7,7 +7,15 @@
  * — the scatter travelling at full speed one frame and frozen the next — and
  * it is exactly what the linear version of Scene 1 used to do.
  */
-import { HOLD, IDENTITY_FROM, IDENTITY_TO, toTransition, toIdentity } from './phases.ts'
+import {
+  HOLD,
+  IDENTITY_FROM,
+  IDENTITY_LEAD,
+  IDENTITY_TO,
+  MODEL_FROM,
+  toTransition,
+  toIdentity,
+} from './phases.ts'
 
 /** Deliberately not `node:assert` — that would drag `@types/node` in for one file. */
 function ok(condition: boolean, what: string): void {
@@ -36,7 +44,17 @@ for (let i = 0; i <= 2000; i++) {
   previous = value
 }
 
-ok(toIdentity(FROM / 2) === 0, 'identity has not started before its stretch')
-ok(toIdentity(1) === 1, 'and is over after it')
+ok(toIdentity(0) === 0, 'identity has not started at the top of the page')
+ok(toIdentity(1) === 1, 'and is over at the bottom')
+ok(toIdentity(FROM - IDENTITY_LEAD) === 0, 'identity starts exactly at its lead')
+ok(toIdentity(FROM - IDENTITY_LEAD + 1e-6) > 0, 'and has started just after it')
+
+// The handover out of Scene 1. The ring reaches the frame's edge on the
+// scatter alone well before Scene 1's own stretch is up, so if either of these
+// slipped past IDENTITY_FROM the page would show a blank frame between the ring
+// leaving and the next thing arriving. That gap has shipped twice.
+ok(FROM - IDENTITY_LEAD > 0, 'identity reaches back into Scene 1, but not to the top of the page')
+ok(MODEL_FROM < FROM, 'the model is already rising before identity\'s own stretch begins')
+ok(toIdentity(MODEL_FROM) > 0, 'and identity is on screen before the model starts')
 
 console.log('phases: ok')

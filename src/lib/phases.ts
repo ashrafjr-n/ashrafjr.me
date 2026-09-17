@@ -110,7 +110,8 @@ export function toTransition(page: number): number {
  * yet. Reaching further back lands the text while the ring is still on its way
  * out, which is what turns three separate events into one handover.
  */
-const IDENTITY_LEAD = 0.16
+/** Exported for `phases.check.ts`. */
+export const IDENTITY_LEAD = 0.16
 const IDENTITY_TRAIL = 0.09
 
 /**
@@ -128,7 +129,8 @@ const IDENTITY_TRAIL = 0.09
  * than as two things competing. Holding the model back until the ring was
  * completely gone was tried and it left a blank frame between them.
  */
-const MODEL_FROM = 0.17
+/** Exported for `phases.check.ts`. */
+export const MODEL_FROM = 0.17
 const MODEL_TO = 0.42
 
 /** 0..1 across the model's rise into Scene 2, 0 before it and 1 after. */
