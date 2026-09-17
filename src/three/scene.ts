@@ -186,6 +186,31 @@ const BAND_CLEAR_LEVEL = 4.0
 const SCROLL_OMEGA = 7.0
 
 /**
+ * Per-second rate the page value trails the spring at — the **second** stage of
+ * the smoothing, and the one that gives the whole site its coast.
+ *
+ * The spring alone is already velocity-continuous, but it still arrives with
+ * the scroll: stop the wheel and it is essentially there. Chasing its output
+ * with a time-based exponential adds a stage whose *acceleration* is continuous
+ * too, so nothing on the page ever changes speed abruptly — the motion carries
+ * on past the gesture and eases down into its resting place instead of landing
+ * with it.
+ *
+ * **This is not new behaviour, it is the identity scene's own smoothing made
+ * shared.** That scene used to chase the page value privately at this exact
+ * rate, which is why its fill read better than everything else on the page.
+ * Doing it once here means the stars, the model, the intro line and the
+ * statements are all on the identical curve rather than the type being smoother
+ * than the thing behind it — and the identity scene's fill is unchanged to the
+ * frame, since it was already the composition of these two stages.
+ *
+ * Together they cost about 0.6s of lag on a held scroll. That is deliberate and
+ * it is the top of the usable range: the page still tracks the reader, but it
+ * finishes the sentence they started.
+ */
+const SCROLL_TRAIL = 3.2
+
+/**
  * Extra orbit radius each band star gains by full scroll — it flies apart.
  *
  * These ranges and the easing exponents below were solved against the frustum
@@ -555,10 +580,15 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
 
   // --- Animation: orbits, smoothed mouse parallax, scroll transition ---
   let prevTime = performance.now()
-  /** Smoothed page scroll, 0..1. The single driver for every scene. */
-  let page = 0
+  /** The spring's own output — the first smoothing stage. */
+  let springPage = 0
   /** Its velocity, in page units per second — the spring's other half. */
-  let pageVel = 0
+  let springVel = 0
+  /**
+   * Smoothed page scroll, 0..1: the spring's output with the trail chased over
+   * it. **The single driver for every scene**, 3D and DOM alike.
+   */
+  let page = 0
   const flyDir = new Vector3()
   const layerFly = new Vector3()
   const invRotation = new Quaternion()
@@ -572,14 +602,20 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
     // a critically damped spring against elapsed time, so the transition
     // settles identically at 60Hz and at 120Hz and its velocity is continuous
     // however coarsely the wheel delivers the scroll — see SCROLL_OMEGA.
-    pageVel += (SCROLL_OMEGA * SCROLL_OMEGA * (state.scroll - page) - 2 * SCROLL_OMEGA * pageVel) * delta
-    page += pageVel * delta
+    springVel +=
+      (SCROLL_OMEGA * SCROLL_OMEGA * (state.scroll - springPage) - 2 * SCROLL_OMEGA * springVel) *
+      delta
+    springPage += springVel * delta
     // Critical damping does not overshoot, but the integrator can by a hair on
     // a long frame, and past 1 the Scene 3 smoothstep turns back on itself.
-    if (page < 0 || page > 1) {
-      page = clamp(page, 0, 1)
-      pageVel = 0
+    if (springPage < 0 || springPage > 1) {
+      springPage = clamp(springPage, 0, 1)
+      springVel = 0
     }
+    // Second stage: the trail. Time-based, so it is identical at 60Hz and
+    // 120Hz, and it can only ever approach the spring — which is already
+    // clamped — so the result stays inside 0..1 without a clamp of its own.
+    page += (springPage - page) * (1 - Math.exp(-SCROLL_TRAIL * delta))
     // Paused through the identity scene — see lib/phases.ts.
     const progress = toTransition(page)
 
@@ -641,10 +677,13 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
    */
   function resync(): void {
     prevTime = performance.now()
-    // The scroll was frozen for the whole pause, so the spring has nowhere
-    // left to travel; whatever speed it was carrying when frames stopped would
-    // only arrive as a kick on the first frame back.
-    pageVel = 0
+    // The scroll was frozen for the whole pause, so neither stage has anywhere
+    // left to travel; whatever speed the spring was carrying when frames
+    // stopped would only arrive as a kick on the first frame back, and the
+    // trail would spend the first moments back chasing a target it had already
+    // reached.
+    springVel = 0
+    page = springPage
   }
 
   function resize(): void {
