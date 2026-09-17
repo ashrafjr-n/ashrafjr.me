@@ -27,7 +27,7 @@ import {
   WebGLRenderer,
 } from 'three'
 import { clamp, rand } from '../lib/math'
-import { HOLD, toTransition } from '../lib/phases'
+import { HOLD, toModel, toTransition } from '../lib/phases'
 import type { InputState } from '../lib/state'
 import { createCircleTexture } from './sprite'
 import { createWorld, MODEL_SPIN_RATE } from './world'
@@ -590,7 +590,10 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
       advance(layer, delta, progress, layerFly.x, layerFly.y, layerFly.z)
     }
 
-    world.update(delta, progress)
+    // The transition for the spin and the Scene 3 lift, and the page for the
+    // rise into Scene 2 — the transition is frozen through identity, so it
+    // cannot carry an entrance that happens inside it.
+    world.update(delta, progress, toModel(page))
     bandMaterial.opacity = BAND_OPACITY * (1 - ramp(progress, BAND_FADE_FROM, BAND_FADE_TO))
 
     renderer.clear()
