@@ -37,6 +37,29 @@ const STATEMENTS = ['COMPUTER SCIENCE', 'FULL-STACK DEVELOPER', 'BUILDING TOWARD
 const EDGE = 0.08
 
 /**
+ * Fraction of the scene the line spends arriving, and how far out of focus and
+ * oversized it arrives.
+ *
+ * **This is the one entrance this scene has, and it was asked for.** The layer
+ * used to come in on opacity alone over `EDGE`, which on hairline stroked type
+ * reads as a pop rather than an arrival — the statements were simply there.
+ * What this does instead is a **focus pull**: the line resolves out of
+ * defocus and settles back from slightly oversized, so the composition *comes
+ * into focus* rather than moving. That matters, because the standing rule for
+ * this scene is that nothing in it moves (see the note at the top): there is
+ * still no drift, no parallax and no entrance *per statement* — the block is
+ * complete and still the moment it is sharp, and the fill is the only
+ * interaction.
+ *
+ * It runs longer than `EDGE` on purpose: an arrival wants room to be read, an
+ * exit wants to be out of the way of the model rising into the frame. The same
+ * curve drives the exit, so the scene defocuses as it leaves.
+ */
+const ENTER = 0.14
+const ENTER_BLUR = 9
+const ENTER_SCALE = 1.04
+
+/**
  * Where each statement's fill begins, and how long it takes, as fractions of
  * the scene.
  *
@@ -155,9 +178,11 @@ export function createIdentity(): Identity {
   document.fonts.ready.then(fitType)
 
   let hidden = true
+  /** Last focus value written, so the settled scene writes nothing per frame. */
+  let shownAt = -1
 
   function update(tt: number): void {
-    const fade = smooth(tt / EDGE) * smooth((1 - tt) / EDGE)
+    const fade = smooth(tt / ENTER) * smooth((1 - tt) / EDGE)
     if (fade <= 0) {
       if (!hidden) {
         hidden = true
@@ -174,6 +199,19 @@ export function createIdentity(): Identity {
       fitType()
     }
     el.style.opacity = fade.toFixed(3)
+
+    // The focus pull. Skipped once it has settled, so the still scene writes
+    // nothing but the fill's clip — `filter` and `scale` are the expensive two.
+    if (Math.abs(fade - shownAt) > 0.002) {
+      shownAt = fade
+      const settle = 1 - fade
+      el.style.filter = settle > 0.001 ? `blur(${(ENTER_BLUR * settle).toFixed(2)}px)` : 'none'
+      // The individual `scale` property, not `transform` — the block's
+      // `translate(-50%, -50%)` is a `transform` and the two compose instead of
+      // overwriting each other. Same reason the project cards ride on
+      // `translate`; see CLAUDE.md.
+      block.style.scale = (1 + (ENTER_SCALE - 1) * settle).toFixed(4)
+    }
 
     for (let i = 0; i < fills.length; i++) {
       const filled = smooth((tt - (FILL_FROM + i * FILL_STEP)) / FILL_SPAN)
