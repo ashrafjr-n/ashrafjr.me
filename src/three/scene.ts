@@ -219,14 +219,17 @@ const GATHER_END = 0.8
  * The transition is held at HOLD (0.45) through identity and the scatter is
  * only ~17% of the way out by then, so the ring used to sit parked at the
  * edges of the frame for the whole of Scene 2 — the break-up reading as
- * unfinished rather than over. Fading it across the tail of Scene 1's own
+ * unfinished rather than over. Fading it across the very tail of Scene 1's own
  * break-up takes it off the screen while it is still visibly flying outward,
- * which is what the scatter was always heading toward. It never comes back:
- * the gather above still runs, invisibly, and is kept only so the motion is
- * there if the ring is ever wanted in Scene 3 again.
+ * which is what the scatter was always heading toward. It lands on exactly
+ * HOLD, so the ring is gone the frame identity's stretch begins and not a
+ * scroll earlier — an earlier fade emptied the frame while Scene 1 was still
+ * running, and the break-up read as already finished. It never comes back: the
+ * gather above still runs, invisibly, and is kept only so the motion is there
+ * if the ring is ever wanted in Scene 3 again.
  */
-const BAND_FADE_FROM = 0.3
-const BAND_FADE_TO = 0.44
+const BAND_FADE_FROM = 0.38
+const BAND_FADE_TO = HOLD
 
 /** Smooth 0..1 ramp of `p` across `from..to`. */
 function ramp(p: number, from: number, to: number): number {
