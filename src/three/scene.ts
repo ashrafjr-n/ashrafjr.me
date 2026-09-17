@@ -207,43 +207,46 @@ const BAND_SCATTER_EASE = 2.2
 const BAND_SWIRL = Math.PI * 2
 
 /**
- * Identity -> Scene 3: the ring plays its scatter **backwards**, pulling in
- * from wherever it was held (`HOLD`) to its original tight orbit by
- * GATHER_END, unwinding the swirl with it, while the model rises.
- */
-const GATHER_END = 0.8
-
-/**
- * The ring is **gone before the identity scene arrives**, not during Scene 3.
+ * The ring **leaves the screen** before identity arrives — it is never faded.
  *
- * The transition is held at HOLD (0.45) through identity and the scatter is
- * only ~17% of the way out by then, so the ring used to sit parked at the
- * edges of the frame for the whole of Scene 2 — the break-up reading as
- * unfinished rather than over. Fading it across the very tail of Scene 1's own
- * break-up takes it off the screen while it is still visibly flying outward,
- * which is what the scatter was always heading toward. It lands on exactly
- * HOLD, so the ring is gone the frame identity's stretch begins and not a
- * scroll earlier — an earlier fade emptied the frame while Scene 1 was still
- * running, and the break-up read as already finished. It never comes back: the
- * gather above still runs, invisibly, and is kept only so the motion is there
- * if the ring is ever wanted in Scene 3 again.
+ * This was a fade once and that was wrong: the stars dimmed in place and read
+ * as being switched off rather than as going somewhere. They keep their full
+ * brightness the whole way now and simply fly out of frame, exactly as the
+ * ambient cloud does, so the two layers clear the screen the same way.
+ *
+ * The scatter alone cannot do it. It is eased (`BAND_SCATTER_EASE`) so the ring
+ * holds its shape early, which leaves it only ~17% of the way out at HOLD —
+ * radius ~4 to 7, still well inside the frame — and the honest fix is not to
+ * flatten that easing, which is what gives Scene 1's break-up its shape. So the
+ * band gets the cloud's other move as well: a straight run along the
+ * model -> camera axis, ramped in late and hard, that takes it past the lens
+ * and out. Measured against the frustum, **anything past radius 8 from the
+ * model's axis is off screen at every angle and height the band occupies**, and
+ * these distances clear the camera itself (10.4 units) several times over.
+ *
+ * It is monotonic and clamps at HOLD, so the ring is gone the frame identity's
+ * stretch begins and never comes back.
  */
-const BAND_FADE_FROM = 0.38
-const BAND_FADE_TO = HOLD
-
-/** Smooth 0..1 ramp of `p` across `from..to`. */
-function ramp(p: number, from: number, to: number): number {
-  const u = clamp((p - from) / (to - from), 0, 1)
-  return u * u * (3 - 2 * u)
-}
+const BAND_EXIT_FROM = 0.26
+const BAND_EXIT_MIN = 28
+const BAND_EXIT_MAX = 46
+/** Ease-in, so the ring drifts off before it streaks off. */
+const BAND_EXIT_EASE = 2.0
 
 /**
- * How far out the band is, 0..1 of each star's scatter, at a transition
- * value: the eased scatter up to HOLD, then gathered back in to 0.
+ * How far out the band is, 0..1 of each star's scatter, at a transition value.
+ *
+ * It holds at its HOLD value for good. The ring used to gather back in across
+ * Scene 3, unwinding the swirl; the ring now leaves the screen entirely at the
+ * end of Scene 1 and there is nothing left up there to gather.
  */
 function bandScatterAt(p: number): number {
-  const out = Math.pow(Math.min(p, HOLD), BAND_SCATTER_EASE)
-  return p <= HOLD ? out : out * (1 - ramp(p, HOLD, GATHER_END))
+  return Math.pow(Math.min(p, HOLD), BAND_SCATTER_EASE)
+}
+
+/** How far along its run off the screen the band is, 0..1. Monotonic. */
+function bandExitAt(p: number): number {
+  return Math.pow(clamp((p - BAND_EXIT_FROM) / (HOLD - BAND_EXIT_FROM), 0, 1), BAND_EXIT_EASE)
 }
 
 /**
@@ -279,6 +282,12 @@ interface StarLayer {
   swirl: number
   /** Maps scroll progress to how far along this layer's displacement is. */
   curve: (progress: number) => number
+  /**
+   * The same, for the fly-past alone, when it is not on the same curve as the
+   * scatter. The band needs both: an eased scatter that holds its ring shape
+   * early, and a late, hard run off the screen. Defaults to `curve`.
+   */
+  flyCurve: (progress: number) => number
   /**
    * The attribute's **own** backing array, written directly each frame.
    *
@@ -317,8 +326,10 @@ function advance(
   flyZ: number,
 ): void {
   const arr = layer.positions
-  // Same scroll value for every layer; each just responds on its own curve.
+  // Same scroll value for every layer; each just responds on its own curve —
+  // and the band's two displacements are on two different ones.
   const t = layer.curve(progress)
+  const flyT = layer.flyCurve(progress)
 
   for (let i = 0; i < layer.count; i++) {
     const angle = layer.angles[i] + layer.speeds[i] * delta
@@ -331,7 +342,7 @@ function advance(
     let z = Math.sin(shown) * radius
 
     if (layer.fly) {
-      const travelled = layer.fly[i] * t
+      const travelled = layer.fly[i] * flyT
       x += flyX * travelled
       y += flyY * travelled
       z += flyZ * travelled
@@ -403,7 +414,13 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
       /** Defaults to the mipmapped cloud sprite; the band passes its own. */
       sprite?: CanvasTexture
     } = {},
-    transition: { scatter?: () => number; fly?: () => number; swirl?: number; curve?: (progress: number) => number } = {},
+    transition: {
+      scatter?: () => number
+      fly?: () => number
+      swirl?: number
+      curve?: (progress: number) => number
+      flyCurve?: (progress: number) => number
+    } = {},
   ): StarLayer {
     const positions = new Float32Array(count * 3)
     const colors = new Float32Array(count * 3)
@@ -483,6 +500,7 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
       fly,
       swirl: transition.swirl ?? 0,
       curve: transition.curve ?? ((p) => p),
+      flyCurve: transition.flyCurve ?? transition.curve ?? ((p) => p),
       // The attribute's copy of `positions`, not `positions` itself.
       positions: posAttr.array as Float32Array,
       posAttr,
@@ -520,14 +538,14 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
     clearLevel: BAND_CLEAR_LEVEL,
     sprite: bandSprite,
   }, {
-    // On scroll these spiral out of their tight orbit and scatter away.
+    // On scroll these spiral out of their tight orbit, then run past the
+    // camera and off the screen — two displacements on two curves.
     scatter: () => rand(BAND_SCATTER_MIN, BAND_SCATTER_MAX),
     swirl: BAND_SWIRL,
     curve: bandScatterAt,
+    fly: () => rand(BAND_EXIT_MIN, BAND_EXIT_MAX),
+    flyCurve: bandExitAt,
   })
-
-  /** Faded out as the band gathers back in — see BAND_FADE_FROM. */
-  const bandMaterial = band.points.material as PointsMaterial
 
   // --- Scene 1 world layer (the model), drawn over the starfield ---
   const world = createWorld(window.innerWidth / window.innerHeight)
@@ -597,7 +615,6 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
     // rise into Scene 2 — the transition is frozen through identity, so it
     // cannot carry an entrance that happens inside it.
     world.update(delta, progress, toModel(page))
-    bandMaterial.opacity = BAND_OPACITY * (1 - ramp(progress, BAND_FADE_FROM, BAND_FADE_TO))
 
     renderer.clear()
     renderer.render(starfield, world.camera) // same vantage -> same orbital plane
