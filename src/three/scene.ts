@@ -209,12 +209,24 @@ const BAND_SWIRL = Math.PI * 2
 /**
  * Identity -> Scene 3: the ring plays its scatter **backwards**, pulling in
  * from wherever it was held (`HOLD`) to its original tight orbit by
- * GATHER_END, unwinding the swirl with it, while the model rises — and fades
- * out entirely across FADE_FROM..FADE_TO. Transition units, like the rest.
+ * GATHER_END, unwinding the swirl with it, while the model rises.
  */
 const GATHER_END = 0.8
-const BAND_FADE_FROM = 0.62
-const BAND_FADE_TO = 0.82
+
+/**
+ * The ring is **gone before the identity scene arrives**, not during Scene 3.
+ *
+ * The transition is held at HOLD (0.45) through identity and the scatter is
+ * only ~17% of the way out by then, so the ring used to sit parked at the
+ * edges of the frame for the whole of Scene 2 — the break-up reading as
+ * unfinished rather than over. Fading it across the tail of Scene 1's own
+ * break-up takes it off the screen while it is still visibly flying outward,
+ * which is what the scatter was always heading toward. It never comes back:
+ * the gather above still runs, invisibly, and is kept only so the motion is
+ * there if the ring is ever wanted in Scene 3 again.
+ */
+const BAND_FADE_FROM = 0.3
+const BAND_FADE_TO = 0.44
 
 /** Smooth 0..1 ramp of `p` across `from..to`. */
 function ramp(p: number, from: number, to: number): number {
