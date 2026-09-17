@@ -79,7 +79,22 @@ export function createIdentity(): Identity {
   // Two copies per statement, exactly on top of each other. Both carry the
   // stroke, so their glyph geometry is identical and the fill's edge cannot
   // shimmer half a pixel off the outline's.
-  const lines = STATEMENTS.map((text) => {
+  //
+  // All three sit on **one line**, separated by a dot. The dot is built the
+  // same way as a statement — a hairline ring with a solid copy clipped to
+  // nothing over it — so the sweep runs through it rather than past it.
+  const fills: HTMLElement[] = []
+  const dots: HTMLElement[] = []
+  for (const text of STATEMENTS) {
+    if (fills.length > 0) {
+      const dot = document.createElement('span')
+      dot.className = 'identity-dot'
+      const dotFill = document.createElement('span')
+      dotFill.className = 'identity-dot-fill'
+      dot.append(dotFill)
+      block.append(dot)
+      dots.push(dotFill)
+    }
     const row = document.createElement('div')
     row.className = 'identity-row'
     const outline = document.createElement('p')
@@ -91,8 +106,8 @@ export function createIdentity(): Identity {
     fill.setAttribute('aria-hidden', 'true')
     row.append(outline, fill)
     block.append(row)
-    return { outline, fill }
-  })
+    fills.push(fill)
+  }
 
   const name = document.createElement('p')
   name.className = 'identity-meta identity-meta--name'
@@ -108,14 +123,14 @@ export function createIdentity(): Identity {
    */
   function fitType(): void {
     const target = window.innerWidth * BLOCK_WIDTH
-    for (const { outline, fill } of lines) {
-      outline.style.fontSize = `${MEASURE_PX}px`
-      const natural = outline.getBoundingClientRect().width
-      if (natural <= 0) continue
-      const size = (MEASURE_PX * target) / natural
-      outline.style.fontSize = `${size.toFixed(2)}px`
-      fill.style.fontSize = `${size.toFixed(2)}px`
-    }
+    // One size for the whole line, written on the block: the statements, the
+    // gaps and the dots are all sized in `em`, so the entire run scales
+    // together and stays flush to both margins. `.identity-block` is
+    // `max-content`, or this would measure the viewport instead of the line.
+    block.style.fontSize = `${MEASURE_PX}px`
+    const natural = block.getBoundingClientRect().width
+    if (natural <= 0) return
+    block.style.fontSize = `${((MEASURE_PX * target) / natural).toFixed(2)}px`
   }
 
   let fittedAt = 0
@@ -152,11 +167,15 @@ export function createIdentity(): Identity {
     }
     el.style.opacity = fade.toFixed(3)
 
-    for (let i = 0; i < lines.length; i++) {
+    for (let i = 0; i < fills.length; i++) {
       const filled = smooth((tt - (FILL_FROM + i * FILL_STEP)) / FILL_SPAN)
       // Unclipped from the left, so the white sweeps across the word. The only
-      // property written per frame, on the only element that changes.
-      lines[i].fill.style.clipPath = `inset(0 ${(100 - filled * 100).toFixed(2)}% 0 0)`
+      // property written per frame, on the only elements that change.
+      const clip = `inset(0 ${(100 - filled * 100).toFixed(2)}% 0 0)`
+      fills[i].style.clipPath = clip
+      // The dot after this statement fills on the same value, so the sweep
+      // carries straight through it into the next statement.
+      if (dots[i]) dots[i].style.clipPath = clip
     }
   }
 
