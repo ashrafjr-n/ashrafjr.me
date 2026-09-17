@@ -176,22 +176,52 @@ body {
   pointer-events: none;
 }
 
-/* The block: three statements, flush to both margins, centred in the frame.
-   ui/identity.ts sets each statement's own font size so they justify, which is
-   why none is set here. */
+/* The block: all three statements on **one line**, dot-separated, flush to
+   both margins and sitting above the middle of the frame — the model rises
+   into the lower half in this scene.
+
+   `max-content` is load-bearing: ui/identity.ts writes one font size here,
+   measured off this element, so it has to be as wide as its own content and
+   not as wide as the viewport. Everything inside is sized in `em`, so the
+   whole run scales off that one number. */
 .identity-block {
   position: absolute;
-  top: 50%;
+  top: 30%;
   left: 50%;
   transform: translate(-50%, -50%);
-  width: 92%;
+  width: max-content;
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
 }
 
-/* One statement's row. It takes its height from the outline copy, which is in
-   normal flow — so the leading follows each statement's own size with nothing
-   to keep in step from JS. */
+/* One statement's row, a flex item on that line. It takes its size from the
+   outline copy, which is in normal flow; the fill copy is absolute over it. */
 .identity-row {
   position: relative;
+}
+
+/* The separator between two statements: the same hairline-and-fill pair the
+   statements use, as a ring instead of glyphs, so the sweep carries through
+   it rather than stopping either side. Sized in `em`, like the gaps, so it
+   scales with the line. */
+.identity-dot {
+  position: relative;
+  flex: none;
+  box-sizing: border-box;
+  width: 0.28em;
+  height: 0.28em;
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  border-radius: 50%;
+}
+
+.identity-dot-fill {
+  position: absolute;
+  inset: -1px;
+  border-radius: 50%;
+  background: #ffffff;
+  clip-path: inset(0 100% 0 0);
+  will-change: clip-path;
 }
 
 /* Both copies of a statement, exactly on top of each other.
