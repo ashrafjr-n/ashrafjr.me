@@ -169,12 +169,17 @@ const RISE_END = 1
  * World units below its Scene 2 place the model starts its entrance at: clear
  * of the frame's bottom edge, and not much more.
  *
- * The frame's own half-height is 3.19 at this camera and fov, and the model's
- * at its starting 0.4 scale is well under 1, so 5 clears the edge with a
- * margin and nothing more. It was 8 once, which is more than twice the frame,
- * and the model spent most of its own scroll still below the screen.
+ * **It is solved against the model's own size, so it had to come down when the
+ * model grew.** At the Scene 2 lens the frame's lower edge sits at world
+ * y = 0.31; the model at its starting `RISE_SCALE_FROM` scale is 1.30 units
+ * half-height with its centre at 1.60, so anything over 2.59 hides it and 3.2
+ * does that with a margin. It was 5, which was right for a model two thirds
+ * this size and far too much for this one — a third of the way into its own
+ * scroll only 9% of the frame had anything in it, which is most of the gap
+ * that used to sit between the ring leaving and the model arriving. It was 8
+ * before that, and worse.
  */
-const RISE_DROP = 5
+const RISE_DROP = 3.2
 /** Fraction of its final size it starts the rise at, growing to full as it lands. */
 const RISE_SCALE_FROM = 0.4
 
