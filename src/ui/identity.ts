@@ -39,23 +39,38 @@ const EDGE = 0.08
  * Where each statement's fill begins, and how long it takes, as fractions of
  * the scene.
  *
- * `FILL_SPAN` is a little longer than the step between statements, so one is
- * still finishing as the next starts — the three reads as a single sweep down
- * the block rather than as three separate events. The last finishes well
- * before the scene ends, so the block is complete and still for a while before
- * the page moves on.
+ * `FILL_SPAN` is longer than the step between statements, so one is still
+ * finishing as the next starts — the three read as a single sweep along the
+ * line rather than as three separate events.
+ *
+ * **The last one has to finish before `EDGE` starts taking the layer away**,
+ * and it did not: at 0.06 / 0.28 / 0.32 the third statement completed at 0.94
+ * of the scene and the fade-out begins at 0.92, so the sweep was still running
+ * as the block dissolved. It now completes at 0.81, which leaves the finished
+ * block on screen, complete and still, for the last fifth of the scene before
+ * the page moves on. Keep `FILL_FROM + 2 * FILL_STEP + FILL_SPAN` under
+ * `1 - EDGE` with room to spare.
  */
-const FILL_FROM = 0.06
-const FILL_STEP = 0.28
-const FILL_SPAN = 0.32
+const FILL_FROM = 0.05
+const FILL_STEP = 0.23
+const FILL_SPAN = 0.3
 
 /**
  * The size everything is measured at before being scaled to fit. Arbitrary,
  * but large enough that the measurement is not dominated by rounding.
  */
 const MEASURE_PX = 200
-/** Fraction of the viewport the block spans, and where its left margin sits. */
-const BLOCK_WIDTH = 0.92
+/**
+ * Fraction of the viewport the line spans.
+ *
+ * **This is the only size knob there is.** At one justified line the type is as
+ * large as the width allows by construction, so "bigger" means nothing except
+ * a wider measure — 0.96 is about as close to the edges as the stroke can go
+ * without reading as a mistake. The other few percent came out of the
+ * separators' own gaps (see `.identity-dot` in style.css). Anything past this
+ * needs the line broken, not the number raised.
+ */
+const BLOCK_WIDTH = 0.96
 
 function smooth(u: number): number {
   const x = clamp(u, 0, 1)
