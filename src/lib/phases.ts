@@ -105,6 +105,24 @@ export function toTransition(page: number): number {
 const IDENTITY_LEAD = 0.1
 const IDENTITY_TRAIL = 0.09
 
+/**
+ * Where the model rises into Scene 2, in page units.
+ *
+ * **It cannot be driven off the transition**, which is exactly what makes this
+ * its own function: the transition is *held* at HOLD for the whole of
+ * identity, so anything read off it is frozen there and the model could never
+ * move during the scene it is now in. The page value keeps running, so the
+ * rise is hung on that instead — from just as Scene 1's break-up finishes to
+ * a little under halfway through identity, while the first statement fills.
+ */
+const MODEL_FROM = 0.22
+const MODEL_TO = 0.4
+
+/** 0..1 across the model's rise into Scene 2, 0 before it and 1 after. */
+export function toModel(page: number): number {
+  return Math.min(Math.max((page - MODEL_FROM) / (MODEL_TO - MODEL_FROM), 0), 1)
+}
+
 /** 0..1 across the identity stretch, 0 before it and 1 after. */
 export function toIdentity(page: number): number {
   const from = IDENTITY_FROM - IDENTITY_LEAD
