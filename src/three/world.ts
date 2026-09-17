@@ -106,19 +106,34 @@ const TRANSITION_TURNS = 1
 const SCENE2_TURNS = 1
 
 /**
- * The model's size, in both scenes: its **visible** half-width solved to this
- * fraction of the screen width, per aspect, every frame.
+ * The model's size, in both scenes: its **visible** geometry's total height as
+ * a fraction of the frame's. **One number for both scenes** — the model does
+ * not resize between them, it only moves.
  *
- * "Visible" is the model's white geometry only — the black base slab reads as
- * the page and is ignored, and it is far wider than the rings and planets, so
- * fitting by it would leave the model looking small.
+ * **Fitting by height replaced fitting by width, and it had to.** The width
+ * solve (`byWidth` below) is `R = D·tan / sqrt(1 + tan²)` — the widest a point
+ * at radius R projects as it swings toward the camera — and that expression is
+ * a *sine*, so it is bounded by 1 however large the target half-width gets. The
+ * ceiling is `scale = MODEL_CAMERA_DIST / visibleRadius`, which is under twice
+ * the size Scene 3 used to run at and short of what this composition needs.
+ * Height is linear in scale with no ceiling at all, so one screenshot
+ * calibrates it exactly.
  *
- * It used to be 0.78, where the model deliberately overran the frame. It is
- * now sized so the composition reads as roughly the top third of the screen,
- * leaving the space under it in Scene 3 empty. **One number for both scenes** —
- * the model does not resize between them, it only moves.
+ * It is **over 1 on purpose**. "Visible" is every non-black vertex, and most of
+ * those are the model's own scattered star specks, which spread far wider and
+ * taller than the planets-and-figure composition inside them. The composition
+ * runs roughly 45% of this, so 1.55 is what puts it at ~70% of the screen.
  */
-const FIT_HALF_WIDTH = 0.52
+const FIT_HEIGHT = 1.55
+
+/**
+ * A cap on the above, as the visible half-width over the screen width, solved
+ * per aspect. **It is a portrait guard and nothing else**: a height fit is
+ * aspect-independent, so on a phone the same fraction of the height is eight
+ * screens wide and all that is left on frame is the middle of the figure. It
+ * does not bind on desktop.
+ */
+const FIT_MAX_HALF_WIDTH = 1.05
 
 /**
  * The stretch of the **transition** over which the model is carried from its
@@ -288,6 +303,8 @@ export function createWorld(aspect: number): WorldLayer {
   let figureMidY = 0
   /** Furthest the visible geometry reaches from the spin axis, at pivot scale 1. */
   let visibleRadius = 1
+  /** Half the visible geometry's vertical extent, at pivot scale 1. */
+  let visibleHalfHeight = 1
 
   // Async — the starfield renders immediately, the model pops in when it has
   // loaded.
@@ -375,6 +392,8 @@ export function createWorld(aspect: number): WorldLayer {
     if (r > 0) {
       visibleRadius = r
       modelMidY = (minY + maxY) / 2
+      visibleHalfHeight = (maxY - minY) / 2
+      console.log('[world] measured r=' + visibleRadius + ' hh=' + visibleHalfHeight + ' mid=' + modelMidY)
     }
   }
 
@@ -390,11 +409,21 @@ export function createWorld(aspect: number): WorldLayer {
   /**
    * Pivot scale that puts the visible edge at `halfWidth` of the screen.
    * A point at radius R swinging toward a camera D away projects widest at
-   * tan = R / sqrt(D² - R²), so R = D·tan / sqrt(1 + tan²).
+   * tan = R / sqrt(D² - R²), so R = D·tan / sqrt(1 + tan²). Bounded by
+   * `D / visibleRadius`, which is why it is only the cap now — see FIT_HEIGHT.
    */
-  function fitScale(halfWidth: number): number {
+  function byWidth(halfWidth: number): number {
     const tan = 2 * halfWidth * TAN_HALF_FOV * modelCamera.aspect
     return (MODEL_CAMERA_DIST * tan) / Math.sqrt(1 + tan * tan) / visibleRadius
+  }
+
+  /** The model's one size: fitted by height, capped by width in portrait. */
+  function fitScale(): number {
+    const frameHeight = 2 * MODEL_CAMERA_DIST * TAN_HALF_FOV
+    return Math.min(
+      (FIT_HEIGHT * frameHeight) / (2 * visibleHalfHeight),
+      byWidth(FIT_MAX_HALF_WIDTH),
+    )
   }
 
 
@@ -435,7 +464,7 @@ export function createWorld(aspect: number): WorldLayer {
     // bottom of the frame in Scene 2 to the top of it in Scene 3.
     setLens(SCENE2_LENS + (SCENE3_LENS - SCENE2_LENS) * lift)
 
-    const s = fitScale(FIT_HALF_WIDTH) * (RISE_SCALE_FROM + (1 - RISE_SCALE_FROM) * rise)
+    const s = fitScale() * (RISE_SCALE_FROM + (1 - RISE_SCALE_FROM) * rise)
     pivot.visible = entrance > 0
     pivot.scale.setScalar(s)
     pivot.position.y = -RISE_DROP * (1 - rise) - (figureMidY - CAMERA_DROP) * s
