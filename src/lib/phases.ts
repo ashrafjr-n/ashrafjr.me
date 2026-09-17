@@ -112,11 +112,17 @@ const IDENTITY_TRAIL = 0.09
  * its own function: the transition is *held* at HOLD for the whole of
  * identity, so anything read off it is frozen there and the model could never
  * move during the scene it is now in. The page value keeps running, so the
- * rise is hung on that instead — from just as Scene 1's break-up finishes to
- * a little under halfway through identity, while the first statement fills.
+ * rise is hung on that instead.
+ *
+ * **It starts where the ring finishes leaving, not before.** `MODEL_FROM` used
+ * to be 0.22, inside Scene 1's last stretch, so the model was climbing into
+ * frame while the ring was still streaking past the camera and the two moves
+ * fought each other. The ring is clear at `IDENTITY_FROM` (0.2667); the model
+ * sets off there and lands a little under halfway through identity, while the
+ * first statement fills.
  */
-const MODEL_FROM = 0.22
-const MODEL_TO = 0.4
+const MODEL_FROM = IDENTITY_FROM
+const MODEL_TO = 0.44
 
 /** 0..1 across the model's rise into Scene 2, 0 before it and 1 after. */
 export function toModel(page: number): number {

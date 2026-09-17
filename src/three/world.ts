@@ -154,9 +154,16 @@ const FIT_MAX_HALF_WIDTH = 1.3
  * The rise out of nothing is not on this curve — it happens inside identity,
  * where the transition is frozen, and is driven by `toModel()`'s page value
  * instead. This is only the lift between the two compositions.
+ *
+ * **`RISE_END` is 1, not the 0.92 it was, and that closed a real gap.** The
+ * transition reaches 0.92 at page 0.891, so the last 109vh of the page — a
+ * ninth of the whole scroll — had nothing moving on it at all. The phase curve
+ * already lands the lift gently (`SCENE3_TAIL`), so there was never anything
+ * for that stretch to settle; it was simply spare scroll. Ending on 1 spends
+ * it.
  */
 const RISE_START = 0.45
-const RISE_END = 0.92
+const RISE_END = 1
 
 /**
  * World units below its Scene 2 place the model starts its entrance at: clear
