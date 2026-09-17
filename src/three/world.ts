@@ -81,11 +81,17 @@ const SCENE3_LENS = 0.248
  * model's units at fit scale 1.
  *
  * Zero is dead level with the figure. Positive drops the camera, so the model
- * is looked at slightly from below — which is what gives Scene 3 its height.
- * It is not the same knob as the lens: this one changes the perspective, the
- * lens only changes where the result sits on screen.
+ * is looked at from below. It is not the same knob as the lens: this one
+ * changes the perspective, the lens only changes where the result sits on
+ * screen.
+ *
+ * **0.15, down from 0.34**, on request — the camera was sitting too low under
+ * the figure and the model read as being looked up at. It is still under the
+ * figure's own centre, so the slight upward look is kept, just far less of it.
+ * Note this moves the model on screen as well as changing the angle (it is a
+ * term in `pivot.position.y`), so both lens values want re-solving after it.
  */
-const CAMERA_DROP = 0.34
+const CAMERA_DROP = 0.15
 const TAN_HALF_FOV = Math.tan((CAMERA_FOV * Math.PI) / 360)
 
 /**
@@ -124,14 +130,17 @@ const SCENE2_TURNS = 1
  * Height is linear in scale with no ceiling at all, so one screenshot
  * calibrates it exactly.
  *
- * It is **just over 1 on purpose**. "Visible" is every non-black vertex, and
- * most of those are the model's own scattered star specks, which spread wider
- * and taller than the planets-and-figure composition inside them. Measured on
- * the rendered page, that composition is **69% of the visible height**, so
- * 1.015 is what lands it on 70% of the screen — which is the brief for Scene 3:
- * the model takes the frame and only the bottom 30% is left empty.
+ * "Visible" is every non-black vertex, and most of those are the model's own
+ * scattered star specks, which spread wider and taller than the
+ * planets-and-figure composition inside them. Measured on the rendered page,
+ * that composition is **69% of the visible height**.
+ *
+ * It was briefly 1.015, which put the composition at 72% of the screen and was
+ * overdone; 0.86 lands it around 60%, still the largest thing on the page, with
+ * the bottom third clear and a little air above it. It has also been as low as
+ * 0.52 (a third of the screen), which was too small — this sits between them.
  */
-const FIT_HEIGHT = 1.015
+const FIT_HEIGHT = 0.86
 
 /**
  * A cap on the above, as the visible half-width over the screen width, solved
