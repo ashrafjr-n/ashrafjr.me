@@ -12,8 +12,10 @@
  * continuous surface.
  *
  * **Neither camera moves.** Scene 1 has no model at all — only the ring, empty
- * inside. Across the scroll the model rises from below the frame, grows, and
- * spins; all of it is on the pivot, as a pure function of progress.
+ * inside. The model rises from below into Scene 2, grows and turns once, then
+ * the move into Scene 3 carries it up the screen at the same size. All of it
+ * is on the pivot and the lens; nothing here runs on a clock but the idle
+ * spin.
  *
  * Palette: white/black/silver-gray only.
  */
@@ -47,25 +49,27 @@ const MODEL_CAMERA_DIST = 10.1
  * Where the model sits on screen is set by shifting the lens, not by tilting
  * the camera or moving the model: the frame slides by this fraction of its
  * height, and the model draws that much off centre with its level, head-on
- * perspective untouched. The scene blends between two of these — see
- * `IDENTITY_LENS` and `SCENE3_LENS`.
+ * perspective untouched.
  *
  * **This is the only thing that should move the model up or down the screen.**
  * How high the camera sits *relative to the model* is a separate question, and
  * it is answered by what the model is anchored to (see `figureMidY`) — that
- * one sets the perspective, this one sets the composition. Changing the anchor
- * to the figure raised the model most of the way out of the frame, and +0.06
- * is what brings it back down to sit centred with the figure a little above
- * the middle.
+ * one sets the perspective, this one sets the composition.
  */
 /**
- * **Scene 3 is the only scene the model is in**, so there is one composition
- * and nothing to blend. It was briefly given a second, smaller one so the
- * identity statements could be read against it; that put the model in two
- * scenes at once and was reverted on request — identity has nothing to do with
- * it.
+ * **The model is in Scene 2 and Scene 3, at one size, in two places.**
+ *
+ * It rises from below into Scene 2 and sits low, against the bottom edge,
+ * under the identity line; the move into Scene 3 carries it up the screen to
+ * leave the lower two thirds of the frame empty. Nothing about the model
+ * changes between the two — only the lens, which is what this pair is for.
+ * The scale is `FIT_HALF_WIDTH`'s and it is the same in both.
+ *
+ * Positive drops the model down the screen. They are blended by how far the
+ * Scene 3 lift has gone; see `update()`.
  */
-const LENS_DROP = 0.4
+const SCENE2_LENS = 0.62
+const SCENE3_LENS = -0.2
 
 /**
  * How far below the figure's own centre the camera is levelled, in the
@@ -91,41 +95,50 @@ const TAN_HALF_FOV = Math.tan((CAMERA_FOV * Math.PI) / 360)
 const TRANSITION_TURNS = 1
 
 /**
- * The model fills the frame: its **visible** half-width is solved to this
+ * Full turns the model makes while it rises into Scene 2, on top of the idle
+ * spin — the one move it makes in that scene.
+ *
+ * Driven by the **page-driven** entrance rather than the transition, because
+ * the transition is held for the whole of identity and a turn read off it
+ * would be frozen exactly where the model is standing. One turn over the rise
+ * is the medium, unhurried pace the entrance wants.
+ */
+const SCENE2_TURNS = 1
+
+/**
+ * The model's size, in both scenes: its **visible** half-width solved to this
  * fraction of the screen width, per aspect, every frame.
  *
  * "Visible" is the model's white geometry only — the black base slab reads as
  * the page and is ignored, and it is far wider than the rings and planets, so
  * fitting by it would leave the model looking small.
- */
-const FIT_HALF_WIDTH = 0.78
-
-/**
- * The model is fitted to the frame by its **visible** half-width, solved per
- * aspect every frame against whichever composition is in force.
  *
- * "Visible" is the model's white geometry only — the black base slab reads as
- * the page and is ignored, and it is far wider than the rings and planets, so
- * fitting by it would leave the model looking small.
+ * It used to be 0.78, where the model deliberately overran the frame. It is
+ * now sized so the composition reads as roughly the top third of the screen,
+ * leaving the space under it in Scene 3 empty. **One number for both scenes** —
+ * the model does not resize between them, it only moves.
  */
+const FIT_HALF_WIDTH = 0.52
 
 /**
- * Scene 1 has no model — only the ring, empty inside — and neither does the
- * identity scene, which is held at exactly `RISE_START`. The model rises into
- * Scene 3 from below across this stretch, while the ring gathers back in
- * behind it.
+ * The stretch of the **transition** over which the model is carried from its
+ * Scene 2 place at the bottom of the frame up to its Scene 3 one.
+ *
+ * The rise out of nothing is not on this curve — it happens inside identity,
+ * where the transition is frozen, and is driven by `toModel()`'s page value
+ * instead. This is only the lift between the two compositions.
  */
 const RISE_START = 0.45
 const RISE_END = 0.92
+
 /**
- * World units below its resting centre it starts at: clear of the frame's
- * bottom edge, and not much more.
+ * World units below its Scene 2 place the model starts its entrance at: clear
+ * of the frame's bottom edge, and not much more.
  *
- * It was 8, which is more than twice the frame's own half-height (3.19 at this
- * camera and fov) — so the model spent most of Scene 3's scroll still below
- * the screen and the page went through a long stretch with nothing on it. The
- * frame's half-height plus the model's own at its starting 0.4 scale is about
- * 4.0, so 5 clears it with a margin and nothing more.
+ * The frame's own half-height is 3.19 at this camera and fov, and the model's
+ * at its starting 0.4 scale is well under 1, so 5 clears the edge with a
+ * margin and nothing more. It was 8 once, which is more than twice the frame,
+ * and the model spent most of its own scroll still below the screen.
  */
 const RISE_DROP = 5
 /** Fraction of its final size it starts the rise at, growing to full as it lands. */
@@ -208,7 +221,7 @@ export interface WorldLayer {
    * is in seconds and `progress` is the 0..1 transition. Neither camera is
    * touched — see the note at the top of the file.
    */
-  update(delta: number, progress: number): void
+  update(delta: number, progress: number, entrance: number): void
   resize(aspect: number): void
 }
 
@@ -222,9 +235,21 @@ export function createWorld(aspect: number): WorldLayer {
 
   const modelCamera = new PerspectiveCamera(CAMERA_FOV, aspect, 0.1, 200)
   modelCamera.position.set(0, 0, MODEL_CAMERA_DIST)
-  // Ratios only, so any full size works; it survives every projection update.
-  // Ratios only, so any full size works; it survives every projection update.
-  modelCamera.setViewOffset(1, 1, 0, -LENS_DROP, 1, 1)
+
+  /**
+   * Slide the lens so the model draws `drop` frame-heights off centre.
+   *
+   * Ratios only, so any full size works and it survives every projection
+   * update — including `resize()`'s, which keeps whatever offset is set. The
+   * camera is never moved or pitched; this is the only thing written to it
+   * after construction, and it is skipped when the value has not changed.
+   */
+  let lensAt = NaN
+  function setLens(drop: number): void {
+    if (Math.abs(drop - lensAt) < 1e-4) return
+    lensAt = drop
+    modelCamera.setViewOffset(1, 1, 0, -drop, 1, 1)
+  }
 
   // Pure-white lights only — they shape the model without tinting it.
   const key = new DirectionalLight(0xffffff, 2.2)
@@ -377,7 +402,11 @@ export function createWorld(aspect: number): WorldLayer {
   let idleAngle = 0
 
   // Frame-rate independent: the angle advances by elapsed time, not per frame.
-  function update(delta: number, progress: number): void {
+  //
+  // `progress` is the paused Scene 1 -> Scene 3 transition; `entrance` is the
+  // page-driven 0..1 rise into Scene 2, which is the only one of the two that
+  // moves while identity is on screen.
+  function update(delta: number, progress: number, entrance: number): void {
     idleAngle += SPIN_SPEED * delta
 
     // Each planet on its own axis, at its own rate. Accumulated over elapsed
@@ -385,21 +414,29 @@ export function createWorld(aspect: number): WorldLayer {
     // has to land anywhere in particular.
     for (const planet of planets) planet.pivot.rotation.y += planet.rate * delta
 
-    // Total spin = the idle turn + exactly TRANSITION_TURNS across the scroll.
-    // The transition term is a function of progress, not of elapsed time, which
-    // is what makes it land on a whole number of turns no matter how fast the
-    // page is scrolled — a time-integrated boost cannot, since the total then
-    // depends on how long the user took. Negative to match SPIN_SPEED, so the
-    // scroll turn continues in the idle direction instead of fighting it.
-    pivot.rotation.y = idleAngle - TRANSITION_TURNS * Math.PI * 2 * progress
+    // Rise into Scene 2, eased out so it settles into place rather than
+    // stopping dead. A pure function of the page, so scrolling back up sinks
+    // it away again.
+    const rise = 1 - Math.pow(1 - entrance, 3)
+    // And how far the move into Scene 3 has carried it up the screen.
+    const lift = clamp((progress - RISE_START) / (RISE_END - RISE_START), 0, 1)
 
-    const scale = fitScale(FIT_HALF_WIDTH)
+    // Total spin = the idle turn + one turn as it rises into Scene 2 + exactly
+    // TRANSITION_TURNS across the scroll. Both extra terms are functions of
+    // position, not of elapsed time, which is what makes them land on whole
+    // turns no matter how fast the page is scrolled — a time-integrated boost
+    // cannot, since the total then depends on how long the user took. Negative
+    // to match SPIN_SPEED, so every turn continues in the idle direction
+    // instead of fighting it.
+    pivot.rotation.y =
+      idleAngle - Math.PI * 2 * (SCENE2_TURNS * rise + TRANSITION_TURNS * progress)
 
-    // Rise from below and grow, eased out so it settles into place. A pure
-    // function of progress, so scrolling back up sinks it away again.
-    const rise = 1 - Math.pow(1 - clamp((progress - RISE_START) / (RISE_END - RISE_START), 0, 1), 3)
-    const s = scale * (RISE_SCALE_FROM + (1 - RISE_SCALE_FROM) * rise)
-    pivot.visible = progress > RISE_START
+    // The composition: one size throughout, the lens carrying it from the
+    // bottom of the frame in Scene 2 to the top of it in Scene 3.
+    setLens(SCENE2_LENS + (SCENE3_LENS - SCENE2_LENS) * lift)
+
+    const s = fitScale(FIT_HALF_WIDTH) * (RISE_SCALE_FROM + (1 - RISE_SCALE_FROM) * rise)
+    pivot.visible = entrance > 0
     pivot.scale.setScalar(s)
     pivot.position.y = -RISE_DROP * (1 - rise) - (figureMidY - CAMERA_DROP) * s
   }
