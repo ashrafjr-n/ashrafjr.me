@@ -130,8 +130,8 @@ const IDENTITY_TRAIL = 0.09
  * completely gone was tried and it left a blank frame between them.
  */
 /** Exported for `phases.check.ts`. */
-export const MODEL_FROM = 0.17
-const MODEL_TO = 0.42
+export const MODEL_FROM = 0.15
+const MODEL_TO = 0.4
 
 /** 0..1 across the model's rise into Scene 2, 0 before it and 1 after. */
 export function toModel(page: number): number {
