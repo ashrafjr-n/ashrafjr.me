@@ -22,17 +22,18 @@
  * at different sizes, shortest statement largest, which is the hierarchy
  * falling out of the text rather than being imposed on it.
  *
- * Driven from main.ts's one RAF loop. The identity progress is chased with its
- * own time-based smoothing (on top of the page's), so the fill stays soft
- * however the wheel arrives.
+ * Driven from main.ts's one RAF loop. **It has no smoothing of its own any
+ * more.** It used to chase the page value privately, which is exactly why this
+ * scene read smoother than the rest of the site; that stage now lives in
+ * `three/scene.ts`'s page value, where everything gets it. The fill is
+ * unchanged to the frame — it was already the composition of those two stages —
+ * and the type can no longer drift out of step with the model behind it.
  */
 import { clamp } from '../lib/math'
 
 const STATEMENTS = ['COMPUTER SCIENCE', 'FULL-STACK DEVELOPER', 'BUILDING TOWARD AI']
 
-/** Per-second rate the drawn progress chases the scroll at (`1 - exp(-rate * dt)`). */
-const CHASE_RATE = 3.2
-/** Fraction of the scene spent fading the layer in at the start and out at the end. */
+/** Fraction of the scene spent taking the layer away at the end. */
 const EDGE = 0.08
 
 /**
@@ -79,8 +80,8 @@ function smooth(u: number): number {
 
 export interface Identity {
   el: HTMLDivElement
-  /** `t` is the identity progress, 0..1; `time` is the RAF timestamp. */
-  update(t: number, time: number): void
+  /** `t` is the identity progress, 0..1 — already smoothed by the page value. */
+  update(t: number): void
 }
 
 export function createIdentity(): Identity {
@@ -153,17 +154,9 @@ export function createIdentity(): Identity {
   // against a fallback and stay that way.
   document.fonts.ready.then(fitType)
 
-  /** The drawn progress, chasing the scroll's. */
-  let tt = 0
-  let prevTime = 0
   let hidden = true
 
-  function update(t: number, time: number): void {
-    const dt = Math.min((time - prevTime) / 1000, 0.1)
-    prevTime = time
-    tt += (t - tt) * (1 - Math.exp(-CHASE_RATE * dt))
-    if (Math.abs(t - tt) < 1e-4) tt = t
-
+  function update(tt: number): void {
     const fade = smooth(tt / EDGE) * smooth((1 - tt) / EDGE)
     if (fade <= 0) {
       if (!hidden) {
