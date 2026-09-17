@@ -183,16 +183,22 @@ body {
    `max-content` is load-bearing: ui/identity.ts writes one font size here,
    measured off this element, so it has to be as wide as its own content and
    not as wide as the viewport. Everything inside is sized in `em`, so the
-   whole run scales off that one number. */
+   whole run scales off that one number.
+
+   `top: 16%` clears the model, which now fills everything from 30% of the
+   height down to the bottom edge in this scene. */
 .identity-block {
   position: absolute;
-  top: 30%;
+  top: 16%;
   left: 50%;
   transform: translate(-50%, -50%);
   width: max-content;
   display: flex;
   align-items: center;
-  gap: 0.5em;
+  /* Tight, because every em spent here is an em the type does not get: at one
+     justified line the run is already flush to the margins, so the separators'
+     own width is the only headroom the statements have. */
+  gap: 0.36em;
 }
 
 /* One statement's row, a flex item on that line. It takes its size from the
@@ -209,8 +215,8 @@ body {
   position: relative;
   flex: none;
   box-sizing: border-box;
-  width: 0.28em;
-  height: 0.28em;
+  width: 0.26em;
+  height: 0.26em;
   border: 1px solid rgba(255, 255, 255, 0.5);
   border-radius: 50%;
 }
