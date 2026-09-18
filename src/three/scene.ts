@@ -229,6 +229,25 @@ const SCROLL_TRAIL = 3.2
 const REDUCED_MOTION = window.matchMedia('(prefers-reduced-motion: reduce)')
 
 /**
+ * Whether the `space_boi` model is in the page at all.
+ *
+ * **It is off, and paused rather than deleted.** Scene 2 is type-only now — the
+ * three statements are the whole composition and the model was taking the
+ * bottom of the frame out from under them — and Scene 3 has not been designed
+ * past its transition. The world layer is still built, because the starfield is
+ * drawn through its camera, but the model is neither advanced nor drawn.
+ *
+ * Everything about the rig is intact and turning this back on is the whole of
+ * re-enabling it: the fit, the two lens compositions, the entrance, the turns
+ * and the planet spins are all still there and still documented. The GLB is
+ * still fetched, which is the one thing this does not save.
+ *
+ * Typed `boolean` rather than left to narrow to `false`, so the branches below
+ * stay live code and `toModel` stays referenced.
+ */
+const MODEL_ENABLED: boolean = false
+
+/**
  * Extra orbit radius each band star gains by full scroll — it flies apart.
  *
  * These ranges and the easing exponents below were solved against the frustum
@@ -678,12 +697,14 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
     // The transition for the spin and the Scene 3 lift, and the page for the
     // rise into Scene 2 — the transition is frozen through identity, so it
     // cannot carry an entrance that happens inside it.
-    world.update(delta, progress, toModel(page))
+    if (MODEL_ENABLED) world.update(delta, progress, toModel(page))
 
     renderer.clear()
     renderer.render(starfield, world.camera) // same vantage -> same orbital plane
-    renderer.clearDepth() // world layer sits in front of the starfield
-    renderer.render(world.scene, world.modelCamera) // front-on, not bird's-eye
+    if (MODEL_ENABLED) {
+      renderer.clearDepth() // world layer sits in front of the starfield
+      renderer.render(world.scene, world.modelCamera) // front-on, not bird's-eye
+    }
 
     return page
   }
