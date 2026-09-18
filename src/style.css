@@ -176,66 +176,32 @@ body {
   pointer-events: none;
 }
 
-/* The block: all three statements on **one line**, dot-separated, flush to
-   both margins and sitting above the middle of the frame — the model rises
-   into the lower half in this scene.
+/* The block: three statements stacked, each flush to both margins, centred in
+   the frame. Scene 2 has no model, so this is the whole composition and it
+   takes the middle of the screen.
 
-   `max-content` is load-bearing: ui/identity.ts writes one font size here,
-   measured off this element, so it has to be as wide as its own content and
-   not as wide as the viewport. Everything inside is sized in `em`, so the
-   whole run scales off that one number.
-
-   `top: 16%` clears the model, which now fills everything from 30% of the
-   height down to the bottom edge in this scene. */
+   ui/identity.ts sets each statement's own font size so they justify, which is
+   why none is set here. */
 .identity-block {
   position: absolute;
-  top: 16%;
+  top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  width: max-content;
-  display: flex;
-  align-items: center;
-  /* Tight, because every em spent here is an em the type does not get: at one
-     justified line the run is already flush to the margins, so the separators'
-     own width is the only headroom the statements have. */
-  gap: 0.36em;
+  width: 94%;
 }
 
-/* One statement's row, a flex item on that line. It takes its size from the
-   outline copy, which is in normal flow; the fill copy is absolute over it. */
+/* One statement's row, and **the thing that slides**: ui/identity.ts writes
+   `translate` here, which composes with the block's own `transform` instead of
+   overwriting it, and carries both copies of the statement together.
+
+   It takes its height from the outline copy, which is in normal flow — so the
+   leading follows each statement's own size with nothing to keep in step from
+   JS. */
 .identity-row {
   position: relative;
+  will-change: translate;
 }
 
-/* The separator between two statements: the same hairline-and-fill pair the
-   statements use, as a ring instead of glyphs, so the sweep carries through
-   it rather than stopping either side. Sized in `em`, like the gaps, so it
-   scales with the line. */
-.identity-dot {
-  position: relative;
-  flex: none;
-  box-sizing: border-box;
-  width: 0.26em;
-  height: 0.26em;
-  border: 1px solid rgba(255, 255, 255, 0.5);
-  border-radius: 50%;
-}
-
-.identity-dot-fill {
-  position: absolute;
-  inset: -1px;
-  border-radius: 50%;
-  background: #ffffff;
-  clip-path: inset(0 100% 0 0);
-  will-change: clip-path;
-}
-
-/* Both copies of a statement, exactly on top of each other.
-
-   The outline is the resting state and the fill is swept across it by the
-   scroll — so **both carry the same stroke**, or the fill's edge would sit
-   half a pixel off the outline's and shimmer as it passed. Nothing here
-   animates: the only thing that changes is the fill copy's clip. */
 .identity-line {
   display: block;
   /* **`max-content`, not the row's width**, and that is what makes the block

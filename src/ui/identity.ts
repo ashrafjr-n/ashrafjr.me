@@ -1,100 +1,90 @@
 /**
- * 02 — IDENTITY: the three statements set as one typographic block, all three
- * on screen the whole time. **Nothing moves. The scroll moves the fill.**
+ * 02 — IDENTITY: the three statements, very large, stacked, and **alone on the
+ * screen**. Scene 2 has no model.
  *
- * Each statement is drawn twice, exactly on top of itself: an outline copy
- * (hairline stroke, no fill) and a solid white copy clipped to nothing. As the
- * scroll passes a statement its solid copy is unclipped from the left, so the
- * white sweeps across the word and stays. By the end all three are solid — the
- * block fills in rather than playing through, so there is a real final state
- * and scrolling back drains it exactly.
+ * Two things happen here and both are scroll, not time:
  *
- * **This is deliberately the least animated thing on the site, and that is the
- * point.** Four earlier versions each answered the brief with more motion —
- * three stacked headings with a dwell, a thread of stars with a comet on it, a
- * particle fly-through that burst and reassembled, a masked roll read against
- * the model — and every one of them read as an effect bolted onto the page.
- * Do not add an entrance, a parallax, a drift or a marker here. The
- * composition is complete on arrival; the fill is the whole interaction.
+ * 1. **The three arrive together, from alternating sides.** They start fully
+ *    off-screen — first and third to the left, second to the right — and slide
+ *    to centre, where they land stacked on top of each other. That is the whole
+ *    entrance; there is no fade-and-pop and no per-statement stagger.
+ * 2. **Then they fill.** Each statement is drawn twice, exactly on top of
+ *    itself: an outline copy (hairline stroke, no fill) and a solid white copy
+ *    clipped to nothing. As the scroll passes a statement its solid copy is
+ *    unclipped from the left, so the white sweeps across the word and stays.
+ *    By the end all three are solid — the block fills in rather than playing
+ *    through, so there is a real final state and scrolling back drains it
+ *    exactly.
  *
- * The block is **justified**: `fitType()` measures each statement once and
+ * **The block does not fade out.** It is still on screen, complete and white,
+ * when Scene 3's panel rises and inverts it (see `ui/invert.ts`) — that
+ * inversion is the whole of the transition out, so anything that dimmed the
+ * type here would take away the thing being inverted.
+ *
+ * The block is **justified per statement**: `fitType()` measures each one and
  * sets its own font size so all three are flush to both margins. They come out
  * at different sizes, shortest statement largest, which is the hierarchy
  * falling out of the text rather than being imposed on it.
  *
- * Driven from main.ts's one RAF loop. **It has no smoothing of its own any
- * more.** It used to chase the page value privately, which is exactly why this
- * scene read smoother than the rest of the site; that stage now lives in
- * `three/scene.ts`'s page value, where everything gets it. The fill is
- * unchanged to the frame — it was already the composition of those two stages —
- * and the type can no longer drift out of step with the model behind it.
+ * Driven from main.ts's one RAF loop. **It has no smoothing of its own** — that
+ * stage lives in `three/scene.ts`'s page value, where everything gets it.
  */
 import { clamp } from '../lib/math'
 
 const STATEMENTS = ['COMPUTER SCIENCE', 'FULL-STACK DEVELOPER', 'BUILDING TOWARD AI']
 
-/** Fraction of the scene spent taking the layer away at the end. */
-const EDGE = 0.08
-
 /**
- * Fraction of the scene the line spends arriving, and how far out of focus and
- * oversized it arrives.
- *
- * **This is the one entrance this scene has, and it was asked for.** The layer
- * used to come in on opacity alone over `EDGE`, which on hairline stroked type
- * reads as a pop rather than an arrival — the statements were simply there.
- * What this does instead is a **focus pull**: the line resolves out of
- * defocus and settles back from slightly oversized, so the composition *comes
- * into focus* rather than moving. That matters, because the standing rule for
- * this scene is that nothing in it moves (see the note at the top): there is
- * still no drift, no parallax and no entrance *per statement* — the block is
- * complete and still the moment it is sharp, and the fill is the only
- * interaction.
- *
- * It runs longer than `EDGE` on purpose: an arrival wants room to be read, an
- * exit wants to be out of the way of the model rising into the frame. The same
- * curve drives the exit, so the scene defocuses as it leaves.
+ * Which side each statement comes in from: -1 is off to the left, +1 off to the
+ * right. Alternating, so the three cross the frame in opposite directions and
+ * the scene reads as closing rather than as sliding.
  */
-const ENTER = 0.14
-const ENTER_BLUR = 9
-const ENTER_SCALE = 1.04
+const SLIDE_SIDE = [-1, 1, -1]
+/** Fraction of the scene the arrival takes. The fill starts where it ends. */
+const SLIDE_SPAN = 0.42
+/**
+ * How far off-screen each statement starts, in viewport widths.
+ *
+ * A statement is set flush to `BLOCK_WIDTH` of the viewport and is centred, so
+ * its near edge is `BLOCK_WIDTH / 2` from the middle; clearing the frame takes
+ * `0.5 + BLOCK_WIDTH / 2` = 0.98, and 1.05 is that with a margin. Under this
+ * they are visibly on screen before the scene has begun.
+ */
+const SLIDE_FROM = 1.05
+/**
+ * Peak blur while a statement is travelling, in px.
+ *
+ * CSS blur is isotropic and this motion is horizontal, so it is not literally
+ * motion blur — but over a travel this long it reads as one, and it is what
+ * keeps the arrival from looking like three rectangles being slid into place.
+ * It is gone by the time they land, and nothing is blurred once the block is
+ * still.
+ */
+const SLIDE_BLUR = 10
+
+/** Fraction of the scene spent bringing the layer in. There is no fade out. */
+const EDGE = 0.06
 
 /**
  * Where each statement's fill begins, and how long it takes, as fractions of
  * the scene.
  *
  * `FILL_SPAN` is longer than the step between statements, so one is still
- * finishing as the next starts — the three read as a single sweep along the
- * line rather than as three separate events.
- *
- * **The last one has to finish before `EDGE` starts taking the layer away**,
- * and it did not: at 0.06 / 0.28 / 0.32 the third statement completed at 0.94
- * of the scene and the fade-out begins at 0.92, so the sweep was still running
- * as the block dissolved. It now completes at 0.81, which leaves the finished
- * block on screen, complete and still, for the last fifth of the scene before
- * the page moves on. Keep `FILL_FROM + 2 * FILL_STEP + FILL_SPAN` under
- * `1 - EDGE` with room to spare.
+ * finishing as the next starts and the three read as a single pass down the
+ * block. **The last has to land before Scene 3's panel starts rising**, or the
+ * inversion arrives over type that is still filling — it completes at 0.92 of
+ * the scene, which is page 0.664 against the panel's 0.70.
  */
-const FILL_FROM = 0.05
-const FILL_STEP = 0.23
-const FILL_SPAN = 0.3
+const FILL_FROM = 0.44
+const FILL_STEP = 0.14
+const FILL_SPAN = 0.2
 
 /**
  * The size everything is measured at before being scaled to fit. Arbitrary,
  * but large enough that the measurement is not dominated by rounding.
  */
 const MEASURE_PX = 200
-/**
- * Fraction of the viewport the line spans.
- *
- * **This is the only size knob there is.** At one justified line the type is as
- * large as the width allows by construction, so "bigger" means nothing except
- * a wider measure — 0.96 is about as close to the edges as the stroke can go
- * without reading as a mistake. The other few percent came out of the
- * separators' own gaps (see `.identity-dot` in style.css). Anything past this
- * needs the line broken, not the number raised.
- */
-const BLOCK_WIDTH = 0.96
+/** Fraction of the viewport each statement spans, flush to both margins. */
+const BLOCK_WIDTH = 0.94
 
 function smooth(u: number): number {
   const x = clamp(u, 0, 1)
@@ -117,23 +107,9 @@ export function createIdentity(): Identity {
 
   // Two copies per statement, exactly on top of each other. Both carry the
   // stroke, so their glyph geometry is identical and the fill's edge cannot
-  // shimmer half a pixel off the outline's.
-  //
-  // All three sit on **one line**, separated by a dot. The dot is built the
-  // same way as a statement — a hairline ring with a solid copy clipped to
-  // nothing over it — so the sweep runs through it rather than past it.
-  const fills: HTMLElement[] = []
-  const dots: HTMLElement[] = []
-  for (const text of STATEMENTS) {
-    if (fills.length > 0) {
-      const dot = document.createElement('span')
-      dot.className = 'identity-dot'
-      const dotFill = document.createElement('span')
-      dotFill.className = 'identity-dot-fill'
-      dot.append(dotFill)
-      block.append(dot)
-      dots.push(dotFill)
-    }
+  // shimmer half a pixel off the outline's. The row is what slides, so the two
+  // copies always travel together.
+  const lines = STATEMENTS.map((text) => {
     const row = document.createElement('div')
     row.className = 'identity-row'
     const outline = document.createElement('p')
@@ -145,8 +121,8 @@ export function createIdentity(): Identity {
     fill.setAttribute('aria-hidden', 'true')
     row.append(outline, fill)
     block.append(row)
-    fills.push(fill)
-  }
+    return { row, outline, fill }
+  })
 
   const name = document.createElement('p')
   name.className = 'identity-meta identity-meta--name'
@@ -162,14 +138,14 @@ export function createIdentity(): Identity {
    */
   function fitType(): void {
     const target = window.innerWidth * BLOCK_WIDTH
-    // One size for the whole line, written on the block: the statements, the
-    // gaps and the dots are all sized in `em`, so the entire run scales
-    // together and stays flush to both margins. `.identity-block` is
-    // `max-content`, or this would measure the viewport instead of the line.
-    block.style.fontSize = `${MEASURE_PX}px`
-    const natural = block.getBoundingClientRect().width
-    if (natural <= 0) return
-    block.style.fontSize = `${((MEASURE_PX * target) / natural).toFixed(2)}px`
+    for (const { outline, fill } of lines) {
+      outline.style.fontSize = `${MEASURE_PX}px`
+      const natural = outline.getBoundingClientRect().width
+      if (natural <= 0) continue
+      const size = (MEASURE_PX * target) / natural
+      outline.style.fontSize = `${size.toFixed(2)}px`
+      fill.style.fontSize = `${size.toFixed(2)}px`
+    }
   }
 
   let fittedAt = 0
@@ -178,11 +154,11 @@ export function createIdentity(): Identity {
   document.fonts.ready.then(fitType)
 
   let hidden = true
-  /** Last focus value written, so the settled scene writes nothing per frame. */
-  let shownAt = -1
+  /** Last arrival value written, so the landed block writes nothing per frame. */
+  let arrivedAt = -1
 
   function update(tt: number): void {
-    const fade = smooth(tt / ENTER) * smooth((1 - tt) / EDGE)
+    const fade = smooth(tt / EDGE)
     if (fade <= 0) {
       if (!hidden) {
         hidden = true
@@ -200,28 +176,28 @@ export function createIdentity(): Identity {
     }
     el.style.opacity = fade.toFixed(3)
 
-    // The focus pull. Skipped once it has settled, so the still scene writes
-    // nothing but the fill's clip — `filter` and `scale` are the expensive two.
-    if (Math.abs(fade - shownAt) > 0.002) {
-      shownAt = fade
-      const settle = 1 - fade
-      el.style.filter = settle > 0.001 ? `blur(${(ENTER_BLUR * settle).toFixed(2)}px)` : 'none'
-      // The individual `scale` property, not `transform` — the block's
-      // `translate(-50%, -50%)` is a `transform` and the two compose instead of
-      // overwriting each other. Same reason the project cards ride on
-      // `translate`; see CLAUDE.md.
-      block.style.scale = (1 + (ENTER_SCALE - 1) * settle).toFixed(4)
+    // The arrival. One value for all three — they travel together and only
+    // their direction differs. Skipped once landed, so the still block writes
+    // nothing but the fill's clip.
+    const arrived = smooth(tt / SLIDE_SPAN)
+    if (Math.abs(arrived - arrivedAt) > 0.001) {
+      arrivedAt = arrived
+      const away = 1 - arrived
+      const travel = away * SLIDE_FROM * window.innerWidth
+      for (let i = 0; i < lines.length; i++) {
+        // The individual `translate` property, not `transform`: the fill copy
+        // is positioned over the outline and the block carries a `transform` of
+        // its own, and these compose instead of overwriting each other.
+        lines[i].row.style.translate = `${(SLIDE_SIDE[i] * travel).toFixed(1)}px 0`
+      }
+      el.style.filter = away > 0.001 ? `blur(${(SLIDE_BLUR * away).toFixed(2)}px)` : 'none'
     }
 
-    for (let i = 0; i < fills.length; i++) {
+    for (let i = 0; i < lines.length; i++) {
       const filled = smooth((tt - (FILL_FROM + i * FILL_STEP)) / FILL_SPAN)
       // Unclipped from the left, so the white sweeps across the word. The only
-      // property written per frame, on the only elements that change.
-      const clip = `inset(0 ${(100 - filled * 100).toFixed(2)}% 0 0)`
-      fills[i].style.clipPath = clip
-      // The dot after this statement fills on the same value, so the sweep
-      // carries straight through it into the next statement.
-      if (dots[i]) dots[i].style.clipPath = clip
+      // property written per frame once the block has landed.
+      lines[i].fill.style.clipPath = `inset(0 ${(100 - filled * 100).toFixed(2)}% 0 0)`
     }
   }
 
