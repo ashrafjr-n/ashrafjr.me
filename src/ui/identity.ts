@@ -57,9 +57,10 @@ const SLIDE_FROM = 1.05
  * motion blur — but over a travel this long it reads as one, and it is what
  * keeps the arrival from looking like three rectangles being slid into place.
  * It is gone by the time they land, and nothing is blurred once the block is
- * still.
+ * still. 10 was too much: the statements are drawn with a 1px stroke, and at
+ * that radius mid-travel there was very little left of them on screen.
  */
-const SLIDE_BLUR = 10
+const SLIDE_BLUR = 6
 
 /** Fraction of the scene spent bringing the layer in. There is no fade out. */
 const EDGE = 0.06
