@@ -841,3 +841,27 @@ body {
     opacity: 0.8;
   }
 }
+
+/* ===========================================================
+   Scene 3's inversion panel (ui/invert.ts)
+   A white half that rises from the bottom and negates everything under it.
+   =========================================================== */
+.invert {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 50vh;
+  /* Above the canvas (0) and the statements (15), below the reveal window (40)
+     and the social badges (60) — those two stay themselves. */
+  z-index: 30;
+  /* Pure white is what makes `difference` a clean negation: the result is
+     `1 - backdrop`, so the panel contributes no colour of its own. Any other
+     value would tint the half instead of inverting it. */
+  background: #ffffff;
+  mix-blend-mode: difference;
+  pointer-events: none;
+  visibility: hidden;
+  transform: translateY(100%);
+  will-change: transform;
+}
