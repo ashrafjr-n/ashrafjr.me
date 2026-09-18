@@ -211,6 +211,24 @@ const SCROLL_OMEGA = 7.0
 const SCROLL_TRAIL = 3.2
 
 /**
+ * Whether the reader has asked their system for less motion.
+ *
+ * **The smoothing is the part that has to go.** Everything on this page is a
+ * pure function of the page value, so the two stages above are what put ~0.6s
+ * of travel between the reader's gesture and the screen — the scroll carries on
+ * after the wheel stops, the model keeps rising, the stars keep streaming. That
+ * coast is the whole point of the effect and it is exactly the kind of
+ * uncommanded movement that triggers vestibular symptoms. With this on, `page`
+ * *is* the scroll position: the page still moves through all three scenes, but
+ * only while the reader is moving it, and it stops dead when they do.
+ *
+ * `matches` is live, so it is read per frame rather than listened to — the
+ * setting can be changed mid-session and the next frame honours it, and both
+ * stages are kept synced so switching back cannot jump.
+ */
+const REDUCED_MOTION = window.matchMedia('(prefers-reduced-motion: reduce)')
+
+/**
  * Extra orbit radius each band star gains by full scroll — it flies apart.
  *
  * These ranges and the easing exponents below were solved against the frustum
@@ -602,20 +620,30 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
     // a critically damped spring against elapsed time, so the transition
     // settles identically at 60Hz and at 120Hz and its velocity is continuous
     // however coarsely the wheel delivers the scroll — see SCROLL_OMEGA.
-    springVel +=
-      (SCROLL_OMEGA * SCROLL_OMEGA * (state.scroll - springPage) - 2 * SCROLL_OMEGA * springVel) *
-      delta
-    springPage += springVel * delta
-    // Critical damping does not overshoot, but the integrator can by a hair on
-    // a long frame, and past 1 the Scene 3 smoothstep turns back on itself.
-    if (springPage < 0 || springPage > 1) {
-      springPage = clamp(springPage, 0, 1)
+    if (REDUCED_MOTION.matches) {
+      // No smoothing at all: the page goes exactly where the reader put it, and
+      // stops when they do. Both stages are held on the target, so turning the
+      // setting back off mid-session resumes from here instead of springing in
+      // from wherever the spring had been left.
+      page = state.scroll
+      springPage = state.scroll
       springVel = 0
+    } else {
+      springVel +=
+        (SCROLL_OMEGA * SCROLL_OMEGA * (state.scroll - springPage) - 2 * SCROLL_OMEGA * springVel) *
+        delta
+      springPage += springVel * delta
+      // Critical damping does not overshoot, but the integrator can by a hair
+      // on a long frame, and past 1 the Scene 3 curve turns back on itself.
+      if (springPage < 0 || springPage > 1) {
+        springPage = clamp(springPage, 0, 1)
+        springVel = 0
+      }
+      // Second stage: the trail. Time-based, so it is identical at 60Hz and
+      // 120Hz, and it can only ever approach the spring — which is already
+      // clamped — so the result stays inside 0..1 without a clamp of its own.
+      page += (springPage - page) * (1 - Math.exp(-SCROLL_TRAIL * delta))
     }
-    // Second stage: the trail. Time-based, so it is identical at 60Hz and
-    // 120Hz, and it can only ever approach the spring — which is already
-    // clamped — so the result stays inside 0..1 without a clamp of its own.
-    page += (springPage - page) * (1 - Math.exp(-SCROLL_TRAIL * delta))
     // Paused through the identity scene — see lib/phases.ts.
     const progress = toTransition(page)
 
