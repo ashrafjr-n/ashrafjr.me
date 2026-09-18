@@ -824,3 +824,88 @@ body {
 .social-badge:active {
   transform: translateY(1px);
 }
+
+/* ===========================================================
+   Scroll markers (ui/cues.ts)
+   Bottom-centre. SCROLL at the top of the page, BACK TO TOP at the bottom of
+   it; they never coexist, so they share one place. Same mono caps and 0.32em
+   tracking as the scene labels — this is a word and a hairline, deliberately
+   not a counter or a progress bar.
+   =========================================================== */
+.cues {
+  position: fixed;
+  left: 50%;
+  bottom: clamp(1.5rem, 5vh, 3rem);
+  transform: translateX(-50%);
+  z-index: 20;
+}
+
+.cue {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.7rem;
+}
+
+/* The hairline points away from the word: it fades out at its far end, which
+   is the end the reader is being sent toward. */
+.cue-line {
+  width: 1px;
+  height: clamp(28px, 5vh, 46px);
+  background: linear-gradient(to bottom, rgba(255, 255, 255, 0.55), transparent);
+}
+
+.cue--end .cue-line {
+  background: linear-gradient(to top, rgba(255, 255, 255, 0.55), transparent);
+}
+
+.cue-label {
+  font-family: var(--font-code);
+  font-size: clamp(0.62rem, 0.8vw, 0.78rem);
+  letter-spacing: 0.32em;
+  /* The tracking is applied to the right of the last letter too, which throws
+     a centred label off by half of it. */
+  text-indent: 0.32em;
+  white-space: nowrap;
+  color: var(--text-dim);
+}
+
+/* The Scene 1 hint breathes, because Scene 1 is otherwise completely still and
+   a static line there reads as decoration rather than as an affordance. It is
+   the only looping animation on the site — see the reduced-motion block. */
+@keyframes cue-breathe {
+  0%,
+  100% {
+    opacity: 0.45;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.cue--scroll .cue-label {
+  animation: cue-breathe 2.8s ease-in-out infinite;
+}
+
+/* BACK TO TOP is a real button; strip the UA chrome, keep the focus ring. */
+.cue-button {
+  display: block;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  opacity: 0;
+  visibility: hidden;
+}
+
+.cue-button:hover .cue-label,
+.cue-button:focus-visible .cue-label {
+  color: var(--accent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cue--scroll .cue-label {
+    animation: none;
+    opacity: 0.8;
+  }
+}

@@ -13,6 +13,7 @@ import { initScene } from './three/scene'
 import { lockScroll, unlockScroll } from './lib/scroll-lock'
 import { state, initPointer, initScroll } from './lib/state'
 import { buildSocialBadges } from './ui/social'
+import { createCues } from './ui/cues'
 import { createIdentity } from './ui/identity'
 import { createRevealWindow } from './ui/reveal-window'
 
@@ -41,7 +42,8 @@ canvas.id = 'scene'
 
 const intro = buildIntro()
 const identity = createIdentity()
-app.append(canvas, intro, identity.el)
+const cues = createCues()
+app.append(canvas, intro, identity.el, cues.el)
 
 // --- Starfield + model, and the input they read ---
 const scene = initScene(canvas)
@@ -118,6 +120,9 @@ function raf(time: number) {
     const progress = toTransition(page)
     updateIntro(progress)
     identity.update(toIdentity(page))
+    // Off the raw page value, not the transition: these mark the two ends of
+    // the scroll itself, not a point inside any one scene.
+    cues.update(page)
   }
   revealWindow.update(state)
   requestAnimationFrame(raf)
