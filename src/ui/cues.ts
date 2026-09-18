@@ -1,47 +1,38 @@
 /**
- * The page's two scroll markers: one that says there is more below, one that
- * says there is not.
+ * The scroll marker: a mouse, low on the screen, in Scene 1 only.
  *
  * Scene 1 is a completely static composition — the ring hangs there and nothing
  * moves until the reader scrolls — so it gives no sign that it is the top of a
- * 900vh page rather than the whole of it. And Scene 3 is a resting state with
- * nothing after it, which reads the same as a page that has stopped responding.
- * Both markers are the same object built twice, at the same place, and only one
- * of them is ever up.
+ * 900vh page rather than the whole of it. This is the only thing that says so.
  *
- * **A scroll hint was deliberately deleted from this project once** (with the
- * old HUD) and this is not that: no counter, no progress bar, no percentage.
- * A word and a hairline, in the same mono caps and 0.32em tracking the scene
- * labels use, and gone the moment the page is moving.
+ * It is a pure function of the page value like everything else, so scrolling
+ * back up brings it back exactly.
  *
- * Both are pure functions of the page value like everything else, so scrolling
- * back up brings the first one back exactly.
+ * **A `BACK TO TOP` marker lived here too and was removed on request.** So was
+ * the old `SCROLL` word-and-hairline this replaced. And this is not the old HUD
+ * scroll-hint returning either (see CLAUDE.md) — there is no counter, no
+ * progress bar and no percentage.
  */
 
-/** Page value by which the Scene 1 hint has completely gone. */
-const SCROLL_CUE_END = 0.05
-/** Page range over which the end marker arrives, as the model lands. */
-const END_CUE_FROM = 0.9
-const END_CUE_TO = 0.97
+/** Page value by which the marker has completely gone. */
+const CUE_END = 0.05
+
+/**
+ * Lucide's `mouse`, ISC, embedded rather than installed — the same way every
+ * other icon in this project is carried (see the social row in CLAUDE.md).
+ * **Don't hand-draw a replacement**; take it from a recognised set the same
+ * way. Only `stroke-width` is ours, dropped from the set's 2 to sit with the
+ * hairlines everything else on the page is drawn with.
+ */
+const MOUSE_ICON = `<svg class="cue-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+  stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+  <rect x="5" y="2" width="14" height="20" rx="7" />
+  <path d="M12 6v4" />
+</svg>`
 
 function smooth(u: number): number {
   const x = Math.min(Math.max(u, 0), 1)
   return x * x * (3 - 2 * x)
-}
-
-/** One marker: a hairline and a word, the line on the side it points toward. */
-function buildCue(kind: 'scroll' | 'end', label: string): HTMLDivElement {
-  const el = document.createElement('div')
-  el.className = `cue cue--${kind}`
-  const line = document.createElement('span')
-  line.className = 'cue-line'
-  const text = document.createElement('span')
-  text.className = 'cue-label'
-  text.textContent = label
-  // The hairline sits on the side the marker points to: below the word at the
-  // top of the page, above it at the bottom.
-  el.append(...(kind === 'scroll' ? [text, line] : [line, text]))
-  return el
 }
 
 export interface Cues {
@@ -52,50 +43,20 @@ export interface Cues {
 
 export function createCues(): Cues {
   const el = document.createElement('div')
-  el.className = 'cues'
+  el.className = 'cue'
+  el.innerHTML = MOUSE_ICON
+  // It says "there is more below" to anyone who can see it; there is nothing
+  // here for a screen reader to act on, so it is not announced.
+  el.setAttribute('aria-hidden', 'true')
 
-  const scrollCue = buildCue('scroll', 'SCROLL')
-  // A real button, so it is reachable by keyboard and announced as an action.
-  // `visibility` is what takes it out of the tab order while it is invisible —
-  // opacity alone would leave a focusable control sitting over Scene 1.
-  const endCue = buildCue('end', 'BACK TO TOP')
-  const top = document.createElement('button')
-  top.type = 'button'
-  top.className = 'cue-button'
-  top.append(endCue)
-  top.addEventListener('click', () => {
-    // The whole page is a pure function of scroll, so a smooth return rewinds
-    // all three scenes exactly. Honoured against the reader's motion setting:
-    // the same 900vh rewind is the last thing someone asking for less motion
-    // wants to sit through.
-    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-    window.scrollTo({ top: 0, behavior: reduced ? 'auto' : 'smooth' })
-  })
-
-  el.append(scrollCue, top)
-
-  let shownScroll = -1
-  let shownEnd = -1
-
-  /** Write opacity and visibility together; hidden is what drops it from tab order. */
-  function show(target: HTMLElement, value: number): void {
-    target.style.opacity = value.toFixed(3)
-    target.style.visibility = value <= 0 ? 'hidden' : 'visible'
-  }
+  let shown = -1
 
   function update(page: number): void {
-    const atTop = 1 - smooth(page / SCROLL_CUE_END)
-    if (Math.abs(atTop - shownScroll) > 0.002) {
-      shownScroll = atTop
-      show(scrollCue, atTop)
-    }
-
-    const atEnd = smooth((page - END_CUE_FROM) / (END_CUE_TO - END_CUE_FROM))
-    if (Math.abs(atEnd - shownEnd) > 0.002) {
-      shownEnd = atEnd
-      show(top, atEnd)
-      top.disabled = atEnd <= 0
-    }
+    const value = 1 - smooth(page / CUE_END)
+    if (Math.abs(value - shown) <= 0.002) return
+    shown = value
+    el.style.opacity = value.toFixed(3)
+    el.style.visibility = value <= 0 ? 'hidden' : 'visible'
   }
 
   return { el, update }
