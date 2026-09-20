@@ -36,6 +36,8 @@ import {
   WebGLRenderer,
 } from 'three'
 import { clamp, rand } from '../lib/math'
+
+const TWO_PI = Math.PI * 2
 import {
   CLOUD_SWIRL_TURNS,
   FILL_CHANCE,
@@ -47,8 +49,14 @@ import {
   OUTWARD_MAX,
   OUTWARD_MIN,
   RING_SWIRL_TURNS,
-  SETTLED_SIZE_GAIN,
-  SPRITE_SWAP_AT,
+  BOLD_SIZE_GAIN,
+  EASE_MAX,
+  EASE_MIN,
+  SCATTER_SPAN,
+  SCATTER_STAGGER,
+  SPIRAL_MAX,
+  SPIRAL_MIN,
+  WAVE_SHARE,
   scatterAt,
   settleAt,
   spinAt,
@@ -57,6 +65,7 @@ import {
 import { toModel, toTransition } from '../lib/phases'
 import type { InputState } from '../lib/state'
 import { createCircleTexture } from './sprite'
+import { panelTopEdgeAt } from '../ui/invert'
 import { createWorld, MODEL_SPIN_RATE } from './world'
 
 export interface SceneController {
@@ -263,17 +272,19 @@ const TILT_LERP = 0.05 // how fast tilt eases toward the target
 /** A set of stars orbiting the model's vertical axis, drawn as one Points. */
 interface StarLayer {
   points: Points
+  /** The normal material, and the heavier one worn only inside the white half. */
+  base: PointsMaterial
+  bold: PointsMaterial
   count: number
   radii: Float32Array
   heights: Float32Array
   angles: Float32Array
   speeds: Float32Array
   /**
-   * Per-star change of orbit radius across the scatter, **signed**: negative
-   * takes the star inward and through the centre, positive takes it out. Only
-   * the ring carries one; the cloud is the field it scatters into.
+   * What each star does across the scatter, rolled once at build. Only the
+   * ring carries it; the cloud is the field it scatters into.
    */
-  scatter: Float32Array | null
+  scatter: ScatterRolls | null
   /**
    * Where a star drifts to as the field settles, x/y/z interleaved, or `NaN`
    * for the great majority that stay where their orbit leaves them. Only the
@@ -291,6 +302,22 @@ interface StarLayer {
   positions: Float32Array
   /** Flagged after each write so Three re-uploads the buffer. */
   posAttr: Float32BufferAttribute
+}
+
+/**
+ * The four things rolled per star, once, at build. **No two stars do the same
+ * thing at the same time, and that is the whole difference between this and a
+ * crowd of dots flying apart** — see `lib/scatter.ts`.
+ */
+interface ScatterRolls {
+  /** When it lets go, 0..SCATTER_STAGGER: a wave around the ring, plus jitter. */
+  delay: Float32Array
+  /** Signed change of orbit radius — negative goes in through the centre. */
+  travel: Float32Array
+  /** Its own ease-out exponent, so arrivals differ. */
+  ease: Float32Array
+  /** Radians it winds on as it goes; most for the shortest travels. */
+  spiral: Float32Array
 }
 
 /** Everything one layer needs for one frame of the scatter. Mutated in place. */
@@ -344,8 +371,18 @@ function advance(layer: StarLayer, delta: number, frame: ScatterFrame): void {
     const angle = layer.angles[i] + layer.speeds[i] * spun
     layer.angles[i] = angle
 
-    const radius = layer.scatter ? layer.radii[i] + layer.scatter[i] * spread : layer.radii[i]
-    const shown = angle + swirl
+    // Each star reads its own delayed, differently-eased travel off the one
+    // shared driver, so the ring comes apart progressively instead of at once.
+    let radius = layer.radii[i]
+    let shown = angle + swirl
+    if (layer.scatter) {
+      const u = (spread - layer.scatter.delay[i]) / SCATTER_SPAN
+      if (u > 0) {
+        const gone = 1 - Math.pow(1 - (u < 1 ? u : 1), layer.scatter.ease[i])
+        radius += layer.scatter.travel[i] * gone
+        shown += layer.scatter.spiral[i] * gone
+      }
+    }
     let x = Math.cos(shown) * radius
     let y = layer.heights[i]
     let z = Math.sin(shown) * radius
@@ -367,48 +404,6 @@ function advance(layer: StarLayer, delta: number, frame: ScatterFrame): void {
     arr[i3 + 2] = z
   }
   layer.posAttr.needsUpdate = true
-}
-
-/**
- * Swap a layer between the mipmapped sprite and the plain one, skipping the
- * write when it is already on the right one.
- *
- * **The press walks the ambient cloud straight into the trap `sprite.ts`
- * describes, and this is the way out.** Today the cloud's points run from
- * ~1.7px at the field's far edge to ~7.7px close in, so its minification is
- * real and varied and mipmaps are what stop them shimmering as they orbit.
- * Pressed flat they all land at 2.2px — one small size, every point at once,
- * which is the exact condition that took the ring's stars to 92/255 before its
- * own sprite was made mipmap-free. Left alone the settled cloud would read
- * dim *and* would not match the ring beside it, and a field that is visibly
- * two populations is not the one texture the backdrop has to be.
- *
- * It is a step rather than a ramp, and it is put on the very first frame of
- * scroll on purpose. The resting composition is protected, so nothing may
- * change at page 0; one frame later the far stars come up to meet the near
- * ones, which **is** the press's first beat — the depth cue in the brightness
- * draining away. Getting it from a texture swap costs nothing per frame.
- */
-function setSprite(layer: StarLayer, texture: CanvasTexture): void {
-  const material = layer.points.material as PointsMaterial
-  if (material.map === texture) return
-  material.map = texture
-  material.needsUpdate = true
-}
-
-/**
- * Grow a layer's points toward their settled size, skipping the write when it
- * has not changed. A multiple of what the layer was authored at, so each one
- * keeps its own depth spread — nothing here is flattened.
- *
- * A material size change is free in Three — no rebuild, no re-upload — but the
- * value holds for the whole of Scenes 2 and 3, so the comparison is worth more
- * than the assignment it saves.
- */
-function setPointSize(layer: StarLayer, authored: number, settled: number): void {
-  const size = authored * (1 + (SETTLED_SIZE_GAIN - 1) * settled)
-  const material = layer.points.material as PointsMaterial
-  if (material.size !== size) material.size = size
 }
 
 /**
@@ -482,13 +477,17 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
    */
   const plainSprite = createCircleTexture({ mipmaps: false })
   /**
-   * The settled field's sprite: opaque across most of its radius, and no
-   * mipmaps. Both layers take it once the field has settled, because a soft
-   * gradient inverts to a dot that is dark only at its very centre — which is
-   * why the stars in Scene 3's white half could not be seen. See
-   * `SPRITE_SWAP_AT` in `lib/scatter.ts`.
+   * The heavy sprite: opaque across most of its radius, and no mipmaps.
+   *
+   * **It is worn only inside Scene 3's white half.** The site's normal star is
+   * a soft radial gradient — full white at its centre, fading to nothing at
+   * its edge — which reads perfectly well drawn *on* black but inverts to a
+   * dot that is dark only at its very middle and pale grey around it. On white
+   * that barely registers, which is why the stars in the white half could not
+   * be seen. This one holds full opacity across most of its radius, so it
+   * inverts to a solid dark point. See `BOLD_SIZE_GAIN` in `lib/scatter.ts`.
    */
-  const settledSprite = createCircleTexture({ mipmaps: false, core: 0.68 })
+  const boldSprite = createCircleTexture({ mipmaps: false, core: 0.68 })
 
   /**
    * Build a layer of orbiting stars. `place` supplies each star's orbit radius
@@ -522,7 +521,14 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
     const heights = new Float32Array(count)
     const angles = new Float32Array(count)
     const speeds = new Float32Array(count)
-    const scatter = scatters ? new Float32Array(count) : null
+    const scatter: ScatterRolls | null = scatters
+      ? {
+          delay: new Float32Array(count),
+          travel: new Float32Array(count),
+          ease: new Float32Array(count),
+          spiral: new Float32Array(count),
+        }
+      : null
     const spread = spreads ? new Float32Array(count * 3) : null
     const target = new Vector3()
     const c = new Color()
@@ -550,15 +556,24 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
       }
       if (scatter) {
         // **Two directions only, decided by which half of the band the star
-        // sits in.** The inner half goes inward — far enough that most of them
+        // sits in.** The inner half goes in — far enough that most of them
         // carry on through the centre and out the far side — and the outer
-        // half goes out. No star picks a heading of its own; what makes the
-        // paths look varied is the distance, which is randomised, and the
-        // wind-up turning underneath them.
-        scatter[i] =
-          radius < (BAND_RADIUS_MIN + BAND_RADIUS_MAX) / 2
-            ? -rand(INWARD_MIN, INWARD_MAX)
-            : rand(OUTWARD_MIN, OUTWARD_MAX)
+        // half goes out. No star picks a heading of its own.
+        const inner = radius < (BAND_RADIUS_MIN + BAND_RADIUS_MAX) / 2
+        const travel = inner ? -rand(INWARD_MIN, INWARD_MAX) : rand(OUTWARD_MIN, OUTWARD_MAX)
+        scatter.travel[i] = travel
+        // A wave running once around the ring's circumference, softened by a
+        // jitter so its edge is ragged rather than a clean unzip. `angle` is
+        // the star's own place on the ring, so the wave travels with it.
+        const around = (angle % TWO_PI) / TWO_PI
+        scatter.delay[i] =
+          (around * WAVE_SHARE + Math.random() * (1 - WAVE_SHARE)) * SCATTER_STAGGER
+        scatter.ease[i] = rand(EASE_MIN, EASE_MAX)
+        // **Most for the shortest travel, least for the longest** — what an
+        // orbiting body actually does as its radius changes. This one
+        // correlation is most of what makes the paths read as a system.
+        const reach = Math.abs(travel) / INWARD_MAX
+        scatter.spiral[i] = (SPIRAL_MAX - (SPIRAL_MAX - SPIRAL_MIN) * reach) * TWO_PI
       }
 
       positions[i3] = Math.cos(angle) * radius
@@ -596,6 +611,16 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
       opacity: look.opacity ?? STAR_OPACITY,
     })
 
+    /**
+     * The same layer, drawn heavier. **Worn only where Scene 3's white panel
+     * is over it** — see `renderStars`. Built up front and swapped by
+     * reference, never edited per frame: changing a material's `map` sets
+     * `needsUpdate`, which recompiles the program.
+     */
+    const bold = material.clone()
+    bold.size = pointSize * BOLD_SIZE_GAIN
+    bold.map = boldSprite
+
     const points = new Points(geometry, material)
     // The scroll transition moves stars far outside the bounds they were built
     // with (the band scatters out to ~29, the cloud flies up to 75 toward the
@@ -608,6 +633,8 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
 
     return {
       points,
+      base: material,
+      bold,
       count,
       radii,
       heights,
@@ -659,6 +686,51 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
   let drawnSwirl = -1
   let drawnSpread = -1
   let drawnSettled = -1
+
+  /**
+   * Draw the starfield, heavier wherever Scene 3's white panel is over it.
+   *
+   * **The weight is a property of the region, not of the star.** The panel
+   * inverts whatever the canvas shows under it, and a soft small point inverts
+   * to a pale smudge on white — so the stars it covers have to be drawn as
+   * something that survives being turned inside out, while the very same stars
+   * an inch higher, still on black, must not change at all.
+   *
+   * A scissor split does it with no second copy of anything and no shader: the
+   * frame is drawn twice, once above the panel's edge with each layer's normal
+   * material and once below it with the heavy one, and the two rectangles are
+   * disjoint so nothing is drawn twice. Swapping `points.material` is a
+   * reference assignment between two materials compiled up front — editing one
+   * material's `map` per frame would recompile the program instead.
+   *
+   * The edge comes from `ui/invert.ts`'s own `panelTopEdgeAt`, not from a
+   * constant repeated here, so the line the stars are split on and the line
+   * the panel paints are the same line by construction. The loop renders
+   * before it updates the panel, which is exactly why that function is pure.
+   */
+  function drawStarfield(page: number): void {
+    const edge = panelTopEdgeAt(page, window.innerHeight)
+    if (edge === Infinity) {
+      renderer.render(starfield, world.camera) // same vantage -> same orbital plane
+      return
+    }
+    const ratio = renderer.getPixelRatio()
+    const width = Math.ceil(window.innerWidth * ratio)
+    const height = Math.ceil(window.innerHeight * ratio)
+    // Scissor coordinates run from the bottom of the drawing buffer, and the
+    // panel is anchored there, so its height is everything below the edge.
+    const under = Math.round((window.innerHeight - edge) * ratio)
+
+    renderer.setScissorTest(true)
+    renderer.setScissor(0, under, width, height - under)
+    renderer.render(starfield, world.camera)
+
+    for (const layer of layers) layer.points.material = layer.bold
+    renderer.setScissor(0, 0, width, under)
+    renderer.render(starfield, world.camera)
+    for (const layer of layers) layer.points.material = layer.base
+    renderer.setScissorTest(false)
+  }
 
   /** Run the scatter over both layers. */
   function advanceLayers(delta: number, wound: number): void {
@@ -736,18 +808,6 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
       cloud.points.rotation.x += (-state.mouseY * reach - cloud.points.rotation.x) * TILT_LERP
     }
 
-    // Both layers converge on one point size. Two layers authored for two
-    // different distances would otherwise land on one plane drawing at four
-    // times each other's size, and the settled field has to read as one
-    // texture — see SETTLED_POINT_SIZE.
-    setPointSize(cloud, CLOUD_POINT_SIZE, settled)
-    setPointSize(band, BAND_POINT_SIZE, settled)
-    // Both layers take the hard-edged sprite for the settled field: it is what
-    // survives Scene 3's inversion as a solid dark point. See SPRITE_SWAP_AT.
-    const hard = settled > SPRITE_SWAP_AT
-    setSprite(cloud, hard ? settledSprite : mippedSprite)
-    setSprite(band, hard ? settledSprite : plainSprite)
-
     // **Skip the position pass whenever nothing it reads has actually moved.**
     // That is 20,600 stars' worth of trig and writes plus the two buffer
     // uploads behind it (~250KB a frame), which together are all of this
@@ -797,7 +857,7 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
     if (MODEL_ENABLED) world.update(delta, progress, toModel(page))
 
     renderer.clear()
-    renderer.render(starfield, world.camera) // same vantage -> same orbital plane
+    drawStarfield(page)
     if (MODEL_ENABLED) {
       renderer.clearDepth() // world layer sits in front of the starfield
       renderer.render(world.scene, world.modelCamera) // front-on, not bird's-eye

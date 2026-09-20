@@ -23,9 +23,11 @@ import {
   OUTWARD_MAX,
   OUTWARD_MIN,
   SCATTER_TO,
-  SETTLED_SIZE_GAIN,
+  BOLD_SIZE_GAIN,
   SETTLE_TO,
-  SPRITE_SWAP_AT,
+  SCATTER_SPAN,
+  SCATTER_STAGGER,
+  WAVE_SHARE,
   STILL_FROM,
   STILL_TO,
   SWIRL_TO,
@@ -51,7 +53,6 @@ for (const name of Object.keys(drivers) as Driver[]) {
   ok(drivers[name](0) === 0, `${name} is not 0 at the top of the page — Scene 1's rest state moved`)
 }
 ok(spinAt(0) === 1, 'the ring is not turning at full rate in the opening frame')
-ok(SPRITE_SWAP_AT > 0 && settleAt(0) < SPRITE_SWAP_AT, 'the sprite swaps in the resting frame')
 
 // 2. The sweep down and back. These are pure functions of one number, so
 // anything but an exact match on the way back is accumulation.
@@ -102,7 +103,17 @@ ok(INWARD_MIN > 0 && OUTWARD_MIN > 0, 'a scatter direction has no travel')
 ok(INWARD_MAX > 2.8, 'no inner star reaches the centre, let alone passes through it')
 ok(INWARD_MIN < 2.6, 'every inner star crosses the centre — none of them stop short in it')
 ok(OUTWARD_MAX > OUTWARD_MIN, 'every outer star travels exactly the same distance')
-ok(SETTLED_SIZE_GAIN >= 1, 'the settled field is smaller than Scene 1 — it will vanish under the inversion')
+ok(BOLD_SIZE_GAIN > 1, 'the stars are no heavier inside the white half — they will not read on it')
+
+// **The stagger is what keeps the ring a ring.** Every star reading the same
+// driver at the same moment is what made the first version dissolve into haze
+// within a few percent of the page; these guard the shape of the fix.
+ok(SCATTER_STAGGER > 0, 'every star lets go at once — the ring will not unravel, it will vanish')
+ok(SCATTER_STAGGER < 1, 'the last star never lets go')
+ok(Math.abs(SCATTER_SPAN - (1 - SCATTER_STAGGER)) < 1e-12, 'the span and the stagger disagree')
+// The last star to be let go still has to finish inside the scatter's window.
+ok(SCATTER_STAGGER + SCATTER_SPAN <= 1 + 1e-12, 'the slowest star is still travelling when Scene 1 ends')
+ok(WAVE_SHARE > 0 && WAVE_SHARE < 1, 'the delay is all wave or all jitter — one reads mechanical, the other as noise')
 ok(scene1At(HOLD) === 1 && scene1At(0) === 0, 'Scene 1 does not span its own stretch')
 
 console.log('scatter: ok')
