@@ -116,7 +116,10 @@ const constantOver = (from: number, to: number, what: string): void => {
   }
 }
 constantOver(STILL_TO, RELEASE_FROM, 'the still frame is not still')
-constantOver(1, 1, 'the end of Scene 1 has not settled')
+// Past the end of Scene 1, i.e. through the whole of Scenes 2 and 3. This is
+// the property the gate leans on hardest — `scene1At` clamps, so every driver
+// has to be pinned for the remaining two thirds of the page.
+constantOver(1, 1.5, 'a driver is still moving after Scene 1 has handed over')
 // And it has to be genuinely moving before that, or there is no press at all.
 ok(sample(0).join() !== sample(0.3).join(), 'nothing changes over the first third of Scene 1')
 ok(scene1At(HOLD) === 1 && scene1At(0) === 0, 'Scene 1 does not span its own stretch')
