@@ -39,13 +39,32 @@ export function initPointer(): void {
  * canvas and badge are both fixed, so the page has no content of its own to
  * scroll. Also fires once on init so a reload part-way down the page starts at
  * the right progress rather than snapping from 0.
+ *
+ * **The range is measured on resize, never in the scroll handler.**
+ * `scrollHeight` is a layout-dependent property, so reading it forces the
+ * browser to flush layout synchronously — and doing that inside a `scroll`
+ * listener puts a forced reflow on the single hottest path on the site, once
+ * per scroll event, for a number that cannot change without a resize. Every
+ * element on the page is `position: fixed` and the range comes from a
+ * `min-height` in `vh`, so the viewport is the only thing it depends on.
  */
 export function initScroll(): void {
+  let range = 0
+  const measure = (): void => {
+    range = document.body.scrollHeight - window.innerHeight
+  }
   const read = (): void => {
-    const range = document.body.scrollHeight - window.innerHeight
     state.scroll = range > 0 ? clamp(window.scrollY / range, 0, 1) : 0
   }
   window.addEventListener('scroll', read, { passive: true })
-  window.addEventListener('resize', read, { passive: true })
+  window.addEventListener(
+    'resize',
+    () => {
+      measure()
+      read()
+    },
+    { passive: true },
+  )
+  measure()
   read()
 }
