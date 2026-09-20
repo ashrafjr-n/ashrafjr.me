@@ -49,8 +49,6 @@ import {
   TRAVEL_MAX,
   RING_SWIRL_TURNS,
   BOLD_SIZE_GAIN,
-  EASE_MAX,
-  EASE_MIN,
   SCATTER_STAGGER,
   SPIRAL_MAX,
   SPIRAL_MIN,
@@ -350,8 +348,6 @@ interface ScatterRolls {
    * not one shared span; see `SCATTER_STAGGER`.
    */
   rate: Float32Array
-  /** Its own ease-out exponent, so arrivals differ. */
-  ease: Float32Array
   /** Radians it winds on as it goes; most for the shortest travels. */
   spiral: Float32Array
 }
@@ -417,7 +413,11 @@ function advance(layer: StarLayer, delta: number, frame: ScatterFrame): void {
       // where the driver does, so they all come to rest on the same frame.
       const u = (spread - layer.scatter.delay[i]) * layer.scatter.rate[i]
       if (u > 0) {
-        const gone = 1 - Math.pow(1 - (u < 1 ? u : 1), layer.scatter.ease[i])
+        // **Linear in the driver, with no ease of its own.** That is what
+        // makes every star decelerate on one curve and stop on one frame —
+        // the slowing is `STOP_TAIL`'s and belongs to the whole field. See
+        // the note where the per-star ease used to be rolled, in lib/scatter.
+        const gone = u < 1 ? u : 1
         radius += layer.scatter.travel[i] * gone
         shown += layer.scatter.spiral[i] * gone
       }
@@ -586,7 +586,6 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
           delay: new Float32Array(count),
           rate: new Float32Array(count),
           travel: new Float32Array(count),
-          ease: new Float32Array(count),
           spiral: new Float32Array(count),
         }
       : null
@@ -644,7 +643,6 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
         // Its travel runs from there to the driver's end, so whenever it was
         // let go it comes to rest on the same frame as everything else.
         scatter.rate[i] = 1 / (1 - delay)
-        scatter.ease[i] = rand(EASE_MIN, EASE_MAX)
         // **Most for the shortest travel, least for the longest** — what an
         // orbiting body actually does as its radius changes. This one
         // correlation is most of what makes the paths read as a system.

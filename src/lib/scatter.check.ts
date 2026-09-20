@@ -120,14 +120,13 @@ ok(SCATTER_STAGGER < 1, 'the last star never lets go')
 ok(1 / (1 - SCATTER_STAGGER) < 2.5, 'the last stars released travel far faster than the first')
 ok(WAVE_SHARE > 0 && WAVE_SHARE < 1, 'the delay is all wave or all jitter — one reads mechanical, the other as noise')
 
-// **The field has to come to rest, not be cut off.** A linear fall in the
-// orbit's rate is still dropping at full clip the instant it reaches zero,
-// which reads as the motion stopping rather than running out. The curve has to
-// shed speed early and arrive with no slope left.
-ok(SPIN_EASE > 1, 'the orbit stops on a corner instead of easing to rest')
-const spinSlopeAtRest = (spinAt(HOLD) - spinAt(HOLD * 0.999)) / 0.001
-ok(Math.abs(spinSlopeAtRest) < 0.02, `the orbit is still slowing hard as it stops (${spinSlopeAtRest})`)
-ok(spinAt(at(0.5)) < 0.5, 'the orbit sheds most of its speed late — it should go early and then ease')
+// **The field has to come to rest, not be cut off — and the easing that does
+// it is `scene1At`'s, not this.** A curve here on top of the driver's own
+// `STOP_TAIL` is what made the orbit collapse to nothing by 80% of the run
+// and stop turning while the stars were still travelling.
+ok(SPIN_EASE <= 1, 'the orbit carries an ease of its own and will stop before the travel does')
+// Still turning at a real rate three quarters of the way through.
+ok(spinAt(at(SCATTER_END * 0.75)) > 0.1, 'the orbit has all but stopped by three quarters of the run')
 ok(scene1At(HOLD) === 1 && scene1At(0) === 0, 'Scene 1 does not span its own stretch')
 
 // **The field stops inside Scene 1, and stops without a corner.** The old tail
@@ -136,6 +135,17 @@ ok(scene1At(HOLD) === 1 && scene1At(0) === 0, 'Scene 1 does not span its own str
 // SCATTER_END says it does and leaves a still stretch after it, and that the
 // driver arrives there with no slope left — the constants alone would clamp it
 // while it was still travelling at most of full rate.
+// **Nothing is allowed to finish before the run does.** The field settling in
+// stragglers — one thing parked while another was still travelling — was
+// called out twice, and it is not a per-star matter: a driver that clamps
+// early stops whatever it carries while the rest of the field carries on.
+// Every curve here has to still be moving a hair before the end.
+const almostOver = at(SCATTER_END * 0.999)
+for (const name of Object.keys(drivers) as Driver[]) {
+  ok(drivers[name](almostOver) < 1, `${name} has already finished before the scatter is over`)
+}
+ok(spinAt(almostOver) > 0, 'the orbit has already stopped before the scatter is over')
+
 ok(SCATTER_END < 1, 'the scatter runs to the end of Scene 1 — there is no still frame to hand over on')
 ok(scene1At(HOLD * SCATTER_END) === 1, 'the scatter does not finish where SCATTER_END says it does')
 constantOver(SCATTER_END, 1, 'a driver is still moving after the field was meant to have stopped')

@@ -97,16 +97,16 @@ const STOP_TAIL = 0.7
 const SET_HEAD = 0.3
 
 // --- the wind-up ---
-export const SWIRL_TO = 0.8
 /**
- * **1, i.e. no curve of its own.** It was 2.0, an ease-out that made the
- * wind-up *accelerate* on the first touch of the scroll — which was the point
- * when Scene 1 had its whole stretch to play with, and is exactly what read
- * as the field being flung once the run was squeezed into the scene's first
- * third. `scene1At`'s `SET_HEAD` is the ease-in now, and it is the only one:
- * stacking a second curve on top of it is what put the speed back.
+ * Where the wind-up ends, as a share of the run.
+ *
+ * **1, so it stops when everything else does.** It was 0.8, which froze the
+ * whole field's rotation a fifth of the run before the stars stopped
+ * travelling — a thing coming to rest while other things kept going, which is
+ * exactly what the settle is not allowed to do. `scatter.check.ts` now fails
+ * if any driver finishes early.
  */
-export const SWIRL_EASE = 1.0
+export const SWIRL_TO = 1.0
 /**
  * Extra turns the ring gains across the wind-up, on top of its own orbit.
  *
@@ -171,19 +171,14 @@ export const SCATTER_STAGGER = 0.45
  * look like something coming apart rather than something being animated.
  */
 export const WAVE_SHARE = 0.8
-/**
- * The range of ease-out exponents rolled per star, so arrivals differ.
- *
- * **They were 1.9..2.7, and that is what made the scatter read as fast.** The
- * perceived speed of one of these is its release, not its average rate: at 2.3
- * a star covered half its travel in the first fifth of its own span, which
- * over a schedule this short is a flick. Nearer 1.7 the same distance is spent
- * more evenly, so the star sets off at a pace it can hold and glides into
- * place. Both ends stay above 1, which is what lands each star with no speed
- * left.
- */
-export const EASE_MIN = 1.4
-export const EASE_MAX = 2.0
+// There is **no per-star ease any more**, and its absence is load-bearing.
+// A star's travel is linear in the driver, so its speed is the driver's rate
+// times a constant — which means every star decelerates on the same curve and
+// comes to rest on the same frame. Rolling an ease-out per star (1.9..2.7,
+// then 1.4..2.0) is what stopped them one by one: at 2.0 a star had covered
+// 91% of its distance by 70% of its span and read as parked while its
+// neighbours were still visibly travelling. That was called out twice. The
+// deceleration is `STOP_TAIL`'s, and it belongs to the whole field.
 /**
  * Where a ring star comes to rest, as a distance from the spin axis.
  *
@@ -232,14 +227,21 @@ export const STILL_TO = 1.0
 /**
  * How the orbit's rate falls away: `(1 - u) ** SPIN_EASE`.
  *
- * **It was linear, and a linear fall stops the field on a corner** — the rate
- * is still dropping at a constant clip right up to the instant it reaches
- * zero, so the last of the motion is cut off rather than spent. This sheds
- * most of the speed early and then eases the rest away, so the field slows
- * quickly, keeps drifting for a while, and comes to rest without a seam. It
- * reaches exactly 0 at `STILL_TO`, with zero slope there.
+ * **1 — linear in the driver, like every other part of the move.** It was
+ * 2.4, on the argument that a linear fall stops the field on a corner: the
+ * rate would still be dropping at a constant clip the instant it reached
+ * zero. That was true when the driver ran linear too, and it stopped being
+ * true when `scene1At` grew a `STOP_TAIL`. Against scroll the orbit's rate is
+ * this times the driver's, and the driver's already arrives at zero with zero
+ * slope, so linear here lands softly anyway.
+ *
+ * **What 2.4 cost was the one thing the settle is not allowed to do.** It
+ * collapsed the rate to 0.002 of full by 80% of the run, so the field had
+ * visibly stopped turning while its stars were still travelling the last
+ * fifth of their way out — one kind of motion ending while another carried
+ * on. `scatter.check.ts` fails on it now.
  */
-export const SPIN_EASE = 2.4
+export const SPIN_EASE = 1.0
 
 // --- the settled field's even spread ---
 /**
@@ -331,14 +333,9 @@ export function ramp(u: number, from: number, to: number): number {
   return clamp((u - from) / (to - from), 0, 1)
 }
 
-/** Ease-out: fast away from 0, settling into 1. */
-function easeOut(u: number, power: number): number {
-  return 1 - Math.pow(1 - u, power)
-}
-
 /** How far through the wind-up the field is, 0..1. */
 export function swirlAt(p: number): number {
-  return easeOut(ramp(scene1At(p), 0, SWIRL_TO), SWIRL_EASE)
+  return ramp(scene1At(p), 0, SWIRL_TO)
 }
 
 /**
