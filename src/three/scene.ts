@@ -44,10 +44,9 @@ import {
   FILL_FAR,
   FILL_NEAR,
   FILL_REACH,
-  INWARD_MAX,
-  INWARD_MIN,
-  OUTWARD_MAX,
-  OUTWARD_MIN,
+  REST_MAX,
+  REST_MIN,
+  TRAVEL_MAX,
   RING_SWIRL_TURNS,
   BOLD_SIZE_GAIN,
   EASE_MAX,
@@ -611,12 +610,19 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
         }
       }
       if (scatter) {
-        // **Two directions only, decided by which half of the band the star
-        // sits in.** The inner half goes in — far enough that most of them
-        // carry on through the centre and out the far side — and the outer
-        // half goes out. No star picks a heading of its own.
-        const inner = radius < (BAND_RADIUS_MIN + BAND_RADIUS_MAX) / 2
-        const travel = inner ? -rand(INWARD_MIN, INWARD_MAX) : rand(OUTWARD_MIN, OUTWARD_MAX)
+        // **Where it comes to rest is what is rolled here, not how far it
+        // goes**, and the difference is the whole settled composition. The
+        // draw is even by *area* — `sqrt` of a uniform over the squared
+        // bounds — so the ring relaxes into a field with no knot in the middle
+        // of it and no trace of the circle it came from. Rolling a signed
+        // travel instead, off a ring only 0.2 units thick, put both of those
+        // on screen: see `REST_MIN` in `lib/scatter.ts`.
+        //
+        // Which way a star goes is not rolled at all — it falls out of where
+        // it already is against where it is going, so the ring turns inside
+        // out through itself with no star picking a heading of its own.
+        const rest = Math.sqrt(rand(REST_MIN * REST_MIN, REST_MAX * REST_MAX))
+        const travel = rest - radius
         scatter.travel[i] = travel
         // A wave running once around the ring's circumference, softened by a
         // jitter so its edge is ragged rather than a clean unzip. `angle` is
@@ -628,7 +634,7 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
         // **Most for the shortest travel, least for the longest** — what an
         // orbiting body actually does as its radius changes. This one
         // correlation is most of what makes the paths read as a system.
-        const reach = Math.abs(travel) / INWARD_MAX
+        const reach = Math.min(Math.abs(travel) / TRAVEL_MAX, 1)
         scatter.spiral[i] = (SPIRAL_MAX - (SPIRAL_MAX - SPIRAL_MIN) * reach) * TWO_PI
       }
 

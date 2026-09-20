@@ -140,24 +140,29 @@ export const WAVE_SHARE = 0.8
 export const EASE_MIN = 1.4
 export const EASE_MAX = 2.0
 /**
- * How far an inner-half ring star travels inward, in world units.
+ * Where a ring star comes to rest, as a distance from the spin axis.
  *
- * The band runs 2.6..2.8, so anything past ~2.8 carries the star **through the
- * centre** and out the far side — `radius` goes negative, which with
- * `x = cos * radius` is exactly the antipode. The far end is wide so the ones
- * that cross keep going instead of piling into a knot in the middle.
+ * **What is rolled is the destination, not the distance travelled**, and that
+ * swap is the whole of the fix for a settled field that had two marks on it.
+ * It used to roll a signed travel — `INWARD_MIN..MAX` for the band's inner
+ * half, `OUTWARD_MIN..MAX` for its outer — and a travel drawn flat off a ring
+ * only 0.2 units thick lands its stars in a narrow range of radii. That gave
+ * the outer half an **annulus** out past the frame's edge, the ghost of the
+ * ring it had just left, and the inner half a range that straddled zero, which
+ * piles stars into the **middle of the frame**: a radius drawn flat puts the
+ * same count in every ring however little ground that ring covers. Both were
+ * on screen and both were called out.
+ *
+ * The draw is `sqrt` of a uniform over the *squared* bounds, which is even by
+ * **area** rather than by radius — the standard way to scatter points over a
+ * disc without a knot in the middle of it.
+ *
+ * `REST_MAX` is set by the frame: at the ring's plane the frustum reaches
+ * ~2.85 units vertically and ~5.1 horizontally, so this is a little past the
+ * far corner. `REST_MIN` is what keeps the centre open.
  */
-export const INWARD_MIN = 0.7
-export const INWARD_MAX = 3.1
-/**
- * And outward, which is bounded hard **by the frame, not by taste**. At the
- * ring's own plane the frustum reaches about 2.85 units vertically against the
- * ring's 2.7, so the ring already fills the frame's height and *any* outward
- * travel starts pushing stars off the top and bottom at once. Measured: at
- * 2..8 the whole ring was gone by a tenth of the page.
- */
-export const OUTWARD_MIN = 0.3
-export const OUTWARD_MAX = 1.15
+export const REST_MIN = 0.8
+export const REST_MAX = 5.6
 /**
  * Turns a star winds on across its own travel: the **most** for the shortest
  * travel, the least for the longest. See the note at the top of the file —
@@ -165,16 +170,16 @@ export const OUTWARD_MAX = 1.15
  * from 0.62 along with everything else, so the whole move stays one unhurried
  * gesture rather than a flourish.
  *
- * **The travels above came down with it, and for the same reason the eases
+ * **The reach came down with the schedule, and for the same reason the eases
  * did.** Speed on screen is distance over scroll, and the scroll the scatter
- * gets was cut to 60% of the scene — so holding the old distances would have
- * made the same move half again as fast. The reach was trimmed with the
- * schedule instead. `INWARD_MAX` stays well past the ring's own 2.8 radius, so
- * the inner half still carries through the centre and out the far side; that
- * is the character of the move and it is not what was costing the calm.
+ * gets was cut to the scene's first 40% — so holding the old distances would
+ * have made the same move half again as fast. `REST_MIN`/`REST_MAX` are what
+ * set it now, and the average travel under them is about what it was.
  */
 export const SPIRAL_MIN = 0.05
 export const SPIRAL_MAX = 0.24
+/** The furthest any ring star can travel — what `spiral` is scaled against. */
+export const TRAVEL_MAX = REST_MAX - 2.6
 
 // --- the orbit running out ---
 export const STILL_FROM = 0.25

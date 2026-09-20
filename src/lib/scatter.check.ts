@@ -18,10 +18,8 @@
  *     page and the gate would quietly buy nothing.
  */
 import {
-  INWARD_MAX,
-  INWARD_MIN,
-  OUTWARD_MAX,
-  OUTWARD_MIN,
+  REST_MAX,
+  REST_MIN,
   SCATTER_END,
   SCATTER_TO,
   BOLD_SIZE_GAIN,
@@ -98,13 +96,18 @@ const constantOver = (from: number, to: number, what: string): void => {
 constantOver(1, 1.5, 'a driver is still moving after Scene 1 has handed over')
 ok(sample(0).join() !== sample(0.3).join(), 'nothing changes over the first third of Scene 1')
 
-// The scatter's two directions. The inner half has to travel far enough to
-// actually cross the centre for most of its stars, or it reads as the ring
-// shrinking rather than as stars passing through the middle.
-ok(INWARD_MIN > 0 && OUTWARD_MIN > 0, 'a scatter direction has no travel')
-ok(INWARD_MAX > 2.8, 'no inner star reaches the centre, let alone passes through it')
-ok(INWARD_MIN < 2.6, 'every inner star crosses the centre — none of them stop short in it')
-ok(OUTWARD_MAX > OUTWARD_MIN, 'every outer star travels exactly the same distance')
+// **Where the stars come to rest, which is what the settled composition is.**
+// The band they land in has to reach past the ring on both sides — short of
+// that and the ring's own radius is still the busiest place in the frame —
+// and it has to keep clear of the axis, where a star's orbit radius goes to
+// zero and any number of them would stack into a knot in the middle of the
+// screen. Both of those shipped and both were seen.
+ok(REST_MIN > 0, 'stars settle on the spin axis itself — they will pile up in the centre')
+ok(REST_MIN < 2.6, 'nothing settles inside the ring — its middle will read as a hole')
+ok(REST_MAX > 2.8, 'nothing settles outside the ring — the ring itself will be the edge')
+// The draw itself — even by area, not by radius — is `three/scene.ts`'s, and
+// is not checkable from here without pulling Three in. The bounds above are
+// what this file can hold.
 ok(BOLD_SIZE_GAIN > 1, 'the stars are no heavier inside the white half — they will not read on it')
 
 // **The stagger is what keeps the ring a ring.** Every star reading the same
