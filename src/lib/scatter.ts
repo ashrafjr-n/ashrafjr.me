@@ -212,8 +212,13 @@ export const SETTLE_TO = 1.0
  * on the panel's own edge, so there is one number and no second copy of
  * anything. A soft small point inverts to a pale smudge on white; this is what
  * makes it a mark.
+ *
+ * **It was 2.6, and the black stars read as too heavy** — thinned on request.
+ * The floor is not taste: under about 1.6 the hard-core sprite stops carrying
+ * across the inversion and the white half goes back to the pale smudges this
+ * exists to fix, so re-measure the inked share if it is taken much lower.
  */
-export const BOLD_SIZE_GAIN = 2.6
+export const BOLD_SIZE_GAIN = 2.0
 
 /**
  * 0..1 across Scene 1's own stretch, from the transition value — **the one
