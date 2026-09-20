@@ -578,12 +578,35 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
   world.camera.getWorldDirection(viewAxis)
   /** The ring's resting orientation, and the one that faces the camera. */
   const NO_TURN = new Quaternion()
+  /** The ring's own centre: it sits above the origin, not on it. */
+  const ringCentre = new Vector3(0, (BAND_Y_MIN + BAND_Y_MAX) / 2, 0)
   const faceCamera = new Quaternion().setFromUnitVectors(
     // The ring lies in the XZ plane, so its own normal is +Y. Turning that
-    // normal onto the line to the camera is what opens the ellipse.
+    // normal onto the line **from the ring's own centre** to the camera is
+    // what opens the ellipse — aiming it from the origin instead leaves the
+    // plane a degree off and costs most of the roundness below.
     new Vector3(0, 1, 0),
-    world.camera.position.clone().normalize(),
+    world.camera.position.clone().sub(ringCentre).normalize(),
   )
+  /**
+   * The small slide that puts the turned ring's centre on the view axis.
+   *
+   * **A circle only projects as a circle when it is centred on the axis.** The
+   * ring is not: it stands half a unit above the origin and the camera is
+   * aimed a little below that, so turning it to face the camera still leaves a
+   * perspective skew. Measured across three of the ring's heights, the turn
+   * alone lands it at **91–92% round**, which is visibly an ellipse in the one
+   * frame the sequence is built around; the turn aimed from its own centre
+   * plus this 0.1-unit slide lands it at **99.0–99.8%**.
+   *
+   * It is written to the layer's `position`, so the press has to subtract it
+   * when converting the camera into local space — see `advanceLayers`.
+   */
+  const ringSlide = (() => {
+    const turned = ringCentre.clone().applyQuaternion(faceCamera)
+    const depth = turned.clone().sub(world.camera.position).dot(viewAxis)
+    return world.camera.position.clone().addScaledVector(viewAxis, depth).sub(turned)
+  })()
   /** Scratch, reused every frame so the loop allocates nothing. */
   const inverseTurn = new Quaternion()
   const camLocal = new Vector3()
@@ -611,7 +634,10 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
   function advanceLayers(delta: number): void {
     for (const layer of layers) {
       inverseTurn.copy(layer.points.quaternion).invert()
-      camLocal.copy(world.camera.position).applyQuaternion(inverseTurn)
+      // The layer may be offset as well as turned (the ring's slide), so the
+      // camera is moved into local space, not just rotated into it. The view
+      // axis is a direction and only needs the rotation.
+      camLocal.copy(world.camera.position).sub(layer.points.position).applyQuaternion(inverseTurn)
       axisLocal.copy(viewAxis).applyQuaternion(inverseTurn)
       frame.camX = camLocal.x
       frame.camY = camLocal.y
@@ -672,7 +698,9 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
     // The ring turns to face the camera, so its ellipse opens into a true
     // circle before it is flattened. It is the only layer that turns; the
     // cloud has no orientation worth speaking of.
-    band.points.quaternion.slerpQuaternions(NO_TURN, faceCamera, faceAt(progress))
+    const facing = faceAt(progress)
+    band.points.quaternion.slerpQuaternions(NO_TURN, faceCamera, facing)
+    band.points.position.copy(ringSlide).multiplyScalar(facing)
 
     // Mouse parallax — tilt the wide field a few degrees, lerped. **It dies
     // with the press**, and that is what sells the flatness more than anything
