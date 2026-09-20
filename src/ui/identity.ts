@@ -79,7 +79,7 @@ const EDGE = 0.06
  * finishing as the next starts and the three read as a single pass down the
  * block. **The last has to land before Scene 3's panel starts rising**, or the
  * inversion arrives over type that is still filling — it completes at 0.84 of
- * the scene, which is page 0.797 against the panel's 0.82. That 0.023 of page
+ * the scene, which is page 0.788 against the panel's 0.81. That 0.022 of page
  * is deliberately small: the gap between the block finishing and the white
  * half arriving was the dead beat at the end of Scene 2.
  *

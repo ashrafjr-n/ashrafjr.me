@@ -44,8 +44,8 @@ import { easeEnds } from '../lib/phases'
  * sooner.
  *
  * `PANEL_FROM` has to stay clear of the identity block's last fill sweep,
- * which completes at page 0.797 (see `FILL_*` in `ui/identity.ts`), or the
- * inversion arrives over type that is still filling. **The 0.023 of page
+ * which completes at page 0.788 (see `FILL_*` in `ui/identity.ts`), or the
+ * inversion arrives over type that is still filling. **The 0.022 of page
  * between them is the whole margin and it is meant to be that tight** — the
  * gap where the block sat finished and nothing happened was the dead beat at
  * the end of Scene 2. The two move together.
@@ -55,7 +55,7 @@ import { easeEnds } from '../lib/phases'
  * scroll to Scene 1 now, so these are late in page terms again while being
  * the same 115vh of travel.
  */
-const PANEL_FROM = 0.82
+const PANEL_FROM = 0.81
 const PANEL_TO = 0.94
 
 /**

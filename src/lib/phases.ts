@@ -135,7 +135,7 @@ export function toTransition(page: number): number {
  * The trail at the far end is untouched.
  */
 /** Exported for `phases.check.ts`. */
-export const IDENTITY_LEAD = 0.52
+export const IDENTITY_LEAD = 0.575
 const IDENTITY_TRAIL = 0.09
 
 /**
