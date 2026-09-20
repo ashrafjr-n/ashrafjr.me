@@ -2,10 +2,11 @@
  * Scene 3's arrival: a white half that rises from the bottom and **inverts
  * everything it covers**.
  *
- * Black page becomes white, the white statements become black, and a glyph
- * that straddles the edge is split down the middle — white above the line,
- * black below it. That split is the whole effect; it is why this is one plain
- * rectangle and not two styled halves of the page.
+ * Black page becomes white, the white statements become black, **the white
+ * stars become black stars on white**, and a glyph that straddles the edge is
+ * split down the middle — white above the line, black below it. That split is
+ * the whole effect; it is why this is one plain rectangle and not two styled
+ * halves of the page.
  *
  * **It is `mix-blend-mode: difference` over pure white, and that is the trick.**
  * Difference with white is `1 - backdrop`, so the panel does not paint anything
@@ -14,6 +15,14 @@
  * nothing to keep in sync. Which is also why the identity layer must still be
  * on screen and fully filled when this arrives — there is nothing to invert
  * otherwise. See `ui/identity.ts`, which no longer fades out for exactly this.
+ *
+ * **The starfield is part of what it negates, and that is not incidental.**
+ * The press (`lib/press.ts`) leaves the field flat and still on screen for the
+ * rest of the page instead of clearing it, so the half rises over white points
+ * on black and turns them into black points on white — the same field, seen
+ * the other way round, with no second layer and nothing to keep in step. If
+ * `three/scene.ts` ever stopped drawing the canvas through Scene 3, the white
+ * half would come up empty.
  *
  * It covers **half the height**, not the whole frame. The boundary is the
  * composition.
