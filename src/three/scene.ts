@@ -416,19 +416,22 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
   const starfield = new Scene()
 
   /**
-   * The ambient cloud's sprite. Its points range from ~2px out at the cloud's
-   * far edge to ~9px close in, so it keeps mipmaps — see `sprite.ts`.
+   * The mipmapped sprite. The ambient cloud wears it **only in the resting
+   * composition**, where its points range from ~2px at the field's far edge to
+   * ~9px close in and mipmaps are what stop them shimmering as they orbit. The
+   * press takes it off again on the first frame of scroll — see `setSprite`.
    */
-  const sprite = createCircleTexture()
+  const mippedSprite = createCircleTexture()
   /**
-   * The band's own sprite, without mipmaps. Every band star sits at the same
-   * ~10 units and draws ~2.1 device pixels wide, so all 600 of them landed on
-   * the smallest mips at once and the whole ring rendered at a few 255ths —
-   * which is what made its stars read as uniformly dim whatever colour they
-   * carried. Same artwork, same size on screen; only the minification filter
-   * differs. It is a second 64x64 upload and nothing more.
+   * The same artwork without mipmaps, worn by the ring always and by the cloud
+   * from the first frame of scroll. Every ring star sits at the same ~10 units
+   * and draws ~2.1 device pixels wide, so all 600 of them landed on the
+   * smallest mips at once and the whole ring rendered at a few 255ths — which
+   * is what made its stars read as uniformly dim whatever colour they carried.
+   * The pressed field is that same case for every point on screen. Only the
+   * minification filter differs; it is a second 64x64 upload and nothing more.
    */
-  const bandSprite = createCircleTexture({ mipmaps: false })
+  const plainSprite = createCircleTexture({ mipmaps: false })
 
   /**
    * Build a layer of orbiting stars. `place` supplies each star's orbit radius
@@ -504,7 +507,7 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
     const material = new PointsMaterial({
       size: pointSize,
       sizeAttenuation: true,
-      map: look.sprite ?? sprite,
+      map: look.sprite ?? mippedSprite,
       vertexColors: true,
       transparent: true,
       depthWrite: false,
@@ -560,7 +563,7 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
     opacity: BAND_OPACITY,
     clearChance: BAND_CLEAR_CHANCE,
     clearLevel: BAND_CLEAR_LEVEL,
-    sprite: bandSprite,
+    sprite: plainSprite,
   }, { release: true })
 
   // --- Scene 1 world layer (the model), drawn over the starfield ---
@@ -674,7 +677,7 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
     // texture — see SETTLED_POINT_SIZE.
     setPointSize(cloud, CLOUD_POINT_SIZE, settled)
     setPointSize(band, BAND_POINT_SIZE, settled)
-    setSprite(cloud, frame.press > 0 ? bandSprite : sprite)
+    setSprite(cloud, frame.press > 0 ? plainSprite : mippedSprite)
 
     // Nothing in the starfield changes again once Scene 1 is over: every press
     // curve has clamped, the orbit has stopped and the parallax is dead. One
