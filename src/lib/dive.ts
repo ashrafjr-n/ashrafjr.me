@@ -100,10 +100,23 @@ export const TUNNEL_BRIGHT_MIN = 0.88
 export const TUNNEL_BRIGHT_MAX = 1.0
 export const TUNNEL_CLEAR_CHANCE = 0.3
 /**
- * How much of Scene 1 the corridor takes to appear. **It cannot simply be
- * visible from the start**: at a wide aspect the far end of it falls inside
- * the frame at page 0, and Scene 1's resting composition is the ring with
- * nothing inside it.
+ * How much of the **camera's flight** the corridor takes to appear — a share
+ * of `diveAt`, not of Scene 1.
+ *
+ * **It cannot simply be visible from the start.** Measured against the resting
+ * frustum at 16:9, the nearest corridor point sits 6.2° off the view axis
+ * against a 17.5° half-fov: the whole well is comfortably inside the frame at
+ * page 0, and Scene 1's resting composition is the ring with *nothing* inside
+ * it. That composition is protected.
+ *
+ * **And it cannot be a share of Scene 1 either**, which is what this was
+ * first. The flight is eased in hard (`DIVE_EASE`), so the camera has barely
+ * moved through the first third of the scene — a corridor keyed to raw scroll
+ * materialised at about 0.05, while the frame was still effectively the
+ * opening still, and gave away the one thing the crossing is for. Keyed to the
+ * flight it arrives at about 0.19 instead, two units into a camera that is
+ * visibly descending, so the depth is revealed *by* the movement rather than
+ * announced before it.
  */
 export const TUNNEL_FADE_TO = 0.1
 /**
@@ -189,7 +202,7 @@ export function ringSwirlAt(p: number): number {
   return DIVE_TURNS * Math.pow(ramp(scene1At(p), 0, IMPACT_FROM), SWIRL_EASE)
 }
 
-/** The corridor's opacity: in over the approach, out with the settle. */
+/** The corridor's opacity: in with the flight, out with the settle. */
 export function tunnelFadeAt(p: number): number {
-  return ramp(scene1At(p), 0, TUNNEL_FADE_TO) * (1 - settleAt(p))
+  return ramp(diveAt(p), 0, TUNNEL_FADE_TO) * (1 - settleAt(p))
 }
