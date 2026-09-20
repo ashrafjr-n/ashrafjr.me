@@ -85,9 +85,13 @@ ok(IMPACT_WAVE < 1, 'the wave never finishes inside its own window')
 ok(tunnelFadeAt(0) === 0, 'the corridor is in the resting frame')
 ok(tunnelFadeAt(HOLD) === 0, 'the corridor is still on screen when identity arrives')
 ok(tunnelFadeAt(HOLD * ((DIVE_TO + IMPACT_FROM) / 2)) > 0, 'the corridor is never shown at all')
-// It is revealed by the flight, not announced before it: the camera has to be
-// genuinely on its way before the well inside the ring becomes visible.
-ok(tunnelFadeAt(HOLD * 0.1) === 0, 'the corridor gives itself away before the camera has moved')
+// It is revealed by the flight, not announced before it. Keyed to raw scroll
+// — which is what this was first — the corridor stood at full opacity by 0.1
+// of Scene 1, while the camera had covered 2% of its flight and the frame was
+// still effectively the opening still. Keyed to the flight it is barely there
+// at that point, so what is guarded is that it stays behind the camera.
+ok(tunnelFadeAt(HOLD * 0.1) < 0.5, 'the corridor leads the camera — it is keyed to scroll, not the flight')
+ok(tunnelFadeAt(HOLD * 0.1) > 0, 'the corridor does not begin to appear with the first movement')
 
 // The wind-up is frozen by the glass and never resumes.
 ok(
