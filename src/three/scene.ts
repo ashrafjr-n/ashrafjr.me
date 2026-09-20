@@ -599,8 +599,29 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
     fwdY: 0,
     fwdZ: 0,
   }
-  /** Whether the settled field has already been put on the canvas. */
+  /** Whether the settled field has already been written into the buffers. */
   let stillDrawn = false
+
+  /**
+   * Run the press over both layers. The displacement is written into each
+   * layer's own buffer, which its own rotation then turns, so the camera and
+   * the view axis are converted into that layer's local space first — the same
+   * reason the fly-past used to do it.
+   */
+  function advanceLayers(delta: number): void {
+    for (const layer of layers) {
+      inverseTurn.copy(layer.points.quaternion).invert()
+      camLocal.copy(world.camera.position).applyQuaternion(inverseTurn)
+      axisLocal.copy(viewAxis).applyQuaternion(inverseTurn)
+      frame.camX = camLocal.x
+      frame.camY = camLocal.y
+      frame.camZ = camLocal.z
+      frame.fwdX = axisLocal.x
+      frame.fwdY = axisLocal.y
+      frame.fwdZ = axisLocal.z
+      advance(layer, delta, frame)
+    }
+  }
 
   // --- Animation: orbits, smoothed mouse parallax, scroll transition ---
   let prevTime = performance.now()
@@ -679,32 +700,25 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
     setPointSize(band, BAND_POINT_SIZE, settled)
     setSprite(cloud, frame.press > 0 ? plainSprite : mippedSprite)
 
-    // Nothing in the starfield changes again once Scene 1 is over: every press
-    // curve has clamped, the orbit has stopped and the parallax is dead. One
-    // more frame is drawn to put that settled state on the canvas, and then
-    // the whole loop — 20,600 points of position writes, the buffer uploads
-    // and both render passes — is skipped for the remaining two thirds of the
-    // page. Scene 3's blended panel makes that worth more than it looks: it
-    // recomposites everything beneath it whenever the canvas is touched.
+    // **Nothing in the starfield changes again once Scene 1 is over**: every
+    // press curve has clamped, the orbit has stopped and the parallax is dead.
+    // So for the remaining two thirds of the page the position pass is skipped
+    // entirely — 20,600 stars' worth of trig and writes, and the two buffer
+    // uploads that follow it (~250KB a frame), which together are all of this
+    // loop's real cost. One frame of it still runs after the last curve lands,
+    // to put the settled state in the buffers.
+    //
+    // **The render itself is deliberately not skipped**, and that is not an
+    // oversight. The renderer is `preserveDrawingBuffer: false`, so the
+    // contents of a frame that is not drawn are undefined — and Scene 3's
+    // panel does not paint a white half, it inverts whatever the canvas is
+    // already showing underneath it (`ui/invert.ts`). A dropped frame there
+    // would take the stars out of the white half. Re-drawing points that have
+    // not moved costs one draw call and no upload at all, which is not worth
+    // trading that for.
     const moving = isMoving(progress) || frame.spin > 0 || reach > 0 || MODEL_ENABLED
-    if (!moving && stillDrawn) return page
+    if (moving || !stillDrawn) advanceLayers(delta)
     stillDrawn = !moving
-
-    for (const layer of layers) {
-      // The press is written into each layer's own buffer, which its rotation
-      // then turns, so the camera and the view axis are converted into that
-      // layer's local space first.
-      inverseTurn.copy(layer.points.quaternion).invert()
-      camLocal.copy(world.camera.position).applyQuaternion(inverseTurn)
-      axisLocal.copy(viewAxis).applyQuaternion(inverseTurn)
-      frame.camX = camLocal.x
-      frame.camY = camLocal.y
-      frame.camZ = camLocal.z
-      frame.fwdX = axisLocal.x
-      frame.fwdY = axisLocal.y
-      frame.fwdZ = axisLocal.z
-      advance(layer, delta, frame)
-    }
 
     // The transition for the spin and the Scene 3 lift, and the page for the
     // rise into Scene 2 — the transition is frozen through identity, so it
