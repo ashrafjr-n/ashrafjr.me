@@ -52,8 +52,13 @@ import { easeEnds, HOLD } from './phases.ts'
  * finished. Measured on the rendered page, the frames at 64%, 77% and 100% of
  * Scene 1's scroll are the same composition. Ending here spends that scroll on
  * a settled frame instead of on movement nobody can see.
+ *
+ * **It is the scroll fraction that this is set by, not its own value.** 0.77
+ * of the transition is **60% of Scene 1's scroll** — `toTransition` has its
+ * own ramp into the hold, so the two are not the same number and the second
+ * is the one anybody can see. It was 0.85, which landed at 68%.
  */
-export const SCATTER_END = 0.85
+export const SCATTER_END = 0.77
 /**
  * How much of the run above is spent slowing down, as a share of it.
  *
@@ -118,9 +123,19 @@ export const SCATTER_SPAN = 1 - SCATTER_STAGGER
  * look like something coming apart rather than something being animated.
  */
 export const WAVE_SHARE = 0.8
-/** The range of ease-out exponents rolled per star, so arrivals differ. */
-export const EASE_MIN = 1.9
-export const EASE_MAX = 2.7
+/**
+ * The range of ease-out exponents rolled per star, so arrivals differ.
+ *
+ * **They were 1.9..2.7, and that is what made the scatter read as fast.** The
+ * perceived speed of one of these is its release, not its average rate: at 2.3
+ * a star covered half its travel in the first fifth of its own span, which
+ * over a schedule this short is a flick. Nearer 1.7 the same distance is spent
+ * more evenly, so the star sets off at a pace it can hold and glides into
+ * place. Both ends stay above 1, which is what lands each star with no speed
+ * left.
+ */
+export const EASE_MIN = 1.4
+export const EASE_MAX = 2.0
 /**
  * How far an inner-half ring star travels inward, in world units.
  *
@@ -129,8 +144,8 @@ export const EASE_MAX = 2.7
  * `x = cos * radius` is exactly the antipode. The far end is wide so the ones
  * that cross keep going instead of piling into a knot in the middle.
  */
-export const INWARD_MIN = 0.8
-export const INWARD_MAX = 3.6
+export const INWARD_MIN = 0.7
+export const INWARD_MAX = 3.1
 /**
  * And outward, which is bounded hard **by the frame, not by taste**. At the
  * ring's own plane the frustum reaches about 2.85 units vertically against the
@@ -139,16 +154,24 @@ export const INWARD_MAX = 3.6
  * 2..8 the whole ring was gone by a tenth of the page.
  */
 export const OUTWARD_MIN = 0.3
-export const OUTWARD_MAX = 1.4
+export const OUTWARD_MAX = 1.15
 /**
  * Turns a star winds on across its own travel: the **most** for the shortest
  * travel, the least for the longest. See the note at the top of the file —
  * this inverse correlation is what makes the paths read as one system. Halved
  * from 0.62 along with everything else, so the whole move stays one unhurried
  * gesture rather than a flourish.
+ *
+ * **The travels above came down with it, and for the same reason the eases
+ * did.** Speed on screen is distance over scroll, and the scroll the scatter
+ * gets was cut to 60% of the scene — so holding the old distances would have
+ * made the same move half again as fast. The reach was trimmed with the
+ * schedule instead. `INWARD_MAX` stays well past the ring's own 2.8 radius, so
+ * the inner half still carries through the centre and out the far side; that
+ * is the character of the move and it is not what was costing the calm.
  */
 export const SPIRAL_MIN = 0.05
-export const SPIRAL_MAX = 0.3
+export const SPIRAL_MAX = 0.24
 
 // --- the orbit running out ---
 export const STILL_FROM = 0.25
@@ -182,7 +205,7 @@ export const SPIN_EASE = 2.4
  * black half. The stars there were not faint, there were barely any, and
  * neither size nor sprite could fix that — both were tried and measured.
  */
-export const FILL_CHANCE = 0.038
+export const FILL_CHANCE = 0.55
 /** The depths the spread targets are drawn between, in world units. */
 export const FILL_NEAR = 14
 export const FILL_FAR = 46

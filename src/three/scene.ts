@@ -218,10 +218,10 @@ const BAND_CLEAR_LEVEL = 4.0
  * Integrated semi-implicitly (velocity first, then position), which stays
  * stable for any `OMEGA * delta` well under 2. The spring takes its own step
  * from `SPRING_MAX_STEP` rather than from the frame's `delta`, so the worst
- * case here is 0.53 however long a frame runs — see that constant.
+ * case here is 0.4 however long a frame runs — see that constant.
  *
- * **32 is deliberately fast: the page is meant to feel like an ordinary
- * scroll.** Steady-state lag on a held scroll is `2 / OMEGA`, about 0.06s —
+ * **24 is deliberately fast: the page is meant to feel like an ordinary
+ * scroll.** Steady-state lag on a held scroll is `2 / OMEGA`, about 0.08s —
  * enough to take the notches off the wheel and nothing more. It ran at 7.0
  * with a second *trail* stage chased over it, together ~0.6s of coast, and
  * that read as heavy and slow; the trail is gone, and don't reintroduce a
@@ -235,8 +235,18 @@ const BAND_CLEAR_LEVEL = 4.0
  * statements, where the fill sweep reads the scroll position back out across
  * the whole width of the screen. Frame rate was never the problem: measured
  * through the fill at 6x CPU throttling, not one frame ran long.
+ *
+ * **It went to 32 first, and that was too far the other way.** This is the one
+ * number the two ends of the page pull against each other over: tight enough
+ * and the identity fill answers the wheel at once, loose enough and the
+ * scatter does not show the wheel's notches through it. Scene 1's driver is
+ * steep now — the whole scatter is spent over 60% of the scene — so a notch
+ * there moves the field nearly twice as far as it used to, and 32 let that
+ * read as a stepped scroll. 24 is the middle of the two, and the rest of the
+ * smoothness was bought by slowing the scatter itself rather than by putting
+ * more lag between the reader and the page.
  */
-const SCROLL_OMEGA = 32.0
+const SCROLL_OMEGA = 24.0
 /**
  * The longest step the spring will take, in seconds.
  *
@@ -486,6 +496,27 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
       .addScaledVector(camUp, rand(-halfH, halfH))
   }
 
+  /**
+   * Whether a world point is inside the frame, tested in NDC.
+   *
+   * **This is what makes a spread target legitimate, and it is not a
+   * refinement.** A star that carries one drifts from where it orbits to where
+   * its target is, and all but a fraction of a percent of the cloud orbits
+   * *outside* the frame — so rolling the target blind sent stars flying in
+   * over the edge of the picture. Nothing else in this scene enters the frame
+   * from outside it: the ring disperses in its own plane and the rest of the
+   * cloud stays where it is. Only stars already in the frame are
+   * redistributed inside it, so the spread is a rearrangement of what is on
+   * screen rather than an arrival.
+   */
+  const ndc = new Vector3()
+  function onScreen(x: number, y: number, z: number): boolean {
+    ndc.set(x, y, z).project(world.camera)
+    return (
+      ndc.z > -1 && ndc.z < 1 && ndc.x >= -1 && ndc.x <= 1 && ndc.y >= -1 && ndc.y <= 1
+    )
+  }
+
   const mippedSprite = createCircleTexture()
   /**
    * The same artwork without mipmaps, worn by the ring always and by the cloud
@@ -558,6 +589,8 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
       const i3 = i * 3
       const { radius, y } = place()
       const angle = Math.random() * Math.PI * 2
+      const px = Math.cos(angle) * radius
+      const pz = Math.sin(angle) * radius
 
       radii[i] = radius
       heights[i] = y
@@ -565,8 +598,10 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
       speeds[i] = randomOrbitSpeed()
       if (spread) {
         // NaN marks "stays put", which is nearly all of them; the loop tests
-        // for it with `t === t` rather than carrying a second array.
-        if (Math.random() < FILL_CHANCE) {
+        // for it with `t === t` rather than carrying a second array. The
+        // frustum test comes first: a star that is not already in the frame
+        // would arrive over its edge — see `onScreen`.
+        if (Math.random() < FILL_CHANCE && onScreen(px, y, pz)) {
           spreadTarget(target)
           spread[i3] = target.x
           spread[i3 + 1] = target.y
@@ -597,9 +632,9 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
         scatter.spiral[i] = (SPIRAL_MAX - (SPIRAL_MAX - SPIRAL_MIN) * reach) * TWO_PI
       }
 
-      positions[i3] = Math.cos(angle) * radius
+      positions[i3] = px
       positions[i3 + 1] = y // fixed height: orbits stay level
-      positions[i3 + 2] = Math.sin(angle) * radius
+      positions[i3 + 2] = pz
 
       // White/silver only — grayscale, no color tint whatever the range.
       // A rolled subset is taken to one flat `clearLevel` rather than being
