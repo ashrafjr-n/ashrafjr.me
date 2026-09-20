@@ -78,19 +78,21 @@ const EDGE = 0.06
  * `FILL_SPAN` is longer than the step between statements, so one is still
  * finishing as the next starts and the three read as a single pass down the
  * block. **The last has to land before Scene 3's panel starts rising**, or the
- * inversion arrives over type that is still filling — it completes at 0.70 of
- * the scene, which is page 0.519 against the panel's 0.60.
+ * inversion arrives over type that is still filling — it completes at 0.84 of
+ * the scene, which is page 0.797 against the panel's 0.82. That 0.023 of page
+ * is deliberately small: the gap between the block finishing and the white
+ * half arriving was the dead beat at the end of Scene 2.
  *
  * **`FILL_FROM` is deliberately well under `SLIDE_SPAN` (0.42), and that is
  * the one thing to preserve here.** It was 0.44 against that landing, so the
  * first statement came to a stop and only then began to fill — two beats
- * where the scene wants one. At 0.22 the white starts crossing the top line
- * **0.20 of the scene before it lands**, so the sweep is most of the way
- * across by the time the block settles and the arrival and the fill are one
- * move. It went 0.44 -> 0.37 -> 0.22; the floor is 0, where the fill would
- * start on a statement still wholly off screen.
+ * where the scene wants one. At 0.36 the white starts crossing the top line
+ * **0.06 of the scene before it lands**, which is enough for the two to read
+ * as one move without the sweep spending most of itself on type that is still
+ * travelling — 0.22 was tried and was too far ahead. The floor is 0, where
+ * the fill would start on a statement wholly off screen.
  */
-const FILL_FROM = 0.22
+const FILL_FROM = 0.36
 const FILL_STEP = 0.14
 const FILL_SPAN = 0.2
 
