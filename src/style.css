@@ -23,6 +23,13 @@
   /* The inverting pointer's diameter (ui/cursor.ts). */
   --cursor-size: 34px;
 
+  /* The browser's own scrollbar. Grayscale like everything else: the track is
+     the page's black so the bar reads as part of the composition rather than
+     as a strip of chrome beside it, and the thumb is the same dim white the
+     body text and the reveal window's hairline use. */
+  --scroll-thumb: rgba(255, 255, 255, 0.35);
+  --scroll-thumb-hover: rgba(255, 255, 255, 0.7);
+
   /* The portrait's height, and the reveal window's pre-open resting offset. */
   --row-bottom: 9vh;
   --row-mark-h: clamp(235px, 44vh, 440px);
@@ -115,6 +122,45 @@ html {
      the viewport away from a composition that cannot follow it, and on a phone
      an overscroll at the top of Scene 1 is a refresh rather than a scroll. */
   overscroll-behavior-y: none;
+  /* The scrollbar, in the site's palette. This is the standard property
+     (Firefox, and Chrome 121+); the ::-webkit- rules below are the older
+     WebKit spelling, and where this one applies the browser ignores those, so
+     the two do not fight. Keep both — Safari still needs the second.
+
+     Width is stated once and never changes, which is what keeps it clear of
+     the thing lib/scroll-lock.ts exists to avoid: a scrollbar that appears or
+     changes width mid-session moves the initial containing block every fixed
+     element resolves against, and the reveal window would jump sideways. A
+     constant width is free. */
+  scrollbar-width: thin;
+  scrollbar-color: var(--scroll-thumb) var(--bg);
+}
+
+/* Safari, and Chrome before 121. Same palette, same constant width. */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg);
+}
+
+::-webkit-scrollbar-thumb {
+  /* The border is the track showing through, which is what insets the thumb
+     without a second element to size. */
+  border: 3px solid var(--bg);
+  border-radius: 999px;
+  background-clip: padding-box;
+  background-color: var(--scroll-thumb);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: var(--scroll-thumb-hover);
+}
+
+::-webkit-scrollbar-corner {
+  background: var(--bg);
 }
 
 body {
