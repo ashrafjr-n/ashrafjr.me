@@ -112,6 +112,30 @@ export const SETTLED_POINT_SIZE = 0.031
 export const SETTLE_FROM = 0.3
 export const SETTLE_TO = 0.62
 
+/**
+ * What the settled field actually measures, at 1536x864 with `devicePixelRatio`
+ * 2 — recorded because every one of these is a silent failure if it drifts:
+ *
+ *   - **every point draws at 2.23px**, against the ring's 2.08px today. That
+ *     is deliberately in the same range: it is a size already proven to read
+ *     on this page. It is also small enough to need the plain sprite rather
+ *     than the mipmapped one, which is what `setSprite` in `three/scene.ts`
+ *     is for.
+ *   - **the press moves nothing on screen.** Simulated over every on-screen
+ *     cloud star, the largest drift in screen position across the whole press
+ *     is 6e-16 — floating-point zero — and every star lands at depth 12.0000.
+ *   - **the ring lands 99.0–99.8% round**, measured across three of its own
+ *     heights. Aimed from the origin instead of its own centre, and without
+ *     the slide onto the view axis, it lands at 91–92%: visibly an ellipse in
+ *     the one frame the sequence is built around.
+ *   - **the frame at the plane is 13.5 x 7.6 world units**, which is what
+ *     `RELEASE_SPREAD` is sized against — a disc of 7 overruns it on both
+ *     axes, so the dispersed ring has no visible edge.
+ *   - **about 253 cloud stars and 600 ring stars** end up on or near the
+ *     frame. The cloud's count is Scene 1's own, unchanged, because the press
+ *     preserves screen position.
+ */
+
 /** 0..1 across Scene 1's own stretch, from the transition value. */
 export function scene1At(p: number): number {
   return clamp(p / HOLD, 0, 1)

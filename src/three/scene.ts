@@ -139,6 +139,12 @@ const STAR_OPACITY = 1.0
 //     (the world layer renders after a depth clear) and the loop breaks.
 //   outer bound: beyond ~2.85 at y=0 the orbit's near side leaves the frame.
 //   height: below y=-0.5 and above y=+1.5 the window closes completely.
+//
+// All of that describes the **resting** composition, which is what it was
+// solved for. On scroll the press turns this ring to face the camera and then
+// disperses it into the field, and none of these bounds apply past that point
+// — see `lib/press.ts`. They still apply at page 0, which is the frame they
+// were derived against.
 const BAND_COUNT = 600
 const BAND_RADIUS_MIN = 2.6
 const BAND_RADIUS_MAX = 2.8
