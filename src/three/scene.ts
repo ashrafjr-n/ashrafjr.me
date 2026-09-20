@@ -27,28 +27,6 @@ import {
   WebGLRenderer,
 } from 'three'
 import { clamp, rand } from '../lib/math'
-import {
-  CLOUD_RUSH,
-  DIVE_END_Y,
-  IMPACT_EASE,
-  IMPACT_SPIN_STOP,
-  IMPACT_WAVE,
-  SETTLE_DRIFT,
-  SPLAT_SPREAD,
-  TUNNEL_BRIGHT_MAX,
-  TUNNEL_BRIGHT_MIN,
-  TUNNEL_CLEAR_CHANCE,
-  TUNNEL_COUNT,
-  TUNNEL_POINT_SIZE,
-  TUNNEL_Y_BOTTOM,
-  TUNNEL_Y_TOP,
-  WALL_Y,
-  diveAt,
-  impactAt,
-  ringSwirlAt,
-  settleAt,
-  tunnelFadeAt,
-} from '../lib/dive'
 import { HOLD, toModel, toTransition } from '../lib/phases'
 import type { InputState } from '../lib/state'
 import { createCircleTexture } from './sprite'
@@ -322,16 +300,6 @@ const FLY_DISTANCE_MAX = 75
 /** Ease-in on the fly-past, so stars build up speed rather than lurching off. */
 const FLY_EASE = 1.6
 
-/** The three scroll-driven values the glass needs, rebuilt once per frame. */
-interface DiveFrame {
-  /** 1 while the stars turn, 0 once the glass has stopped them dead. */
-  spin: number
-  /** 0..1 across the impact wave. */
-  impact: number
-  /** 0..1 across the drift off the glass. */
-  settle: number
-}
-
 // --- Interaction tuning (mouse parallax; gentle / clamped) ---
 const MAX_TILT = 0.09 // max parallax tilt from the mouse (~5°), radians
 const TILT_LERP = 0.05 // how fast tilt eases toward the target
@@ -350,23 +318,8 @@ interface StarLayer {
   fly: Float32Array | null
   /** Extra orbit angle at full scroll — the band spiralling as it scatters. */
   swirl: number
-  /**
-   * Per-star delay into the impact wave: 0 lands first, 1 last, and **-1 never
-   * lands at all**. Only the corridor carries one, and only the part of it
-   * ahead of the camera's resting place can reach the glass — anything behind
-   * the lens is out of frame for good and is left where it is.
-   */
-  wave: Float32Array | null
-  /** Per-star scatter across the glass as it lands, x/z interleaved. */
-  splat: Float32Array | null
   /** Maps scroll progress to how far along this layer's displacement is. */
   curve: (progress: number) => number
-  /**
-   * The same, for the extra orbit angle alone. The ring's wind-up runs on the
-   * dive while its scatter is switched off, so the two cannot share a curve.
-   * Defaults to `curve`.
-   */
-  swirlCurve: (progress: number) => number
   /**
    * The same, for the fly-past alone, when it is not on the same curve as the
    * scatter. The band needs both: an eased scatter that holds its ring shape
@@ -409,28 +362,19 @@ function advance(
   flyX: number,
   flyY: number,
   flyZ: number,
-  dive: DiveFrame,
 ): void {
   const arr = layer.positions
   // Same scroll value for every layer; each just responds on its own curve —
-  // and the band's displacements are on three different ones.
+  // and the band's two displacements are on two different ones.
   const t = layer.curve(progress)
-  const swirlT = layer.swirlCurve(progress)
   const flyT = layer.flyCurve(progress)
-  // The glass kills the orbit outright rather than easing it down: the stop is
-  // what the surface is read from, and a rotation that coasted to rest would
-  // read as the layer running out rather than as it being caught by something.
-  const spun = delta * dive.spin
-  // Everything that landed slides outward off the plane together.
-  const drift = layer.wave ? SETTLE_DRIFT * dive.settle : 0
 
   for (let i = 0; i < layer.count; i++) {
-    const angle = layer.angles[i] + layer.speeds[i] * spun
+    const angle = layer.angles[i] + layer.speeds[i] * delta
     layer.angles[i] = angle
 
-    const radius =
-      (layer.scatter ? layer.radii[i] + layer.scatter[i] * t : layer.radii[i]) + drift
-    const shown = angle + layer.swirl * swirlT
+    const radius = layer.scatter ? layer.radii[i] + layer.scatter[i] * t : layer.radii[i]
+    const shown = angle + layer.swirl * t
     let x = Math.cos(shown) * radius
     let y = layer.heights[i]
     let z = Math.sin(shown) * radius
@@ -442,44 +386,12 @@ function advance(
       z += flyZ * travelled
     }
 
-    // The glass. Every point ahead of the lens is pulled onto one plane facing
-    // the viewer, which is what takes the depth out of the scene in front of
-    // the reader rather than between two scenes. `wave` staggers the landings
-    // so the surface is struck rather than switched on.
-    if (layer.wave) {
-      const d = layer.wave[i]
-      if (d >= 0) {
-        const u = clamp((dive.impact - d * IMPACT_WAVE) / (1 - IMPACT_WAVE), 0, 1)
-        if (u > 0) {
-          const landed = 1 - Math.pow(1 - u, IMPACT_EASE)
-          y += (WALL_Y - y) * landed
-          x += layer.splat![i * 2] * landed
-          z += layer.splat![i * 2 + 1] * landed
-        }
-      }
-    }
-
     const i3 = i * 3
     arr[i3] = x
     arr[i3 + 1] = y
     arr[i3 + 2] = z
   }
   layer.posAttr.needsUpdate = true
-}
-
-/**
- * Set a layer's opacity, skipping the write when it has not changed.
- *
- * Three rebuilds nothing for an opacity change, but the corridor holds one
- * value for most of Scene 1 and all of Scenes 2 and 3, so the test costs less
- * than the write it saves.
- */
-function setLayerOpacity(layer: StarLayer, opacity: number): void {
-  const material = layer.points.material as PointsMaterial
-  if (material.opacity === opacity) return
-  material.opacity = opacity
-  // Nothing is drawn at all while the corridor is out of the composition.
-  layer.points.visible = opacity > 0
 }
 
 /**
@@ -545,10 +457,7 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
       fly?: () => number
       swirl?: number
       curve?: (progress: number) => number
-      swirlCurve?: (progress: number) => number
       flyCurve?: (progress: number) => number
-      /** Whether this layer's stars land on the glass — the corridor's alone. */
-      glass?: boolean
     } = {},
   ): StarLayer {
     const positions = new Float32Array(count * 3)
@@ -559,8 +468,6 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
     const speeds = new Float32Array(count)
     const scatter = transition.scatter ? new Float32Array(count) : null
     const fly = transition.fly ? new Float32Array(count) : null
-    const wave = transition.glass ? new Float32Array(count) : null
-    const splat = transition.glass ? new Float32Array(count * 2) : null
     const c = new Color()
 
     for (let i = 0; i < count; i++) {
@@ -574,15 +481,6 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
       speeds[i] = randomOrbitSpeed()
       if (scatter) scatter[i] = transition.scatter!()
       if (fly) fly[i] = transition.fly!()
-      if (wave) {
-        // Nearest the lens lands first. Anything at or behind the camera's
-        // resting place is out of frame for good once the flight is over, so
-        // it is marked as never landing rather than being flown through it.
-        const ahead = (DIVE_END_Y - y) / (DIVE_END_Y - TUNNEL_Y_BOTTOM)
-        wave[i] = ahead > 0 ? Math.min(ahead, 1) : -1
-        splat![i * 2] = rand(-SPLAT_SPREAD, SPLAT_SPREAD)
-        splat![i * 2 + 1] = rand(-SPLAT_SPREAD, SPLAT_SPREAD)
-      }
 
       positions[i3] = Math.cos(angle) * radius
       positions[i3 + 1] = y // fixed height: orbits stay level
@@ -639,10 +537,7 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
       scatter,
       fly,
       swirl: transition.swirl ?? 0,
-      wave,
-      splat,
       curve: transition.curve ?? ((p) => p),
-      swirlCurve: transition.swirlCurve ?? transition.curve ?? ((p) => p),
       flyCurve: transition.flyCurve ?? transition.curve ?? ((p) => p),
       // The attribute's copy of `positions`, not `positions` itself.
       positions: posAttr.array as Float32Array,
@@ -664,15 +559,9 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
     return { radius: dist * sinPolar, y: dist * cosPolar * CLOUD_FLATTEN }
   }, {}, {
     // On scroll these fly toward and past the camera, and are never wrapped
-    // back around — the field thins out as Scene 1 is left behind. The dive
-    // adds a rush on top, so the field is past the lens before the corridor
-    // arrives instead of flooding it.
+    // back around — the field thins out as Scene 1 is left behind.
     fly: () => rand(FLY_DISTANCE_MIN, FLY_DISTANCE_MAX),
-    // Its own eased fly-past, plus the dive's rush on top. Under reduced
-    // motion the second term is 0 and this is exactly the curve it has always
-    // had.
-    curve: (p) =>
-      Math.pow(p, FLY_EASE) + (REDUCED_MOTION.matches ? 0 : CLOUD_RUSH * diveAt(p)),
+    curve: (p) => Math.pow(p, FLY_EASE),
   })
 
   // The close-in band — the orbits that stay on screen for a whole revolution.
@@ -687,70 +576,20 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
     clearLevel: BAND_CLEAR_LEVEL,
     sprite: bandSprite,
   }, {
-    /**
-     * **The ring has two entirely different jobs, and which one it does is the
-     * reduced-motion setting.**
-     *
-     * Normally it is the mouth of the corridor: it holds its shape, winds up
-     * with the dive and is flown *through*, so neither the scatter nor the run
-     * off the screen may touch it — both curves return 0 and the ring simply
-     * passes the lens.
-     *
-     * For a reader who asked for less motion there is no dive at all, and the
-     * ring falls back to breaking up exactly as it always has.
-     * `bandScatterAt` and `bandExitAt` are that fallback and are kept for it —
-     * they are not dead code, and deleting either one takes the reduced-motion
-     * path with it.
-     */
+    // On scroll these spiral out of their tight orbit, then run past the
+    // camera and off the screen — two displacements on two curves.
     scatter: () => rand(BAND_SCATTER_MIN, BAND_SCATTER_MAX),
     swirl: BAND_SWIRL,
-    curve: (p) => (REDUCED_MOTION.matches ? bandScatterAt(p) : 0),
-    swirlCurve: (p) => (REDUCED_MOTION.matches ? bandScatterAt(p) : ringSwirlAt(p)),
+    curve: bandScatterAt,
     fly: () => rand(BAND_EXIT_MIN, BAND_EXIT_MAX),
-    flyCurve: (p) => (REDUCED_MOTION.matches ? bandExitAt(p) : 0),
+    flyCurve: bandExitAt,
   })
-
-  /**
-   * The corridor — the ring's own orbits, carried a long way down the axis
-   * they already turn about.
-   *
-   * **That shared axis is the whole reason this is cheap.** Every star in the
-   * site orbits the model's vertical axis, and the camera's flight ends on
-   * that same axis looking straight down it, so the corridor is this layer
-   * with nothing changed but the range its stars' heights are drawn from. The
-   * swirl around the walls, the speed tiers and the scatter machinery all come
-   * across untouched.
-   *
-   * It is **not** part of Scene 1's resting composition, which is the ring with
-   * nothing inside it — `tunnelFadeAt` is what keeps it out of the frame until
-   * the reader has started moving.
-   */
-  const tunnel = createStarLayer(TUNNEL_COUNT, TUNNEL_POINT_SIZE, () => ({
-    radius: rand(BAND_RADIUS_MIN, BAND_RADIUS_MAX),
-    y: rand(TUNNEL_Y_BOTTOM, TUNNEL_Y_TOP),
-  }), {
-    brightMin: TUNNEL_BRIGHT_MIN,
-    brightMax: TUNNEL_BRIGHT_MAX,
-    opacity: 0, // out of the resting frame; tunnelFadeAt brings it in
-    clearChance: TUNNEL_CLEAR_CHANCE,
-    clearLevel: BAND_CLEAR_LEVEL,
-    sprite: bandSprite, // small points, same minification trap — see sprite.ts
-  }, {
-    swirl: BAND_SWIRL,
-    swirlCurve: ringSwirlAt, // never shown under reduced motion, so ungated
-    glass: true,
-  })
-  // `setLayerOpacity` skips a write that changes nothing, so the resting state
-  // has to be stated here rather than left for the first frame to discover.
-  tunnel.points.visible = false
 
   // --- Scene 1 world layer (the model), drawn over the starfield ---
   const world = createWorld(window.innerWidth / window.innerHeight)
 
-  /** Every layer, in one array so the frame loop allocates nothing per frame. */
-  const layers = [cloud, band, tunnel]
-  /** Rebuilt in place each frame, for the same reason. */
-  const dive: DiveFrame = { spin: 1, impact: 0, settle: 0 }
+  /** Both layers, in one array so the frame loop allocates nothing per frame. */
+  const layers = [cloud, band]
 
   // --- Animation: orbits, smoothed mouse parallax, scroll transition ---
   let prevTime = performance.now()
@@ -805,23 +644,6 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
     cloud.points.rotation.y += (tiltY - cloud.points.rotation.y) * TILT_LERP
     cloud.points.rotation.x += (tiltX - cloud.points.rotation.x) * TILT_LERP
 
-    // --- The dive, all three beats, all pure functions of `progress` ---
-    // A reader who asked for less motion gets none of it: the camera holds its
-    // opening pose, the corridor is never drawn, nothing lands on the glass,
-    // and the ring breaks up on `bandScatterAt`/`bandExitAt` as it always has.
-    // A flight down a tunnel is the strongest optical flow on the site and
-    // exactly the kind that triggers vestibular symptoms, so switching the
-    // *smoothing* off — all this setting used to do here — is not enough.
-    const reduced = REDUCED_MOTION.matches
-    const diveT = reduced ? 0 : diveAt(progress)
-    dive.impact = reduced ? 0 : impactAt(progress)
-    dive.settle = reduced ? 0 : settleAt(progress)
-    // Rotation dies *at* the wall rather than easing down to it: the stop is
-    // what the invisible surface is read from.
-    dive.spin = 1 - clamp(dive.impact / IMPACT_SPIN_STOP, 0, 1)
-    world.setDive(diveT, DIVE_END_Y)
-    setLayerOpacity(tunnel, reduced ? 0 : tunnelFadeAt(progress))
-
     // The camera moves during the transition, so the fly-past direction is
     // re-read each frame: model -> camera, normalised.
     flyDir.copy(world.camera.position).normalize()
@@ -837,7 +659,7 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
     // of the camera instead of straight past it.
     for (const layer of layers) {
       layerFly.copy(flyDir).applyQuaternion(invRotation.copy(layer.points.quaternion).invert())
-      advance(layer, delta, progress, layerFly.x, layerFly.y, layerFly.z, dive)
+      advance(layer, delta, progress, layerFly.x, layerFly.y, layerFly.z)
     }
 
     // The transition for the spin and the Scene 3 lift, and the page for the
