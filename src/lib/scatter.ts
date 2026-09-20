@@ -204,8 +204,20 @@ export const SPIN_EASE = 2.4
  * with almost nothing in it: 0.03% of it came out inked against 1.24% of the
  * black half. The stars there were not faint, there were barely any, and
  * neither size nor sprite could fix that — both were tried and measured.
+ *
+ * **It is 1 now, and the frame is what limits the spread, not this.** It was
+ * 0.038 of the whole cloud, and that only worked because it was drawing on
+ * the whole cloud: **measured, 0.65% of those 20,000 stars project inside the
+ * frustum at a time** — about 130 of them — so nearly every star it picked was
+ * one that had to fly in over the edge of the picture to reach its target.
+ * That was seen on screen and called out as wrong. `three/scene.ts` now tests
+ * the frustum before it rolls, so the pool is only what is already in the
+ * frame, and taking all of it is the most the spread can do without an
+ * arrival. Measured at 1536x864 at page 0.9, over the band below the type:
+ * **0.186% of the white half inked**, against 0.306% lit in the black half's
+ * densest band and the 0.03% that was the broken case.
  */
-export const FILL_CHANCE = 0.55
+export const FILL_CHANCE = 1.0
 /** The depths the spread targets are drawn between, in world units. */
 export const FILL_NEAR = 14
 export const FILL_FAR = 46
