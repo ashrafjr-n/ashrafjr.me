@@ -19,6 +19,11 @@
  */
 import {
   FACE_FROM,
+  PRESS_DIST,
+  PRESS_MIN_DEPTH,
+  RELEASE_SPREAD,
+  SETTLED_POINT_SIZE,
+  SPRITE_SWAP_AT,
   FACE_TO,
   PRESS_TO,
   RELEASE_FROM,
@@ -92,5 +97,17 @@ for (let i = 0; i <= 200; i++) {
   ok(isMoving(p) === changing, `the still-frame gate disagrees with the curves at ${i / 200}`)
 }
 ok(scene1At(HOLD) === 1 && scene1At(0) === 0, 'Scene 1 does not span its own stretch')
+
+// The geometry the beats stand on. None of these is tuning — each one is a
+// relationship the press stops working at all without.
+ok(PRESS_MIN_DEPTH < PRESS_DIST, 'stars at the plane fall under the guard and are never pressed')
+ok(PRESS_MIN_DEPTH > 0, 'the press divides by a depth it has not bounded away from zero')
+ok(RELEASE_SPREAD > 0, 'the ring has nowhere to disperse to and will stay a ring')
+// The swap has to leave page 0 alone: the resting composition is protected,
+// and the mipmapped sprite is part of it.
+ok(SPRITE_SWAP_AT >= 0 && pressAt(0) <= SPRITE_SWAP_AT, 'the sprite swaps in the resting frame')
+// One size for both layers is what makes the settled field read as a texture
+// rather than two populations; it has to sit between the two authored sizes.
+ok(SETTLED_POINT_SIZE > 0, 'the settled field has no size')
 
 console.log('press: ok')
