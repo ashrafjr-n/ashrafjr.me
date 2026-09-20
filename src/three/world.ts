@@ -11,6 +11,13 @@
  * black and the page background is the same black, so it reads as one
  * continuous surface.
  *
+ * **Neither camera moves, and `three/scene.ts` now depends on that in a way
+ * that fails silently.** The press solves its whole geometry once at
+ * construction from this camera — the view axis, the turn that faces the ring
+ * at it, and the slide that lands the ring on the axis. Moving or rotating
+ * `camera` after construction leaves all three stale with no error and no
+ * visible cause.
+ *
  * **Neither camera moves.** Scene 1 has no model at all — only the ring, empty
  * inside. The model rises from below into Scene 2, grows and turns once, then
  * the move into Scene 3 carries it up the screen at the same size. All of it
