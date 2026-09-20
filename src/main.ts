@@ -8,7 +8,8 @@
  * with the spin or the stars. Never read `state.scroll` directly for animation.
  */
 import './style.css'
-import { toIdentity, toTransition } from './lib/phases'
+import { HOLD, toIdentity, toTransition } from './lib/phases'
+import { PRESS_TO } from './lib/press'
 import { initScene } from './three/scene'
 import { lockScroll, unlockScroll } from './lib/scroll-lock'
 import { state, initPointer, initScroll } from './lib/state'
@@ -20,10 +21,16 @@ import { createInvert } from './ui/invert'
 import { createRevealWindow } from './ui/reveal-window'
 
 /**
- * Scroll progress at which the intro line has fully gone. It clears early in
- * the transition so it is never left hanging over Scene 2.
+ * Scroll progress at which the intro line has fully gone.
+ *
+ * **Derived rather than picked**, so it cannot drift out of step with the
+ * scene it belongs to: it lands exactly where the press finishes flattening
+ * the field and the ring completes its turn. The line and the composition it
+ * is written over therefore settle on the same frame, instead of one of them
+ * still moving while the other has arrived. It was a hand-set 0.28, which is
+ * what this evaluates to today.
  */
-const INTRO_FADE_END = 0.28
+const INTRO_FADE_END = HOLD * PRESS_TO
 /** How far the line drifts upward as it goes, in px. */
 const INTRO_DRIFT = 70
 
