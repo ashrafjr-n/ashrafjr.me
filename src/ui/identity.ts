@@ -50,17 +50,11 @@ const SLIDE_SPAN = 0.42
  * they are visibly on screen before the scene has begun.
  */
 const SLIDE_FROM = 1.05
-/**
- * Peak blur while a statement is travelling, in px.
- *
- * CSS blur is isotropic and this motion is horizontal, so it is not literally
- * motion blur — but over a travel this long it reads as one, and it is what
- * keeps the arrival from looking like three rectangles being slid into place.
- * It is gone by the time they land, and nothing is blurred once the block is
- * still. 10 was too much: the statements are drawn with a 1px stroke, and at
- * that radius mid-travel there was very little left of them on screen.
- */
-const SLIDE_BLUR = 6
+// The travel used to carry a `SLIDE_BLUR` stand-in for motion blur (6px,
+// peaking at the start and gone on landing). **It was removed on request** —
+// the statements are drawn with a 1px stroke and it took too much of them away
+// on the way in. The slide is the whole entrance now; don't put a filter back
+// on this layer.
 
 /** Fraction of the scene spent bringing the layer in. There is no fade out. */
 const EDGE = 0.06
@@ -191,7 +185,6 @@ export function createIdentity(): Identity {
         // its own, and these compose instead of overwriting each other.
         lines[i].row.style.translate = `${(SLIDE_SIDE[i] * travel).toFixed(1)}px 0`
       }
-      el.style.filter = away > 0.001 ? `blur(${(SLIDE_BLUR * away).toFixed(2)}px)` : 'none'
     }
 
     for (let i = 0; i < lines.length; i++) {
