@@ -14,6 +14,7 @@ import { lockScroll, unlockScroll } from './lib/scroll-lock'
 import { state, initPointer, initScroll } from './lib/state'
 import { buildSocialBadges } from './ui/social'
 import { createCues } from './ui/cues'
+import { createCursor } from './ui/cursor'
 import { createIdentity } from './ui/identity'
 import { createInvert } from './ui/invert'
 import { createRevealWindow } from './ui/reveal-window'
@@ -91,6 +92,12 @@ function setPageTakenOver(open: boolean): void {
 // were removed, and what replaces them is still to be decided.
 const revealWindow = createRevealWindow(app, setPageTakenOver)
 app.append(buildSocialBadges())
+
+// **Last of everything, and it has to stay last.** The pointer negates what is
+// painted under it, so anything mounted after it — or given a z-index above its
+// 100 — is simply not inverted. See ui/cursor.ts for the other half of that
+// rule: nothing on the way up to `<html>` may create a stacking context.
+createCursor(app)
 
 window.addEventListener('resize', () => {
   scene.resize()

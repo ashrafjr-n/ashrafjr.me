@@ -20,6 +20,9 @@
   --text-dim: rgba(255, 255, 255, 0.5);
   --accent: #e8e8ec;
 
+  /* The inverting pointer's diameter (ui/cursor.ts). */
+  --cursor-size: 34px;
+
   /* The portrait's height, and the reveal window's pre-open resting offset. */
   --row-bottom: 9vh;
   --row-mark-h: clamp(235px, 44vh, 440px);
@@ -849,6 +852,56 @@ body {
     animation: none;
     opacity: 0.35;
   }
+}
+
+/* ===========================================================
+   The pointer (ui/cursor.ts)
+   A disc that negates whatever the page has drawn under it. Same mechanism as
+   the inversion panel below, shrunk to a circle and moved with the mouse.
+   =========================================================== */
+.cursor {
+  position: fixed;
+  left: 0;
+  top: 0;
+  width: var(--cursor-size);
+  height: var(--cursor-size);
+  border-radius: 50%;
+  /* Pure white under `difference` is a clean negation — the result is
+     `1 - backdrop`, so the disc contributes no colour of its own. Any other
+     value tints the circle instead of inverting it. */
+  background: #ffffff;
+  mix-blend-mode: difference;
+  /* **The highest z-index on the page, and it has to stay that way.** A
+     blended element only negates what is painted below it, so anything stacked
+     over the disc (badges are 60, the reveal window 40, the invert panel 30)
+     would simply stop being inverted. */
+  z-index: 100;
+  pointer-events: none;
+  /* Centres the disc on its own box. ui/cursor.ts writes the individual
+     `translate` property, which composes with this rather than replacing it. */
+  transform: translate(-50%, -50%);
+  visibility: hidden;
+}
+
+/* Added by ui/cursor.ts on the first real pointer movement, so the disc is
+   never seen parked at the origin. */
+.cursor.is-live {
+  visibility: visible;
+}
+
+/* The native cursor goes only once the disc is actually live — the class is
+   written from JS for exactly that reason, so a failed script leaves the
+   ordinary pointer behind rather than no pointer at all.
+
+   `a` and `button` are named because a UA stylesheet rule that matches the
+   element directly beats an inherited value, so `cursor: none` on the root
+   alone would still leave the hand over every link. Naming the two element
+   types covers the badges, the reveal window's close button and the cards'
+   VIEW links, and covers whatever is added later without a new rule. */
+html.has-cursor,
+html.has-cursor a,
+html.has-cursor button {
+  cursor: none;
 }
 
 /* ===========================================================
