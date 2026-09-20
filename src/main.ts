@@ -9,7 +9,7 @@
  */
 import './style.css'
 import { HOLD, toIdentity, toTransition } from './lib/phases'
-import { FLATTEN_TO } from './lib/scatter'
+import { SETTLE_TO } from './lib/scatter'
 import { initScene } from './three/scene'
 import { lockScroll, unlockScroll } from './lib/scroll-lock'
 import { state, initPointer, initScroll } from './lib/state'
@@ -23,10 +23,10 @@ import { createRevealWindow } from './ui/reveal-window'
  * Scroll progress at which the intro line has fully gone.
  *
  * **Derived rather than picked**, so it cannot drift out of step with the
- * scene it belongs to: it lands where the field finishes flattening, with the
+ * scene it belongs to: it lands where the field finishes settling, with the
  * scatter still running on past it. It was a hand-set 0.28.
  */
-const INTRO_FADE_END = HOLD * FLATTEN_TO
+const INTRO_FADE_END = HOLD * SETTLE_TO
 /** How far the line drifts upward as it goes, in px. */
 const INTRO_DRIFT = 70
 

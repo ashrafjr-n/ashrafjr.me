@@ -18,19 +18,17 @@
  *     page and the gate would quietly buy nothing.
  */
 import {
-  FLATTEN_TO,
   INWARD_MAX,
   INWARD_MIN,
   OUTWARD_MAX,
   OUTWARD_MIN,
   SCATTER_TO,
-  SETTLED_POINT_SIZE,
+  SETTLED_SIZE_GAIN,
   SETTLE_TO,
   SPRITE_SWAP_AT,
   STILL_FROM,
   STILL_TO,
   SWIRL_TO,
-  flattenAt,
   scatterAt,
   scene1At,
   settleAt,
@@ -44,7 +42,7 @@ function ok(condition: boolean, what: string): void {
   if (!condition) throw new Error(what)
 }
 
-const drivers = { swirlAt, scatterAt, flattenAt, settleAt }
+const drivers = { swirlAt, scatterAt, settleAt }
 type Driver = keyof typeof drivers
 const at = (u: number): number => u * HOLD
 
@@ -53,7 +51,7 @@ for (const name of Object.keys(drivers) as Driver[]) {
   ok(drivers[name](0) === 0, `${name} is not 0 at the top of the page — Scene 1's rest state moved`)
 }
 ok(spinAt(0) === 1, 'the ring is not turning at full rate in the opening frame')
-ok(SPRITE_SWAP_AT >= 0 && flattenAt(0) <= SPRITE_SWAP_AT, 'the sprite swaps in the resting frame')
+ok(SPRITE_SWAP_AT > 0 && settleAt(0) < SPRITE_SWAP_AT, 'the sprite swaps in the resting frame')
 
 // 2. The sweep down and back. These are pure functions of one number, so
 // anything but an exact match on the way back is accumulation.
@@ -75,17 +73,16 @@ for (const name of [...(Object.keys(drivers) as Driver[]), 'spinAt' as const]) {
 ok(SWIRL_TO > 0 && SCATTER_TO > 0, 'the field does not move on scroll at all')
 ok(STILL_FROM < SCATTER_TO, 'the orbit only starts dying after the scatter is over')
 ok(SWIRL_TO > SCATTER_TO * 0.5, 'the wind-up ends too early — the scatter will read as straight lines')
-ok(FLATTEN_TO <= SCATTER_TO, 'the field is still flattening after the scatter has arrived')
 
 for (const name of Object.keys(drivers) as Driver[]) {
   ok(drivers[name](HOLD) === 1, `${name} has not finished when Scene 1 hands over`)
 }
 ok(spinAt(HOLD) === 0, 'the field is still turning when the statements arrive')
-ok(Math.max(SWIRL_TO, SCATTER_TO, STILL_TO, FLATTEN_TO, SETTLE_TO) <= 1, 'a driver runs past Scene 1')
+ok(Math.max(SWIRL_TO, SCATTER_TO, STILL_TO, SETTLE_TO) <= 1, 'a driver runs past Scene 1')
 
 const sample = (u: number): number[] => {
   const p = at(u)
-  return [swirlAt(p), scatterAt(p), flattenAt(p), settleAt(p), spinAt(p)]
+  return [swirlAt(p), scatterAt(p), settleAt(p), spinAt(p)]
 }
 const constantOver = (from: number, to: number, what: string): void => {
   const first = sample(from)
@@ -105,7 +102,7 @@ ok(INWARD_MIN > 0 && OUTWARD_MIN > 0, 'a scatter direction has no travel')
 ok(INWARD_MAX > 2.8, 'no inner star reaches the centre, let alone passes through it')
 ok(INWARD_MIN < 2.6, 'every inner star crosses the centre — none of them stop short in it')
 ok(OUTWARD_MAX > OUTWARD_MIN, 'every outer star travels exactly the same distance')
-ok(SETTLED_POINT_SIZE > 0, 'the settled field has no size')
+ok(SETTLED_SIZE_GAIN >= 1, 'the settled field is smaller than Scene 1 — it will vanish under the inversion')
 ok(scene1At(HOLD) === 1 && scene1At(0) === 0, 'Scene 1 does not span its own stretch')
 
 console.log('scatter: ok')

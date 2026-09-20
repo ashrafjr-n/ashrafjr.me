@@ -10,6 +10,10 @@ import { CanvasTexture, LinearFilter } from 'three'
 /**
  * Soft round sprite so points draw as dots, not squares.
  *
+ * `core` holds the sprite opaque out to that fraction of its radius before it
+ * falls off, for the settled field that Scene 3 inverts; 0 is the soft
+ * gradient the rest of the site uses.
+ *
  * `mipmaps: false` turns off mipmapping and minifies with a plain
  * `LinearFilter`. **This matters far more than it looks, for any layer whose
  * points all draw small.** The texture is 64x64 and a point sprite maps the
@@ -35,14 +39,25 @@ import { CanvasTexture, LinearFilter } from 'three'
  * than choosing one for good. Both textures are built up front; a swap is one
  * assignment and a `needsUpdate` flag.
  */
-export function createCircleTexture({ mipmaps = true }: { mipmaps?: boolean } = {}): CanvasTexture {
+export function createCircleTexture({
+  mipmaps = true,
+  core = 0,
+}: { mipmaps?: boolean; core?: number } = {}): CanvasTexture {
   const size = 64
   const canvas = document.createElement('canvas')
   canvas.width = canvas.height = size
   const ctx = canvas.getContext('2d')!
   const g = ctx.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2)
   g.addColorStop(0, 'rgba(255,255,255,1)')
-  g.addColorStop(0.35, 'rgba(255,255,255,0.6)')
+  if (core > 0) {
+    // Opaque out to `core`, then a short falloff. The default soft gradient is
+    // full white only at its centre, which survives being drawn on black but
+    // not being *inverted* onto white — see SPRITE_SWAP_AT in lib/scatter.ts.
+    g.addColorStop(core, 'rgba(255,255,255,1)')
+    g.addColorStop(Math.min(core + 0.25, 0.999), 'rgba(255,255,255,0.35)')
+  } else {
+    g.addColorStop(0.35, 'rgba(255,255,255,0.6)')
+  }
   g.addColorStop(1, 'rgba(255,255,255,0)')
   ctx.fillStyle = g
   ctx.fillRect(0, 0, size, size)

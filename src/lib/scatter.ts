@@ -33,13 +33,18 @@
  *   **the orbit runs out.** The time-based rate is scaled to nothing, so the
  *   field comes to rest instead of being stopped.
  *
- *   **the field flattens.** Every star is pulled along **its own sightline**
- *   onto one plane, which changes its distance and not its place on screen.
- *   Nothing moves as a result of it — it is what gives the settled field one
- *   uniform size and weight, so it reads as a texture behind the statements
- *   rather than as a space, and so Scene 3's panel has something evenly dark
- *   to invert. It is invisible by construction: measured over every on-screen
- *   star, the largest screen drift across the whole of it is 6e-16.
+ *   **the field settles.** The stars grow a little and take a harder-edged
+ *   sprite, so the settled field carries through Scene 3's inversion as real
+ *   dark points on white rather than as a grey haze; and the mouse parallax
+ *   dies, because a backdrop that still answered the pointer would keep
+ *   reading as a space.
+ *
+ * **Nothing changes any star's depth.** A version of this flattened the whole
+ * field onto one plane to give it a single uniform size — it moved nothing on
+ * screen, but it grew the far stars by up to 4.7x, and a field of points all
+ * swelling at once reads as the viewer moving into it. It was removed for the
+ * same reason the camera flight and the ring's turn were. Depth is the one
+ * thing the scroll does not touch.
  */
 // Explicit .ts extensions so `npm run check` can run this under plain node;
 // `allowImportingTsExtensions` is on and Vite resolves them either way.
@@ -55,7 +60,7 @@ export const SWIRL_TO = 0.8
  */
 export const SWIRL_EASE = 2.0
 /** Extra turns the ring gains across the wind-up. */
-export const RING_SWIRL_TURNS = 1.2
+export const RING_SWIRL_TURNS = 0.75
 /**
  * And the ambient cloud's, which has to be far smaller for the same *look*.
  * Its stars orbit at radii out to 62 against the ring's 2.7, so a turn there
@@ -65,14 +70,14 @@ export const RING_SWIRL_TURNS = 1.2
 export const CLOUD_SWIRL_TURNS = 0.06
 
 // --- the scatter ---
-export const SCATTER_TO = 0.85
+export const SCATTER_TO = 0.9
 /**
  * Ease-out: it leaves fast and arrives slow, which is what was asked for — but
  * **gently**. At 2.4 the ring was 70% scattered a quarter of the way into
  * Scene 1 and off the frame entirely, so the scene was over before it had
  * started; measured on screen.
  */
-export const SCATTER_EASE = 1.4
+export const SCATTER_EASE = 1.3
 /**
  * How far an inner-half ring star travels inward, in world units.
  *
@@ -82,62 +87,57 @@ export const SCATTER_EASE = 1.4
  * the short travellers stop near the middle and the long ones cross it, so the
  * hole in the ring fills and then spreads instead of emptying again.
  *
- * **The far end is bounded by the frame, not by taste.** At the ring's own
- * plane the frustum reaches about 2.85 units vertically and 5.07 horizontally,
- * so a star past ~5 is gone for good — and the settled field is what Scene 2
- * is read against and what Scene 3 inverts, so the ring emptying itself off
- * screen costs both of those. These were 2..8 and the ring vanished.
+ * **The far end is bounded by the frame, not by taste**, and the outward half
+ * is bounded hard. At the ring's own plane the frustum reaches about 2.85
+ * units vertically against the ring's own 2.7, so the ring already fills the
+ * frame's height and **any** outward travel starts pushing stars off the top
+ * and bottom at once. Measured on screen: at 2..8 the whole ring was gone by a
+ * tenth of the page, and at 0.6..3.5 the outward half still cleared the frame
+ * before the scatter was a third done. What is left has to stay — it is what
+ * Scene 2 is read against and what Scene 3 inverts.
  */
-export const INWARD_MIN = 1.5
-export const INWARD_MAX = 5.0
+export const INWARD_MIN = 1.2
+export const INWARD_MAX = 4.2
 /** And outward, for the outer half. */
-export const OUTWARD_MIN = 0.6
-export const OUTWARD_MAX = 3.5
+export const OUTWARD_MIN = 0.4
+export const OUTWARD_MAX = 2.2
 
 // --- the orbit running out ---
 export const STILL_FROM = 0.2
 export const STILL_TO = 0.85
 
-// --- the field flattening ---
-export const FLATTEN_TO = 0.7
-export const FLATTEN_EASE = 2.0
-/**
- * The plane every star ends on, in world units from the camera. It sets the
- * size they all settle at: Three draws a point as `size * 0.5 * height /
- * depth`, so one depth means one size.
- */
-export const FLAT_DIST = 12
-/**
- * Below this depth a star is left alone. The flatten scales a star's offset
- * from the camera by `FLAT_DIST / depth`, which runs away as the depth
- * approaches zero; a star this close is outside the frustum unless it is
- * almost exactly on the axis, so there is nothing on screen to protect.
- */
-export const FLAT_MIN_DEPTH = 2.0
-
 // --- the settled field ---
 /**
- * The size every star lands on.
+ * How much bigger every star draws once the field has settled, as a multiple
+ * of the size its own layer was authored at.
  *
- * **Sized by what it has to survive, which is Scene 3's white half.** The
- * panel inverts the canvas, so a settled star becomes a dark dot on white —
- * and at the 2.23px this used to be, those dots were too fine to read against
- * the white at all. At 0.055 they draw about 4px, which carries through the
- * inversion. It is also what makes the two layers match: the cloud is authored
- * at 0.11 for its own distances and the ring at 0.025 for its ~10 units, and
- * at one shared depth that would draw the cloud four times the ring's size.
+ * **Sized by what it has to survive, which is Scene 3's white half.** The panel
+ * inverts the canvas, so a settled star becomes a dark point on white — and at
+ * the sizes Scene 1 uses, those points were too fine to read against the white
+ * at all. It is a multiplier rather than one shared size precisely because
+ * nothing is flattened: each layer keeps its own depth spread, and a single
+ * absolute size would need one.
  */
-export const SETTLED_POINT_SIZE = 0.055
+export const SETTLED_SIZE_GAIN = 1.5
 /** Where the size, the sprite and the mouse parallax finish converging. */
 export const SETTLE_FROM = 0.25
 export const SETTLE_TO = 0.7
 /**
- * The point at which the cloud gives up its mipmapped sprite for the settled
- * one. It is a step — two textures cannot be blended — and it is put on the
- * first frame of scroll because page 0 is protected and because the far field
- * coming up to brightness *is* the first thing the scroll should do.
+ * How far through the settle both layers swap to the hard-edged sprite.
+ *
+ * The site's normal star is a soft radial gradient: full white only at its
+ * centre, fading to nothing at its edge. Inverted by Scene 3's panel that
+ * becomes a dot that is black only at its very centre and pale grey around it,
+ * which on white barely registers — **the stars in the white half were
+ * invisible**. The settled sprite holds full opacity across most of its radius
+ * instead, so it inverts to a solid dark point.
+ *
+ * It is a step, because two textures cannot be blended, so it is put halfway
+ * through the settle where the scatter is still travelling and there is plenty
+ * on screen to cover it. It must stay above 0: page 0 is protected and the
+ * soft sprite is part of it.
  */
-export const SPRITE_SWAP_AT = 0
+export const SPRITE_SWAP_AT = 0.5
 
 /** 0..1 across Scene 1's own stretch, from the transition value. */
 export function scene1At(p: number): number {
@@ -167,11 +167,6 @@ export function scatterAt(p: number): number {
 /** What is left of the orbit's rate — 1 turning, 0 at rest. */
 export function spinAt(p: number): number {
   return 1 - ramp(scene1At(p), STILL_FROM, STILL_TO)
-}
-
-/** How flat the field is: 0 is Scene 1's depth, 1 is one plane. */
-export function flattenAt(p: number): number {
-  return easeOut(ramp(scene1At(p), 0, FLATTEN_TO), FLATTEN_EASE)
 }
 
 /** How far the layers have converged on one size, one sprite and no parallax. */

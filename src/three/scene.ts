@@ -30,24 +30,19 @@ import {
   Float32BufferAttribute,
   Points,
   PointsMaterial,
-  Quaternion,
   Scene,
-  Vector3,
   WebGLRenderer,
 } from 'three'
 import { clamp, rand } from '../lib/math'
 import {
   CLOUD_SWIRL_TURNS,
-  FLAT_DIST,
-  FLAT_MIN_DEPTH,
   INWARD_MAX,
   INWARD_MIN,
   OUTWARD_MAX,
   OUTWARD_MIN,
   RING_SWIRL_TURNS,
-  SETTLED_POINT_SIZE,
+  SETTLED_SIZE_GAIN,
   SPRITE_SWAP_AT,
-  flattenAt,
   scatterAt,
   settleAt,
   spinAt,
@@ -292,18 +287,8 @@ interface ScatterFrame {
   swirl: number
   /** How far along its own travel each scattering star is, 0..1. */
   spread: number
-  /** How flat the field is: 0 is Scene 1's depth, 1 is a single plane. */
-  flat: number
   /** What is left of the orbit's rate — 1 turning, 0 at rest. */
   spin: number
-  /** The camera's position, in the layer's own local space. */
-  camX: number
-  camY: number
-  camZ: number
-  /** The view axis, in the layer's own local space. */
-  fwdX: number
-  fwdY: number
-  fwdZ: number
 }
 
 /**
@@ -327,20 +312,18 @@ interface ScatterFrame {
  * its radius changes, no star travels in a straight line — the two compose
  * into a spiral without either of them being written as one.
  *
- * **The flatten moves a star along its own sightline, not along the view
- * axis.** Scaling the star's offset *from the camera* leaves its direction —
- * and so its exact place on screen — untouched while taking its depth to
- * `FLAT_DIST`. The field therefore does not rearrange itself as it flattens;
- * it only loses the size and brightness spread that made it read as a space.
- * Flattening along the view axis instead throws the deep stars outward off the
- * frame and empties the picture.
+ * **No star's depth is ever touched.** Everything here happens in the stars'
+ * own orbital plane, seen from exactly where it was always seen. A version of
+ * this pulled the whole field onto one plane facing the camera; it moved
+ * nothing on screen but grew the far stars fourfold, and that reads as the
+ * viewer moving in. See `lib/scatter.ts`.
  *
  * Everything but the orbit is computed *from* the scroll value rather than
  * accumulated, so scrubbing back up rewinds it exactly.
  */
 function advance(layer: StarLayer, delta: number, frame: ScatterFrame): void {
   const arr = layer.positions
-  const { swirl, spread, flat, camX, camY, camZ, fwdX, fwdY, fwdZ } = frame
+  const { swirl, spread } = frame
   const spun = delta * frame.spin
 
   for (let i = 0; i < layer.count; i++) {
@@ -352,21 +335,6 @@ function advance(layer: StarLayer, delta: number, frame: ScatterFrame): void {
     let x = Math.cos(shown) * radius
     let y = layer.heights[i]
     let z = Math.sin(shown) * radius
-
-    if (flat > 0) {
-      const dx = x - camX
-      const dy = y - camY
-      const dz = z - camZ
-      const depth = dx * fwdX + dy * fwdY + dz * fwdZ
-      // Below FLAT_MIN_DEPTH the scaling runs away and there is nothing on
-      // screen to protect — see the constant.
-      if (depth > FLAT_MIN_DEPTH) {
-        const pull = 1 + (FLAT_DIST / depth - 1) * flat
-        x = camX + dx * pull
-        y = camY + dy * pull
-        z = camZ + dz * pull
-      }
-    }
 
     const i3 = i * 3
     arr[i3] = x
@@ -404,15 +372,16 @@ function setSprite(layer: StarLayer, texture: CanvasTexture): void {
 }
 
 /**
- * Ease a layer's point size from what it was authored at toward the one size
- * the settled field shares, skipping the write when it has not changed.
+ * Grow a layer's points toward their settled size, skipping the write when it
+ * has not changed. A multiple of what the layer was authored at, so each one
+ * keeps its own depth spread — nothing here is flattened.
  *
  * A material size change is free in Three — no rebuild, no re-upload — but the
  * value holds for the whole of Scenes 2 and 3, so the comparison is worth more
  * than the assignment it saves.
  */
 function setPointSize(layer: StarLayer, authored: number, settled: number): void {
-  const size = authored + (SETTLED_POINT_SIZE - authored) * settled
+  const size = authored * (1 + (SETTLED_SIZE_GAIN - 1) * settled)
   const material = layer.points.material as PointsMaterial
   if (material.size !== size) material.size = size
 }
@@ -459,6 +428,14 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
    * minification filter differs; it is a second 64x64 upload and nothing more.
    */
   const plainSprite = createCircleTexture({ mipmaps: false })
+  /**
+   * The settled field's sprite: opaque across most of its radius, and no
+   * mipmaps. Both layers take it once the field has settled, because a soft
+   * gradient inverts to a dot that is dark only at its very centre — which is
+   * why the stars in Scene 3's white half could not be seen. See
+   * `SPRITE_SWAP_AT` in `lib/scatter.ts`.
+   */
+  const settledSprite = createCircleTexture({ mipmaps: false, core: 0.55 })
 
   /**
    * Build a layer of orbiting stars. `place` supplies each star's orbit radius
@@ -607,58 +584,22 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
   /** Both layers, in one array so the frame loop allocates nothing per frame. */
   const layers = [cloud, band]
 
-  // --- The scatter's fixed geometry, solved once: the camera never moves ---
-  /** The view axis, world space: the direction the bird's-eye camera faces. */
-  const viewAxis = new Vector3()
-  world.camera.getWorldDirection(viewAxis)
-  /** Scratch, reused every frame so the loop allocates nothing. */
-  const inverseTurn = new Quaternion()
-  const camLocal = new Vector3()
-  const axisLocal = new Vector3()
-  const frame: ScatterFrame = {
-    swirl: 0,
-    spread: 0,
-    flat: 0,
-    spin: 1,
-    camX: 0,
-    camY: 0,
-    camZ: 0,
-    fwdX: 0,
-    fwdY: 0,
-    fwdZ: 0,
-  }
+  /** Rebuilt in place each frame, so the loop allocates nothing. */
+  const frame: ScatterFrame = { swirl: 0, spread: 0, spin: 1 }
   /** Whether the settled field has already been written into the buffers. */
   let stillDrawn = false
   /** Last frame's scatter values, so an unchanged frame can be skipped. */
   let drawnSwirl = -1
   let drawnSpread = -1
-  let drawnFlat = -1
   let drawnSettled = -1
 
-  /**
-   * Run the press over both layers. The displacement is written into each
-   * layer's own buffer, which its own rotation then turns, so the camera and
-   * the view axis are converted into that layer's local space first — the same
-   * reason the fly-past used to do it.
-   */
+  /** Run the scatter over both layers. */
   function advanceLayers(delta: number, wound: number): void {
     for (const layer of layers) {
       // The ring and the cloud wind up by very different amounts for the same
       // look on screen — see CLOUD_SWIRL_TURNS.
       frame.swirl =
         wound * Math.PI * 2 * (layer === band ? RING_SWIRL_TURNS : CLOUD_SWIRL_TURNS)
-      inverseTurn.copy(layer.points.quaternion).invert()
-      // The layer may be offset as well as turned (the ring's slide), so the
-      // camera is moved into local space, not just rotated into it. The view
-      // axis is a direction and only needs the rotation.
-      camLocal.copy(world.camera.position).sub(layer.points.position).applyQuaternion(inverseTurn)
-      axisLocal.copy(viewAxis).applyQuaternion(inverseTurn)
-      frame.camX = camLocal.x
-      frame.camY = camLocal.y
-      frame.camZ = camLocal.z
-      frame.fwdX = axisLocal.x
-      frame.fwdY = axisLocal.y
-      frame.fwdZ = axisLocal.z
       advance(layer, delta, frame)
     }
   }
@@ -705,7 +646,6 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
 
     // --- The scatter, all four of its parts, all off `progress` ---
     frame.spread = scatterAt(progress)
-    frame.flat = flattenAt(progress)
     frame.spin = spinAt(progress)
     const wound = swirlAt(progress)
     const settled = settleAt(progress)
@@ -734,7 +674,11 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
     // texture — see SETTLED_POINT_SIZE.
     setPointSize(cloud, CLOUD_POINT_SIZE, settled)
     setPointSize(band, BAND_POINT_SIZE, settled)
-    setSprite(cloud, frame.flat > SPRITE_SWAP_AT ? plainSprite : mippedSprite)
+    // Both layers take the hard-edged sprite for the settled field: it is what
+    // survives Scene 3's inversion as a solid dark point. See SPRITE_SWAP_AT.
+    const hard = settled > SPRITE_SWAP_AT
+    setSprite(cloud, hard ? settledSprite : mippedSprite)
+    setSprite(band, hard ? settledSprite : plainSprite)
 
     // **Skip the position pass whenever nothing it reads has actually moved.**
     // That is 20,600 stars' worth of trig and writes plus the two buffer
@@ -771,14 +715,12 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
     const moved =
       wound !== drawnSwirl ||
       frame.spread !== drawnSpread ||
-      frame.flat !== drawnFlat ||
       settled !== drawnSettled
     const moving = moved || frame.spin > 0 || reach > 0 || MODEL_ENABLED
     if (moving || !stillDrawn) advanceLayers(delta, wound)
     stillDrawn = !moving
     drawnSwirl = wound
     drawnSpread = frame.spread
-    drawnFlat = frame.flat
     drawnSettled = settled
 
     // The transition for the spin and the Scene 3 lift, and the page for the
