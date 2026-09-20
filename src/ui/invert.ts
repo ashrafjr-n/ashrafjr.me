@@ -35,18 +35,26 @@ import { easeEnds } from '../lib/phases'
 /**
  * Page range over which the panel rises into place.
  *
- * **It was 0.70..0.96 and that read as slow and heavy.** 0.26 of the page is
- * 260vh of scroll for a half-screen panel, and on a `smoothstep` — which
- * spends its whole run accelerating and then decelerating — the first fifth
- * of that only moved it a tenth of the way. Over 0.16 on the curve below the
- * panel reaches half height in about 66vh against the old 130vh.
+ * **It was 0.70..0.96 and that read as slow and heavy**, then 0.72..0.88 and
+ * still both late and slow. 0.26 of the page is 260vh of scroll for a
+ * half-screen panel, and on a `smoothstep` — which spends its whole run
+ * accelerating and then decelerating — the first fifth of that only moved it
+ * a tenth of the way. Over 0.12 on the curve below the panel reaches half
+ * height in about **44vh against the original 130vh**, and starts 100vh
+ * sooner.
  *
- * `PANEL_FROM` has to stay clear of the identity block's last fill sweep
- * (page 0.627 — see `FILL_*` in `ui/identity.ts`), or the inversion arrives
- * over type that is still filling.
+ * `PANEL_FROM` has to stay clear of the identity block's last fill sweep,
+ * which completes at page 0.519 (see `FILL_*` in `ui/identity.ts`), or the
+ * inversion arrives over type that is still filling. That is what bounds how
+ * much earlier this can come, and the two move together.
+ *
+ * **Everything on the page is now over by 0.72**, which leaves the last 280vh
+ * of the scroll range on a finished composition. The honest fix for that is a
+ * shorter page (`body { min-height }` plus the splits in `lib/phases.ts`),
+ * not a slower panel.
  */
-const PANEL_FROM = 0.72
-const PANEL_TO = 0.88
+const PANEL_FROM = 0.6
+const PANEL_TO = 0.72
 
 /**
  * Where the rise spends its time: a short ease in, a long settle, and a
@@ -58,8 +66,8 @@ const PANEL_TO = 0.88
  * ramps separately is what buys the middle back and makes the panel read as
  * light rather than as something being hauled up.
  */
-const RISE_HEAD = 0.12
-const RISE_TAIL = 0.45
+const RISE_HEAD = 0.08
+const RISE_TAIL = 0.32
 
 /**
  * How far the panel has risen at a page value, 0..1.
