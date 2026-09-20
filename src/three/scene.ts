@@ -21,9 +21,7 @@ import {
   Float32BufferAttribute,
   Points,
   PointsMaterial,
-  Quaternion,
   Scene,
-  Vector3,
   WebGLRenderer,
 } from 'three'
 import { clamp, rand } from '../lib/math'
@@ -245,33 +243,6 @@ const BAND_SCATTER_EASE = 2.2
 const BAND_SWIRL = Math.PI * 2
 
 /**
- * The ring **leaves the screen** before identity arrives — it is never faded.
- *
- * This was a fade once and that was wrong: the stars dimmed in place and read
- * as being switched off rather than as going somewhere. They keep their full
- * brightness the whole way now and simply fly out of frame, exactly as the
- * ambient cloud does, so the two layers clear the screen the same way.
- *
- * The scatter alone cannot do it. It is eased (`BAND_SCATTER_EASE`) so the ring
- * holds its shape early, which leaves it only ~17% of the way out at HOLD —
- * radius ~4 to 7, still well inside the frame — and the honest fix is not to
- * flatten that easing, which is what gives Scene 1's break-up its shape. So the
- * band gets the cloud's other move as well: a straight run along the
- * model -> camera axis, ramped in late and hard, that takes it past the lens
- * and out. Measured against the frustum, **anything past radius 8 from the
- * model's axis is off screen at every angle and height the band occupies**, and
- * these distances clear the camera itself (10.4 units) several times over.
- *
- * It is monotonic and clamps at HOLD, so the ring is gone the frame identity's
- * stretch begins and never comes back.
- */
-const BAND_EXIT_FROM = 0.26
-const BAND_EXIT_MIN = 28
-const BAND_EXIT_MAX = 46
-/** Ease-in, so the ring drifts off before it streaks off. */
-const BAND_EXIT_EASE = 2.0
-
-/**
  * How far out the band is, 0..1 of each star's scatter, at a transition value.
  *
  * It holds at its HOLD value for good. The ring used to gather back in across
@@ -281,24 +252,6 @@ const BAND_EXIT_EASE = 2.0
 function bandScatterAt(p: number): number {
   return Math.pow(Math.min(p, HOLD), BAND_SCATTER_EASE)
 }
-
-/** How far along its run off the screen the band is, 0..1. Monotonic. */
-function bandExitAt(p: number): number {
-  return Math.pow(clamp((p - BAND_EXIT_FROM) / (HOLD - BAND_EXIT_FROM), 0, 1), BAND_EXIT_EASE)
-}
-
-/**
- * How far each ambient star travels toward the camera by full scroll. The
- * furthest a star can start behind the camera along this axis is 62 (cloud
- * radius) + 10.2 (the camera's own offset) = 72.2. Sizing the travel just under
- * that is deliberate: successively deeper stars sweep through the visible cone
- * as the scroll runs, so the field keeps streaming instead of emptying at once,
- * and is fully past the camera by Scene 2.
- */
-const FLY_DISTANCE_MIN = 60
-const FLY_DISTANCE_MAX = 75
-/** Ease-in on the fly-past, so stars build up speed rather than lurching off. */
-const FLY_EASE = 1.6
 
 // --- Interaction tuning (mouse parallax; gentle / clamped) ---
 const MAX_TILT = 0.09 // max parallax tilt from the mouse (~5°), radians
@@ -314,18 +267,10 @@ interface StarLayer {
   speeds: Float32Array
   /** Per-star extra orbit radius at full scroll — the band flying apart. */
   scatter: Float32Array | null
-  /** Per-star travel toward the camera at full scroll — the ambient fly-past. */
-  fly: Float32Array | null
   /** Extra orbit angle at full scroll — the band spiralling as it scatters. */
   swirl: number
   /** Maps scroll progress to how far along this layer's displacement is. */
   curve: (progress: number) => number
-  /**
-   * The same, for the fly-past alone, when it is not on the same curve as the
-   * scatter. The band needs both: an eased scatter that holds its ring shape
-   * early, and a late, hard run off the screen. Defaults to `curve`.
-   */
-  flyCurve: (progress: number) => number
   /**
    * The attribute's **own** backing array, written directly each frame.
    *
@@ -352,22 +297,12 @@ interface StarLayer {
  * position, so scrubbing back up rewinds it exactly instead of drifting — and
  * it is why the fly-past needs no wrap-around: a star that has passed the
  * camera simply keeps going, and nothing brings it back into view.
- *
- * `flyX/Y/Z` is the unit vector from the model toward the camera.
  */
-function advance(
-  layer: StarLayer,
-  delta: number,
-  progress: number,
-  flyX: number,
-  flyY: number,
-  flyZ: number,
-): void {
+function advance(layer: StarLayer, delta: number, progress: number): void {
   const arr = layer.positions
   // Same scroll value for every layer; each just responds on its own curve —
   // and the band's two displacements are on two different ones.
   const t = layer.curve(progress)
-  const flyT = layer.flyCurve(progress)
 
   for (let i = 0; i < layer.count; i++) {
     const angle = layer.angles[i] + layer.speeds[i] * delta
@@ -378,13 +313,6 @@ function advance(
     let x = Math.cos(shown) * radius
     let y = layer.heights[i]
     let z = Math.sin(shown) * radius
-
-    if (layer.fly) {
-      const travelled = layer.fly[i] * flyT
-      x += flyX * travelled
-      y += flyY * travelled
-      z += flyZ * travelled
-    }
 
     const i3 = i * 3
     arr[i3] = x
@@ -454,10 +382,8 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
     } = {},
     transition: {
       scatter?: () => number
-      fly?: () => number
       swirl?: number
       curve?: (progress: number) => number
-      flyCurve?: (progress: number) => number
     } = {},
   ): StarLayer {
     const positions = new Float32Array(count * 3)
@@ -467,7 +393,6 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
     const angles = new Float32Array(count)
     const speeds = new Float32Array(count)
     const scatter = transition.scatter ? new Float32Array(count) : null
-    const fly = transition.fly ? new Float32Array(count) : null
     const c = new Color()
 
     for (let i = 0; i < count; i++) {
@@ -480,7 +405,6 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
       angles[i] = angle
       speeds[i] = randomOrbitSpeed()
       if (scatter) scatter[i] = transition.scatter!()
-      if (fly) fly[i] = transition.fly!()
 
       positions[i3] = Math.cos(angle) * radius
       positions[i3 + 1] = y // fixed height: orbits stay level
@@ -535,10 +459,8 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
       angles,
       speeds,
       scatter,
-      fly,
       swirl: transition.swirl ?? 0,
       curve: transition.curve ?? ((p) => p),
-      flyCurve: transition.flyCurve ?? transition.curve ?? ((p) => p),
       // The attribute's copy of `positions`, not `positions` itself.
       positions: posAttr.array as Float32Array,
       posAttr,
@@ -557,11 +479,6 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
     // Orbit radius is the distance from the model's *vertical axis*, so height
     // drops out of it — that is what keeps each star on a level circle.
     return { radius: dist * sinPolar, y: dist * cosPolar * CLOUD_FLATTEN }
-  }, {}, {
-    // On scroll these fly toward and past the camera, and are never wrapped
-    // back around — the field thins out as Scene 1 is left behind.
-    fly: () => rand(FLY_DISTANCE_MIN, FLY_DISTANCE_MAX),
-    curve: (p) => Math.pow(p, FLY_EASE),
   })
 
   // The close-in band — the orbits that stay on screen for a whole revolution.
@@ -576,13 +493,9 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
     clearLevel: BAND_CLEAR_LEVEL,
     sprite: bandSprite,
   }, {
-    // On scroll these spiral out of their tight orbit, then run past the
-    // camera and off the screen — two displacements on two curves.
     scatter: () => rand(BAND_SCATTER_MIN, BAND_SCATTER_MAX),
     swirl: BAND_SWIRL,
     curve: bandScatterAt,
-    fly: () => rand(BAND_EXIT_MIN, BAND_EXIT_MAX),
-    flyCurve: bandExitAt,
   })
 
   // --- Scene 1 world layer (the model), drawn over the starfield ---
@@ -600,9 +513,6 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
   let page = 0
   /** Its velocity, in page units per second — the spring's other half. */
   let pageVel = 0
-  const flyDir = new Vector3()
-  const layerFly = new Vector3()
-  const invRotation = new Quaternion()
 
   function update(time: number, state: InputState): number {
     const delta = Math.min((time - prevTime) / 1000, 0.1) // clamp big tab-switch gaps
@@ -644,22 +554,8 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
     cloud.points.rotation.y += (tiltY - cloud.points.rotation.y) * TILT_LERP
     cloud.points.rotation.x += (tiltX - cloud.points.rotation.x) * TILT_LERP
 
-    // The camera moves during the transition, so the fly-past direction is
-    // re-read each frame: model -> camera, normalised.
-    flyDir.copy(world.camera.position).normalize()
-
-    // Advance both layers along their orbits, and apply their scroll
-    // displacement in the same pass. Increasing the angle with x = cos,
-    // z = sin turns them clockwise from the camera — the same direction the
-    // model spins.
-    //
-    // The offsets are written into each layer's own buffer, which the mouse
-    // tilt then rotates, so the world-space direction is converted into that
-    // layer's local space first — otherwise the stars fly a few degrees wide
-    // of the camera instead of straight past it.
     for (const layer of layers) {
-      layerFly.copy(flyDir).applyQuaternion(invRotation.copy(layer.points.quaternion).invert())
-      advance(layer, delta, progress, layerFly.x, layerFly.y, layerFly.z)
+      advance(layer, delta, progress)
     }
 
     // The transition for the spin and the Scene 3 lift, and the page for the
