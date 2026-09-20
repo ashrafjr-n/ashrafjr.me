@@ -40,31 +40,35 @@ export function initPointer(): void {
  * scroll. Also fires once on init so a reload part-way down the page starts at
  * the right progress rather than snapping from 0.
  *
- * **The range is measured on resize, never in the scroll handler.**
+ * **The range is measured out of band, never in the scroll handler.**
  * `scrollHeight` is a layout-dependent property, so reading it forces the
  * browser to flush layout synchronously — and doing that inside a `scroll`
  * listener puts a forced reflow on the single hottest path on the site, once
- * per scroll event, for a number that cannot change without a resize. Every
- * element on the page is `position: fixed` and the range comes from a
- * `min-height` in `vh`, so the viewport is the only thing it depends on.
+ * per scroll event.
+ *
+ * **But it cannot simply be measured once at startup either, and that shipped
+ * broken.** The range comes from `body { min-height }`, and in dev the
+ * stylesheet is injected by script rather than being render-blocking — so at
+ * the moment this runs the body can still be one viewport tall. The range then
+ * comes out near zero and every scroll maps many times too far down the page:
+ * a touch of the wheel landed in the middle of Scene 2. Reading it fresh per
+ * event used to hide that, at the cost of the reflow.
+ *
+ * So it is measured whenever the body actually changes size — which is what a
+ * `ResizeObserver` is for, and it fires when the stylesheet lands, on every
+ * resize, and on an orientation change, without any of them needing their own
+ * listener.
  */
 export function initScroll(): void {
   let range = 0
-  const measure = (): void => {
-    range = document.body.scrollHeight - window.innerHeight
-  }
   const read = (): void => {
     state.scroll = range > 0 ? clamp(window.scrollY / range, 0, 1) : 0
   }
+  const measure = (): void => {
+    range = document.body.scrollHeight - window.innerHeight
+    read()
+  }
   window.addEventListener('scroll', read, { passive: true })
-  window.addEventListener(
-    'resize',
-    () => {
-      measure()
-      read()
-    },
-    { passive: true },
-  )
+  new ResizeObserver(measure).observe(document.body)
   measure()
-  read()
 }
