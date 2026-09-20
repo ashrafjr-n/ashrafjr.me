@@ -487,7 +487,7 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
    * why the stars in Scene 3's white half could not be seen. See
    * `SPRITE_SWAP_AT` in `lib/scatter.ts`.
    */
-  const settledSprite = createCircleTexture({ mipmaps: false, core: 0.7 })
+  const settledSprite = createCircleTexture({ mipmaps: false, core: 0.68 })
 
   /**
    * Build a layer of orbiting stars. `place` supplies each star's orbit radius

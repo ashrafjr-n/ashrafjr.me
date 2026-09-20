@@ -141,7 +141,7 @@ export const STILL_TO = 0.85
  * stretch that everything else settles in, which is what was asked for: the
  * ambient stars pick up, slow down, and end up spread about at random.
  */
-export const FILL_CHANCE = 0.03
+export const FILL_CHANCE = 0.025
 /** The depths the spread targets are drawn between, in world units. */
 export const FILL_NEAR = 14
 export const FILL_FAR = 46
@@ -163,7 +163,7 @@ export const FILL_REACH = 1.15
  * nothing is flattened: each layer keeps its own depth spread, and a single
  * absolute size would need one.
  */
-export const SETTLED_SIZE_GAIN = 2.6
+export const SETTLED_SIZE_GAIN = 2.2
 /** Where the size, the sprite and the mouse parallax finish converging. */
 export const SETTLE_FROM = 0.25
 export const SETTLE_TO = 0.7
