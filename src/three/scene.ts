@@ -94,13 +94,16 @@ const SPEED_TIERS = [
 ]
 
 /**
- * The ambient field's shading: grayscale from pure white down to a slightly
- * dimmer silver-white, never tinted. Deliberately not the band's brighter look
- * (`BAND_BRIGHT_*` below).
+ * The ambient field's shading: **pure white, at full opacity**, never tinted.
+ *
+ * It used to be a range (0.78..1.0 at 0.85 opacity), which put a silver-grey
+ * cast and a veil of transparency over most of the field. Both were removed on
+ * request — the stars are meant to read as white points, not as dimmed ones.
+ * Keep r = g = b whatever these become; the palette allows nothing else.
  */
-const STAR_BRIGHT_MIN = 0.78
+const STAR_BRIGHT_MIN = 1.0
 const STAR_BRIGHT_MAX = 1.0
-const STAR_OPACITY = 0.85
+const STAR_OPACITY = 1.0
 
 // --- Close-in orbit band ---
 // The wide cloud can never show a full loop: the camera sits *inside* it
