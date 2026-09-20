@@ -947,9 +947,14 @@ html.has-cursor button {
      load-bearing rather than incidental: the press leaves the whole star field
      on screen for the rest of the page, so the half rises over a field of
      white points on black and turns it into black points on white. No second
-     copy of anything, and nothing to keep in sync. If the stars ever stop
-     being drawn through Scene 3 — the still-frame gate in `three/scene.ts` is
-     what could do it — the white half goes blank. */
+     copy of anything, and nothing to keep in sync.
+
+     It is also why `three/scene.ts` skips only its position pass when the
+     field has stopped moving and never the render itself: the renderer is
+     `preserveDrawingBuffer: false`, so a frame that is not drawn has undefined
+     contents, and this panel does not paint a white half — it inverts whatever
+     the canvas is showing beneath it. A dropped frame here empties the white
+     half of its stars. */
   background: #ffffff;
   mix-blend-mode: difference;
   pointer-events: none;
