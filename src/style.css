@@ -793,8 +793,8 @@ body {
 
 /* ===========================================================
    Scroll marker (ui/cues.ts)
-   Scene 1 only, bottom-centre and deliberately low. A mouse, and nothing else
-   — this is not a counter or a progress bar.
+   Scene 1 only, bottom-centre and deliberately low. The word `Scroll`, and
+   nothing else — this is not a counter or a progress bar.
    =========================================================== */
 .cue {
   position: fixed;
@@ -802,21 +802,30 @@ body {
   bottom: clamp(0.85rem, 2vh, 1.5rem);
   transform: translateX(-50%);
   z-index: 20;
-  color: var(--text-dim);
+  /* Full white, not `--text-dim`: the breathe below is what makes the word
+     faint, and stacking a half-alpha colour under it took the peak to ~0.22,
+     which is nearly invisible. One place decides how transparent it is. */
+  color: #ffffff;
   pointer-events: none;
 }
 
-.cue-icon {
+/* Deliberately quiet: small, widely tracked and never fully opaque even at the
+   top of its breathe (see the keyframes below). It is a hint, not a label. */
+.cue-word {
   display: block;
-  width: clamp(22px, 2vw, 30px);
-  height: auto;
+  font-family: var(--font-code);
+  font-size: clamp(0.62rem, 1vw, 0.72rem);
+  letter-spacing: 0.38em;
+  /* The tracking is trailing, so the word sits a half-space right of centre
+     without this. */
+  text-indent: 0.38em;
 }
 
-/* It breathes, because Scene 1 is otherwise completely still and a static mark
-   there reads as decoration rather than as an affordance. It is the only
-   looping animation on the site.
+/* It breathes — slowly, and never past half opacity — because Scene 1 is
+   otherwise completely still and a static mark there reads as decoration rather
+   than as an affordance. It is the only looping animation on the site.
 
-   **The breathe is on the icon, the scroll fade is on the container**, and they
+   **The breathe is on the word, the scroll fade is on the container**, and they
    have to stay apart: a running animation beats an inline style, so an
    `opacity` keyframe here would simply overwrite the value ui/cues.ts writes
    and the marker would never fade out. Two elements, one property each,
@@ -824,21 +833,21 @@ body {
 @keyframes cue-breathe {
   0%,
   100% {
-    opacity: 0.4;
+    opacity: 0.08;
   }
   50% {
-    opacity: 1;
+    opacity: 0.45;
   }
 }
 
-.cue-icon {
-  animation: cue-breathe 2.8s ease-in-out infinite;
+.cue-word {
+  animation: cue-breathe 5s ease-in-out infinite;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .cue-icon {
+  .cue-word {
     animation: none;
-    opacity: 0.8;
+    opacity: 0.35;
   }
 }
 
