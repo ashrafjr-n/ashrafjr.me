@@ -1,26 +1,28 @@
 /**
  * How the page's one smoothed scroll value splits into the three scenes.
  *
- *   page 0 .. IDENTITY_FROM   Scene 1 -> the ring breaks up   (transition 0 .. HOLD)
+ *   page 0 .. IDENTITY_FROM   Scene 1 -> the dive and the glass (transition 0 .. HOLD)
  *   IDENTITY_FROM .. _TO      02 — IDENTITY                   (transition held at HOLD)
  *   IDENTITY_TO .. 1          ring gathers, model rises       (transition HOLD .. 1)
  *
  * `transition` is the value every star and model constant was tuned
  * against, so none of them change: identity is inserted by pausing it. HOLD is
- * RISE_START (0.45) — the ambient cloud has flown past, a scattered
- * third of the ring is still orbiting on screen, and the model has not
- * started. Those few stars are the identity scene's sky.
+ * RISE_START (0.45) — by then the ambient cloud has flown past, the corridor
+ * has struck the glass and its dust has drifted off it, and the model has not
+ * started. Identity's sky is the black that leaves, and that is deliberate:
+ * see `IDENTITY_LEAD`.
  *
- * Scroll lengths, of a 900vh range (body is 1000vh in style.css — change them
- * together): Scene 1's break-up gets 240vh, identity 320vh, and the move into
+ * Scroll lengths, of a 1060vh range (body is 1160vh in style.css — change them
+ * together): Scene 1 gets 400vh, identity 320vh, and the move into
  * Scene 3 340vh — **eased in and out**, so the transition leaves identity
  * gently instead of resuming at full speed, and settles as the model lands.
  *
- * **Scene 1's 240vh is what paces the scatter.** The ring flying apart and the
- * cloud streaming past the camera are pure functions of this value, and their
- * own distances and easings are solved against the camera frustum and must not
- * be retuned — so the only honest way to slow the break-up down is to spend
- * more scroll on it. It ran in 90vh and read as far too quick.
+ * **Scene 1's 400vh is what paces the dive**, and it is the only lever the
+ * dive has. The flight into the ring, the corridor, the impact on the glass
+ * and the dust clearing are all pure functions of this value, and their
+ * distances are solved against the camera frustum — so the honest way to give
+ * the sequence room is to spend more scroll on it. It was 240vh when Scene 1
+ * was a scatter and nothing more; four beats do not fit in that.
  *
  * **Both ends of the hold are velocity-continuous, and that is the point.**
  * Scene 1's break-up used to run dead linear and then stop the instant
@@ -32,8 +34,8 @@
  */
 export const HOLD = 0.45
 /** Exported for `phases.check.ts`, so its boundaries cannot go stale. */
-export const IDENTITY_FROM = 240 / 900
-export const IDENTITY_TO = 560 / 900
+export const IDENTITY_FROM = 400 / 1060
+export const IDENTITY_TO = 720 / 1060
 
 /**
  * 0..1 with **zero slope at both ends**, easing over only `head` and `tail` of
@@ -93,25 +95,23 @@ export function toTransition(page: number): number {
  * How far the identity scene reaches past its own stretch, at each end, in
  * page units.
  *
- * **This is what closes the black gap between the scenes.** The transition is
- * held through identity, so at the hold the ambient cloud has already streamed
- * past the camera and all that is left of Scene 1 is a scattered handful of
- * ring stars — and the model does not clear the bottom of the frame until well
- * into Scene 3. Without an overlap the page passes through two stretches with
- * nothing on them at all. Reaching back lets the thread start climbing while
- * Scene 1 is still breaking up, and reaching forward keeps the last statement
- * fading as the model rises into it.
+ * **The lead is 0, and that is the change the dive brought.** It was 0.16, and
+ * it existed to close a black gap: Scene 1 used to empty well before its own
+ * stretch was up, so the page passed through a stretch with a blank frame and
+ * a line that had not started filling, and reaching the statements back into
+ * it was what turned two events into one handover.
  *
- * **The lead is 0.16, up from 0.1, because Scene 1 empties before its own
- * stretch is over.** The ring reaches the edge of the frame on the scatter
- * alone by about page 0.14 and is streaking off from 0.12, but identity used to
- * arrive at 0.167 and the model at 0.22 — so the page passed through a stretch
- * with a blank frame and nothing but the outline of a line that had not started
- * yet. Reaching further back lands the text while the ring is still on its way
- * out, which is what turns three separate events into one handover.
+ * Scene 1 now ends on the impact and **the black after it is the composition,
+ * not a gap** — it is the beat the reader is given to register that everything
+ * that had depth is now stuck to a flat surface, and the statements arrive
+ * onto that surface rather than over the tail of something else. Reaching them
+ * back into it would land them on top of the dust still clearing off the
+ * glass, which is the one thing the sequence is building toward. The trail at
+ * the far end is untouched: the model still has to rise into a block that is
+ * already complete.
  */
 /** Exported for `phases.check.ts`. */
-export const IDENTITY_LEAD = 0.16
+export const IDENTITY_LEAD = 0
 const IDENTITY_TRAIL = 0.09
 
 /**
@@ -123,15 +123,17 @@ const IDENTITY_TRAIL = 0.09
  * move during the scene it is now in. The page value keeps running, so the
  * rise is hung on that instead.
  *
- * **It sets off as the ring finishes leaving, and the overlap is the point.**
- * The ring runs *outward and past the lens* while the model climbs *up from
- * below the frame*; they are opposite moves, so they read as a handover rather
- * than as two things competing. Holding the model back until the ring was
- * completely gone was tried and it left a blank frame between them.
+ * **It starts where identity does**, which is where Scene 1 ends. It used to
+ * reach back into Scene 1 by the same 0.16 the statements did, to close the
+ * same black gap; with the dive there is nothing to reach back into but the
+ * corridor and the glass, and a model rising through either of those is
+ * nonsense. The model is off (`MODEL_ENABLED`), so this costs nothing today —
+ * it is here so that flipping that flag back on does not put the model inside
+ * the tunnel.
  */
 /** Exported for `phases.check.ts`. */
-export const MODEL_FROM = 0.15
-const MODEL_TO = 0.4
+export const MODEL_FROM = IDENTITY_FROM
+const MODEL_TO = 0.62
 
 /** 0..1 across the model's rise into Scene 2, 0 before it and 1 after. */
 export function toModel(page: number): number {

@@ -49,12 +49,15 @@ ok(toIdentity(1) === 1, 'and is over at the bottom')
 ok(toIdentity(FROM - IDENTITY_LEAD) === 0, 'identity starts exactly at its lead')
 ok(toIdentity(FROM - IDENTITY_LEAD + 1e-6) > 0, 'and has started just after it')
 
-// The handover out of Scene 1. The ring reaches the frame's edge on the
-// scatter alone well before Scene 1's own stretch is up, so if either of these
-// slipped past IDENTITY_FROM the page would show a blank frame between the ring
-// leaving and the next thing arriving. That gap has shipped twice.
-ok(FROM - IDENTITY_LEAD > 0, 'identity reaches back into Scene 1, but not to the top of the page')
-ok(MODEL_FROM < FROM, 'the model is already rising before identity\'s own stretch begins')
-ok(toIdentity(MODEL_FROM) > 0, 'and identity is on screen before the model starts')
+// The handover out of Scene 1. It used to be an overlap, closing a blank frame
+// between the ring leaving and the next thing arriving — a gap that shipped
+// twice. The dive replaced that gap with a beat that is *meant* to be empty:
+// Scene 1 ends on the impact, and the black after it is what the statements
+// arrive onto. So what is guarded here is the opposite of what it was — that
+// nothing reaches back over the glass.
+ok(IDENTITY_LEAD >= 0, 'identity never starts before the page does')
+ok(toIdentity(FROM) === 0, 'the statements do not reach back over the impact')
+ok(toIdentity(FROM + 1e-6) > 0, 'and start as soon as Scene 1 is over')
+ok(MODEL_FROM >= FROM, 'the model never rises inside the tunnel')
 
 console.log('phases: ok')
