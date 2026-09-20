@@ -214,9 +214,11 @@ export const SETTLE_TO = 1.0
  * makes it a mark.
  *
  * **It was 2.6, and the black stars read as too heavy** — thinned on request.
- * The floor is not taste: under about 1.6 the hard-core sprite stops carrying
- * across the inversion and the white half goes back to the pale smudges this
- * exists to fix, so re-measure the inked share if it is taken much lower.
+ * Measured at 1536x864 at page 0.9, over the band below the type: 0.657% of
+ * the white half inked at 2.6 against 0.368% at 2.0, with the black half lit
+ * at 0.306% either way. So the white half still carries a little more ink than
+ * the black page it is the negative of, which is the floor this has — much
+ * under it and the half goes back to the pale smudges it exists to fix.
  */
 export const BOLD_SIZE_GAIN = 2.0
 
