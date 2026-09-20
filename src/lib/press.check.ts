@@ -11,11 +11,12 @@
  *     value it set out from.
  *  3. **The beats overlap in the right order**, so the press reads as one move
  *     rather than four.
- *  4. **Everything has finished by the time Scene 1 is over.** The settled
- *     field is Scene 2's backdrop and Scene 3's inverted one, and `isMoving`
- *     is what lets the renderer stop entirely for those two scenes — if any
- *     curve were still running past the end of Scene 1 that gate would be
- *     lying and the field would freeze mid-press.
+ *  4. **Everything has finished, and is exactly pinned, once Scene 1 is over.**
+ *     The settled field is Scene 2's backdrop and Scene 3's inverted one, and
+ *     `three/scene.ts` skips its position pass on the strength of these
+ *     values not changing — so a curve that crept by a float's width past the
+ *     end of Scene 1 would redraw 20,600 points for the rest of the page and
+ *     the gate would quietly buy nothing.
  */
 import {
   FACE_FROM,
