@@ -70,12 +70,18 @@ export const SCATTER_END = 0.4387
  * How much of the run above is spent slowing down, as a share of it.
  *
  * **The field has to arrive at rest, not be cut off**, and `SCATTER_END` alone
- * would cut it off: the transition is still travelling at ~87% of full rate
- * where it now clamps. This is the deceleration — a short one, so the motion
- * stays brisk and then sheds its speed quickly and stops dead, rather than
- * drifting out over half the scene the way the old tail did.
+ * would cut it off: the transition is still travelling at most of full rate
+ * where it now clamps. This is the deceleration, and it is the whole of what
+ * the stop feels like.
+ *
+ * **It was 0.34 and still read as stopping suddenly.** The slope at the stop
+ * was already zero — `scatter.check.ts` measures it — but the run it belongs
+ * to had been cut to 34% of Scene 1's scroll, so a third of that was only
+ * ~35vh: mathematically a settle, on screen a halt. At 0.6 the slowing is
+ * spread over ~61vh and reads as one. The cost is the middle, which runs at
+ * `1 / (1 - TAIL / 2)` — 1.43x linear here against 1.21x before.
  */
-const STOP_TAIL = 0.34
+const STOP_TAIL = 0.6
 
 // --- the wind-up ---
 export const SWIRL_TO = 0.8
