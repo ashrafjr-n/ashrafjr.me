@@ -138,6 +138,12 @@ body {
 
 /* ===========================================================
    Three.js background canvas
+
+   It is the backdrop for all three scenes, not just the first. The press
+   leaves the star field on screen rather than clearing it away, so this canvas
+   is what Scene 2's statements are read against and what Scene 3's panel
+   inverts to black-on-white. It must stay below the panel (z-index 30) for
+   that to work, and it must stay painted.
    =========================================================== */
 #scene {
   position: fixed;
