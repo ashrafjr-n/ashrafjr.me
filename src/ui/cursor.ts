@@ -14,7 +14,17 @@
  * the panel it lives in** (`ui/invert.ts`) — difference with white is
  * `1 - backdrop`, so the disc paints no colour of its own and needs to know
  * nothing about what it is over. Inside the white half that reads black; where
- * the half overlaps something already inverted, it inverts back.
+ * the half overlaps something already inverted, it inverts back — so over a
+ * statement the panel has already turned black, and over the black stars the
+ * panel has made of the pressed field, the disc puts both back to white.
+ *
+ * **The stars are the one thing under it that is not a flat tone**, now that
+ * the press leaves the field on screen for the whole page. Each point is a
+ * radial sprite, so its edge is a grey falloff rather than an edge, and
+ * difference takes a mid grey to something near itself — the disc passing over
+ * a star inverts its bright core cleanly and barely touches the halo around
+ * it. That is correct and costs nothing; it is only worth knowing before
+ * anyone reads it as the blend failing.
  *
  * Two invariants keep it working, and both are in CLAUDE.md:
  *
