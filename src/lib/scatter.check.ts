@@ -22,6 +22,7 @@ import {
   INWARD_MIN,
   OUTWARD_MAX,
   OUTWARD_MIN,
+  SCATTER_END,
   SCATTER_TO,
   BOLD_SIZE_GAIN,
   SETTLE_TO,
@@ -125,5 +126,17 @@ const spinSlopeAtRest = (spinAt(HOLD) - spinAt(HOLD * 0.999)) / 0.001
 ok(Math.abs(spinSlopeAtRest) < 0.02, `the orbit is still slowing hard as it stops (${spinSlopeAtRest})`)
 ok(spinAt(at(0.5)) < 0.5, 'the orbit sheds most of its speed late — it should go early and then ease')
 ok(scene1At(HOLD) === 1 && scene1At(0) === 0, 'Scene 1 does not span its own stretch')
+
+// **The field stops inside Scene 1, and stops without a corner.** The old tail
+// ran to the very end of the scene, which spent its last third creeping. Both
+// halves of the replacement are checked here: that the stop lands where
+// SCATTER_END says it does and leaves a still stretch after it, and that the
+// driver arrives there with no slope left — the constants alone would clamp it
+// while it was still travelling at most of full rate.
+ok(SCATTER_END < 1, 'the scatter runs to the end of Scene 1 — there is no still frame to hand over on')
+ok(scene1At(HOLD * SCATTER_END) === 1, 'the scatter does not finish where SCATTER_END says it does')
+constantOver(SCATTER_END, 1, 'a driver is still moving after the field was meant to have stopped')
+const stopSlope = (1 - scene1At(HOLD * (SCATTER_END - 0.001))) / 0.001
+ok(stopSlope < 0.05, `the field is cut off rather than brought to rest (${stopSlope})`)
 
 console.log('scatter: ok')

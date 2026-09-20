@@ -49,8 +49,11 @@ export const IDENTITY_TO = 620 / 960
  *
  * Naming the two ramps separately buys the ends back: the linear middle runs
  * at `1 / (1 - head / 2 - tail / 2)`, so short ramps cost very little.
+ *
+ * Exported because `lib/scatter.ts` needs the same shape to bring the field to
+ * a stop inside Scene 1 — one curve, not two that have to agree.
  */
-function easeEnds(u: number, head: number, tail: number): number {
+export function easeEnds(u: number, head: number, tail: number): number {
   const rate = 1 / (1 - head / 2 - tail / 2)
   if (u < head) return (rate * u * u) / (2 * head)
   if (u > 1 - tail) {

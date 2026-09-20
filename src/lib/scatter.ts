@@ -40,7 +40,30 @@
 // Explicit .ts extensions so `npm run check` can run this under plain node;
 // `allowImportingTsExtensions` is on and Vite resolves them either way.
 import { clamp } from './math.ts'
-import { HOLD } from './phases.ts'
+import { easeEnds, HOLD } from './phases.ts'
+
+/**
+ * Where the scatter is **over**, as a share of Scene 1's transition stretch.
+ * The rest of Scene 1 is deliberately a still frame.
+ *
+ * It used to be 1: every curve here ran to the very end of the scene, and the
+ * last third of that scroll was the tail of `toTransition`'s own ramp into the
+ * hold — the field creeping the last few percent of a travel it had visibly
+ * finished. Measured on the rendered page, the frames at 64%, 77% and 100% of
+ * Scene 1's scroll are the same composition. Ending here spends that scroll on
+ * a settled frame instead of on movement nobody can see.
+ */
+export const SCATTER_END = 0.85
+/**
+ * How much of the run above is spent slowing down, as a share of it.
+ *
+ * **The field has to arrive at rest, not be cut off**, and `SCATTER_END` alone
+ * would cut it off: the transition is still travelling at ~87% of full rate
+ * where it now clamps. This is the deceleration — a short one, so the motion
+ * stays brisk and then sheds its speed quickly and stops dead, rather than
+ * drifting out over half the scene the way the old tail did.
+ */
+const STOP_TAIL = 0.34
 
 // --- the wind-up ---
 export const SWIRL_TO = 0.8
@@ -169,7 +192,14 @@ export const FILL_FAR = 46
  */
 export const FILL_REACH = 1.15
 export const SETTLE_FROM = 0.15
-export const SETTLE_TO = 0.95
+/**
+ * **1, so the drift stops where everything else does.** It was 0.95, and
+ * `settleAt` is a plain linear ramp — clamping it early left the cloud's drift
+ * running at a constant rate one frame and frozen the next, which is the one
+ * hard stop left in Scene 1. Landing it on `scene1At`'s own zero-slope end is
+ * what takes the corner off it.
+ */
+export const SETTLE_TO = 1.0
 
 // --- the weight worn inside Scene 3's white half ---
 /**
@@ -185,9 +215,19 @@ export const SETTLE_TO = 0.95
  */
 export const BOLD_SIZE_GAIN = 2.6
 
-/** 0..1 across Scene 1's own stretch, from the transition value. */
+/**
+ * 0..1 across Scene 1's own stretch, from the transition value — **the one
+ * driver every curve below reads**, so where this reaches 1 is where the whole
+ * field comes to rest.
+ *
+ * It is not the raw share of the scene any more. It finishes at `SCATTER_END`
+ * of it and eases into that stop over `STOP_TAIL`, which is what leaves the
+ * last third of Scene 1 a still frame — see both constants. Compressing the
+ * run here rather than retuning each curve is what keeps the four of them in
+ * the same relation to each other that they were tuned in.
+ */
 export function scene1At(p: number): number {
-  return clamp(p / HOLD, 0, 1)
+  return easeEnds(clamp(p / (HOLD * SCATTER_END), 0, 1), 0, STOP_TAIL)
 }
 
 /** 0..1 across `from`..`to`, flat outside it. */
