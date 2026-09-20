@@ -53,19 +53,20 @@ import { easeEnds, HOLD } from './phases.ts'
  * Scene 1's scroll are the same composition. Ending here spends that scroll on
  * a settled frame instead of on movement nobody can see.
  *
- * **It is the scroll fraction that this is set by, not its own value.** 0.4387
- * of the transition is **34% of Scene 1's scroll** — `toTransition` has its
+ * **It is the scroll fraction that this is set by, not its own value.** 0.3742
+ * of the transition is **29% of Scene 1's scroll** — `toTransition` has its
  * own ramp into the hold, so the two are not the same number and the second
  * is the one anybody can see. It was 0.85 (68%), then 0.77 (60%), 0.645
- * (50%), 0.555 (43%) and 0.516 (40%). At or under 0.55 the whole run sits
- * inside `toTransition`'s linear middle, so the scroll fraction is simply
- * this over 1.29; above it the ramp into the hold makes the two diverge.
+ * (50%), 0.555 (43%), 0.516 (40%) and 0.4387 (34%). At or under 0.55 the
+ * whole run sits inside `toTransition`'s linear middle, so the scroll
+ * fraction is simply this over 1.29; above it the ramp into the hold makes
+ * the two diverge.
  *
  * **`IDENTITY_LEAD` has to move with it.** The statements are meant to start
  * crossing the frame just *before* the field stops, so lowering this without
  * raising that inverts the handover and the type arrives to a still page.
  */
-export const SCATTER_END = 0.4387
+export const SCATTER_END = 0.3742
 /**
  * How much of the run above is spent slowing down, as a share of it.
  *
@@ -74,23 +75,38 @@ export const SCATTER_END = 0.4387
  * where it now clamps. This is the deceleration, and it is the whole of what
  * the stop feels like.
  *
- * **It was 0.34 and still read as stopping suddenly.** The slope at the stop
- * was already zero — `scatter.check.ts` measures it — but the run it belongs
- * to had been cut to 34% of Scene 1's scroll, so a third of that was only
- * ~35vh: mathematically a settle, on screen a halt. At 0.6 the slowing is
- * spread over ~61vh and reads as one. The cost is the middle, which runs at
- * `1 / (1 - TAIL / 2)` — 1.43x linear here against 1.21x before.
+ * **It was 0.34, then 0.6, and both still read as stopping too soon.** The
+ * slope at the stop was already zero — `scatter.check.ts` measures it — but
+ * the run it belongs to keeps being shortened, so a share of it is fewer and
+ * fewer vh: at 0.34 of a 34% run the slowing had ~35vh to happen in. At 0.7
+ * of a 29% run it has ~61vh, and it is now the larger half of the whole move.
  */
-const STOP_TAIL = 0.6
+const STOP_TAIL = 0.7
+/**
+ * And how much is spent getting going, at the other end.
+ *
+ * **It was 0, on the argument that the first pixel of scroll has to do
+ * something.** That holds for `toTransition`, which has a whole page to pace;
+ * it did not hold here once the run was squeezed into the scene's first
+ * third, where starting at full rate made both the dispersal and the wind-up
+ * read as flung rather than released. The two ramps together leave no linear
+ * middle at all, which is the price: the fastest the field ever moves is
+ * `1 / (1 - HEAD / 2 - TAIL / 2)` = 2x linear, at the midpoint. That is the
+ * ease-in-out shape, and it is what was asked for at both ends.
+ */
+const SET_HEAD = 0.3
 
 // --- the wind-up ---
 export const SWIRL_TO = 0.8
 /**
- * Ease-out, and the exponent is doing real work: it is what makes the field
- * read as *accelerating* on the first touch of the scroll rather than simply
- * changing rate.
+ * **1, i.e. no curve of its own.** It was 2.0, an ease-out that made the
+ * wind-up *accelerate* on the first touch of the scroll — which was the point
+ * when Scene 1 had its whole stretch to play with, and is exactly what read
+ * as the field being flung once the run was squeezed into the scene's first
+ * third. `scene1At`'s `SET_HEAD` is the ease-in now, and it is the only one:
+ * stacking a second curve on top of it is what put the speed back.
  */
-export const SWIRL_EASE = 2.0
+export const SWIRL_EASE = 1.0
 /**
  * Extra turns the ring gains across the wind-up, on top of its own orbit.
  *
@@ -281,13 +297,14 @@ export const BOLD_SIZE_GAIN = 2.0
  * field comes to rest.
  *
  * It is not the raw share of the scene any more. It finishes at `SCATTER_END`
- * of it and eases into that stop over `STOP_TAIL`, which is what leaves the
+ * of it, eases *out of* rest over `SET_HEAD` and back into it over
+ * `STOP_TAIL` — both ends soft, which is what leaves the
  * last third of Scene 1 a still frame — see both constants. Compressing the
  * run here rather than retuning each curve is what keeps the four of them in
  * the same relation to each other that they were tuned in.
  */
 export function scene1At(p: number): number {
-  return easeEnds(clamp(p / (HOLD * SCATTER_END), 0, 1), 0, STOP_TAIL)
+  return easeEnds(clamp(p / (HOLD * SCATTER_END), 0, 1), SET_HEAD, STOP_TAIL)
 }
 
 /** 0..1 across `from`..`to`, flat outside it. */
