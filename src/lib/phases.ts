@@ -104,14 +104,14 @@ export function toTransition(page: number): number {
  * already crossing while the field is still settling, so the page moves from
  * one scene to the next rather than finishing one and starting the other.
  *
- * **0.28 is set against where the scatter stops**, which is page 0.106 now
+ * **0.30 is set against where the scatter stops**, which is page 0.106 now
  * (`SCATTER_END`, 34% of Scene 1's scroll) — and it is set against **the
  * first glyph reaching the frame**, not against the scene opening. The two
  * are far apart: a statement starts 1.05 viewport widths out, so it is still
  * wholly off screen for the first ~9% of the scene and the layer's own
  * opening is invisible. `SLIDE_SPAN` and `SLIDE_FROM` put the first edge in
- * frame at **page 0.095**, just before the field stops, which is the overlap.
- * The scene itself opens at `IDENTITY_FROM - IDENTITY_LEAD` = 0.0325.
+ * frame at **page 0.076**, well before the field stops, which is the overlap.
+ * The scene itself opens at `IDENTITY_FROM - IDENTITY_LEAD` = 0.0125.
  * **Lowering `SCATTER_END` moves the field's stop earlier, so this has to go
  * up with it** or the type arrives to a page that has already gone still.
  *
@@ -128,7 +128,7 @@ export function toTransition(page: number): number {
  * The trail at the far end is untouched.
  */
 /** Exported for `phases.check.ts`. */
-export const IDENTITY_LEAD = 0.28
+export const IDENTITY_LEAD = 0.3
 const IDENTITY_TRAIL = 0.09
 
 /**

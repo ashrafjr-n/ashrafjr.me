@@ -8,7 +8,9 @@
  *    off-screen — first and third to the left, second to the right — and slide
  *    to centre, where they land stacked on top of each other. That is the whole
  *    entrance; there is no fade-and-pop and no per-statement stagger.
- * 2. **Then they fill.** Each statement is drawn twice, exactly on top of
+ * 2. **Then they fill — and the first one starts before it has landed.** The
+ *    white begins crossing the top line while that line is still travelling,
+ *    so the arrival and the fill are one move rather than two beats. Each statement is drawn twice, exactly on top of
  *    itself: an outline copy (hairline stroke, no fill) and a solid white copy
  *    clipped to nothing. As the scroll passes a statement its solid copy is
  *    unclipped from the left, so the white sweeps across the word and stays.
@@ -39,7 +41,10 @@ const STATEMENTS = ['COMPUTER SCIENCE', 'FULL-STACK DEVELOPER', 'BUILDING TOWARD
  * the scene reads as closing rather than as sliding.
  */
 const SLIDE_SIDE = [-1, 1, -1]
-/** Fraction of the scene the arrival takes. The fill starts where it ends. */
+/**
+ * Fraction of the scene the arrival takes. **The fill now starts 0.05 before
+ * it ends**, so the two overlap rather than queue — see `FILL_FROM`.
+ */
 const SLIDE_SPAN = 0.42
 /**
  * How far off-screen each statement starts, in viewport widths.
@@ -66,10 +71,17 @@ const EDGE = 0.06
  * `FILL_SPAN` is longer than the step between statements, so one is still
  * finishing as the next starts and the three read as a single pass down the
  * block. **The last has to land before Scene 3's panel starts rising**, or the
- * inversion arrives over type that is still filling — it completes at 0.92 of
- * the scene, which is page 0.664 against the panel's 0.70.
+ * inversion arrives over type that is still filling — it completes at 0.85 of
+ * the scene, which is page 0.627 against the panel's 0.72.
+ *
+ * **`FILL_FROM` is deliberately under `SLIDE_SPAN`, and that is the one thing
+ * to preserve here.** It was 0.44 against a landing at 0.42, so the first
+ * statement came to a stop and only then began to fill — two beats where the
+ * scene wants one. At 0.37 the white starts crossing the first line while it
+ * is still travelling, 0.05 of the scene before it lands, so the arrival and
+ * the fill are the same move.
  */
-const FILL_FROM = 0.44
+const FILL_FROM = 0.37
 const FILL_STEP = 0.14
 const FILL_SPAN = 0.2
 
