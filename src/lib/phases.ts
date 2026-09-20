@@ -104,19 +104,22 @@ export function toTransition(page: number): number {
  * already crossing while the field is still settling, so the page moves from
  * one scene to the next rather than finishing one and starting the other.
  *
- * **0.26 is set against where the scatter stops**, which is page 0.125 now
- * (`SCATTER_END`, 40% of Scene 1's scroll) — and it is set against **the
+ * **0.28 is set against where the scatter stops**, which is page 0.106 now
+ * (`SCATTER_END`, 34% of Scene 1's scroll) — and it is set against **the
  * first glyph reaching the frame**, not against the scene opening. The two
  * are far apart: a statement starts 1.05 viewport widths out, so it is still
  * wholly off screen for the first ~9% of the scene and the layer's own
  * opening is invisible. `SLIDE_SPAN` and `SLIDE_FROM` put the first edge in
- * frame at **page 0.113**, just before the field stops, which is the overlap.
- * The scene itself opens at `IDENTITY_FROM - IDENTITY_LEAD` = 0.0525.
+ * frame at **page 0.095**, just before the field stops, which is the overlap.
+ * The scene itself opens at `IDENTITY_FROM - IDENTITY_LEAD` = 0.0325.
+ * **Lowering `SCATTER_END` moves the field's stop earlier, so this has to go
+ * up with it** or the type arrives to a page that has already gone still.
  *
  * It was 0.05, which opened at 0.2625 and put the first glyph at 0.31 — a
  * screen and a half of scroll after the field had already stopped, with
  * nothing happening in between. Solve it from the glyph, not from the lead:
- * `start + 0.088 * (0.7358 - start)` is where the first edge lands.
+ * `start + 0.088 * (0.7358 - start)` is where the first edge lands, and the
+ * far end (`0.92` of the scene) has to stay under the panel's 0.70.
  *
  * **Raising it lengthens the identity scene, which pushes its fill later in
  * page terms**, so the far end is what to re-check: `FILL_FROM + 2 *
@@ -125,7 +128,7 @@ export function toTransition(page: number): number {
  * The trail at the far end is untouched.
  */
 /** Exported for `phases.check.ts`. */
-export const IDENTITY_LEAD = 0.26
+export const IDENTITY_LEAD = 0.28
 const IDENTITY_TRAIL = 0.09
 
 /**
