@@ -7,14 +7,15 @@
  * embedded in the model rather than as a separate dolly-ing backdrop. Mouse
  * parallax is layered on top via shared input state, lerped for smooth motion.
  *
- * **On scroll the whole field is pressed flat** (`lib/press.ts`): every star
- * is pulled along its own sightline onto one plane facing the camera, the ring
- * turns to face it too, the motion runs out and the ring disperses. That is
- * the bridge between Scene 1's 3D space and Scene 2's flat one, and it is why
- * nothing here flies off or fades any more — **the settled field is Scene 2's
- * backdrop and, through `ui/invert.ts`'s panel, Scene 3's inverted one.** Once
- * it has settled this file stops writing positions entirely; see the
- * still-frame gate in `update()`.
+ * **On scroll the field scatters** (`lib/scatter.ts`): both layers wind up, the
+ * ring breaks apart in two directions — inner stars through the centre, outer
+ * stars away — the orbit runs out, and a slice of the cloud drifts to an even
+ * spread. **No camera moves, no layer is turned to face one, and no star's
+ * depth is touched**; three bridges that did any of those were built and
+ * rejected for reading as the viewer moving. Nothing flies off or fades any
+ * more either: **the settled field is Scene 2's backdrop and, through
+ * `ui/invert.ts`'s panel, Scene 3's inverted one.** Once it has settled this
+ * file stops writing positions entirely; see the gate in `update()`.
  *
  * Two render passes share one renderer. The starfield is drawn through the
  * world layer's bird's-eye camera, then — behind a depth clear, so the model
