@@ -467,7 +467,12 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
       /** Defaults to the mipmapped cloud sprite; the band passes its own. */
       sprite?: CanvasTexture
     } = {},
-    transition: { release?: boolean } = {},
+    /**
+     * Whether this layer's stars carry a release — the drift that disperses
+     * them across the pressed plane. The ring's alone; the cloud is already
+     * the field they disperse *into*.
+     */
+    release = false,
   ): StarLayer {
     const positions = new Float32Array(count * 3)
     const colors = new Float32Array(count * 3)
@@ -475,7 +480,7 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
     const heights = new Float32Array(count)
     const angles = new Float32Array(count)
     const speeds = new Float32Array(count)
-    const release = transition.release ? new Float32Array(count * 2) : null
+    const offsets = release ? new Float32Array(count * 2) : null
     const c = new Color()
 
     for (let i = 0; i < count; i++) {
@@ -487,13 +492,13 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
       heights[i] = y
       angles[i] = angle
       speeds[i] = randomOrbitSpeed()
-      if (release) {
+      if (offsets) {
         // An even spread over the area, not over the radius: `sqrt` is what
         // stops them piling up around the ring they came from.
         const drift = Math.sqrt(Math.random()) * RELEASE_SPREAD
         const heading = Math.random() * Math.PI * 2
-        release[i * 2] = Math.cos(heading) * drift
-        release[i * 2 + 1] = Math.sin(heading) * drift
+        offsets[i * 2] = Math.cos(heading) * drift
+        offsets[i * 2 + 1] = Math.sin(heading) * drift
       }
 
       positions[i3] = Math.cos(angle) * radius
@@ -548,7 +553,7 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
       heights,
       angles,
       speeds,
-      release,
+      release: offsets,
       // The attribute's copy of `positions`, not `positions` itself.
       positions: posAttr.array as Float32Array,
       posAttr,
@@ -580,7 +585,7 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
     clearChance: BAND_CLEAR_CHANCE,
     clearLevel: BAND_CLEAR_LEVEL,
     sprite: plainSprite,
-  }, { release: true })
+  }, true)
 
   // --- Scene 1 world layer (the model), drawn over the starfield ---
   const world = createWorld(window.innerWidth / window.innerHeight)
