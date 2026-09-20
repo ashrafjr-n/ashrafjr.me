@@ -42,9 +42,10 @@ that lets go travels in one of only two directions — inward through the centre
 and out the far side, or outward — winding on a spiral that is tighter the
 shorter its travel, the way an orbiting body turns as its radius changes. The
 orbit runs out, and a slice of the ambient cloud drifts to evenly spread places
-across the frame. All of it eases to a dead stop about two thirds of the way
-through the scene, and the rest of Scene 1 is a settled composition rather than
-more movement.
+across the frame. All of it eases to a dead stop 60% of the way through the
+scene, and the rest of Scene 1 is a settled composition rather than more
+movement. Only stars already inside the frame are redistributed — nothing
+enters the picture from beyond its edge.
 
 The camera never moves, nothing is turned to face it, and no star's depth
 changes. Where Scene 3's white panel covers the field, the stars are drawn
