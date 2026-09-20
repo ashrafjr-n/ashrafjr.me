@@ -744,6 +744,14 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
     // would take the stars out of the white half. Re-drawing points that have
     // not moved costs one draw call and no upload at all, which is not worth
     // trading that for.
+    // **The orbit is the one thing on this page that moves without being
+    // asked**, and it is the one thing this setting has never covered: the
+    // spring was switched off, but the ring kept turning on a clock whether
+    // the reader touched the page or not. Under reduced motion it is held
+    // still, so the opening frame is a composition rather than an animation
+    // and everything that does move is moved by the reader.
+    if (REDUCED_MOTION.matches) frame.spin = 0
+
     const moving = isMoving(progress) || frame.spin > 0 || reach > 0 || MODEL_ENABLED
     if (moving || !stillDrawn) advanceLayers(delta)
     stillDrawn = !moving
