@@ -115,8 +115,8 @@ body {
   background: var(--bg);
   /* Scroll length for all three scenes. Everything on screen is
      position:fixed, so the page has no content to scroll — this is what
-     creates the scroll range that drives `state.scroll`. 1160vh = 1060 viewport
-     heights of travel; lib/phases.ts splits them 400 / 320 / 340 and has to
+     creates the scroll range that drives `state.scroll`. 1160vh leaves 10.6
+     viewport heights of travel; lib/phases.ts splits them 400 / 320 / 340 and has to
      change with this. Scene 1 took the extra 160: the dive, the corridor, the
      impact and the dust are four beats where there used to be one scatter. */
   min-height: 1160vh;

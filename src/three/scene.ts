@@ -27,6 +27,28 @@ import {
   WebGLRenderer,
 } from 'three'
 import { clamp, rand } from '../lib/math'
+import {
+  CLOUD_RUSH,
+  DIVE_END_Y,
+  IMPACT_EASE,
+  IMPACT_SPIN_STOP,
+  IMPACT_WAVE,
+  SETTLE_DRIFT,
+  SPLAT_SPREAD,
+  TUNNEL_BRIGHT_MAX,
+  TUNNEL_BRIGHT_MIN,
+  TUNNEL_CLEAR_CHANCE,
+  TUNNEL_COUNT,
+  TUNNEL_POINT_SIZE,
+  TUNNEL_Y_BOTTOM,
+  TUNNEL_Y_TOP,
+  WALL_Y,
+  diveAt,
+  impactAt,
+  ringSwirlAt,
+  settleAt,
+  tunnelFadeAt,
+} from '../lib/dive'
 import { HOLD, toModel, toTransition } from '../lib/phases'
 import type { InputState } from '../lib/state'
 import { createCircleTexture } from './sprite'
@@ -299,194 +321,6 @@ const FLY_DISTANCE_MIN = 60
 const FLY_DISTANCE_MAX = 75
 /** Ease-in on the fly-past, so stars build up speed rather than lurching off. */
 const FLY_EASE = 1.6
-
-// ============================================================================
-// --- The dive: the ring is a tunnel mouth, and the corridor hits glass ---
-// ============================================================================
-/**
- * Scene 1's three beats, and every number they are tuned with. **Nothing about
- * the dive is tuned outside this block** — the corridor's geometry, the
- * camera's flight and the glass all read from here.
- *
- * Every bound is a fraction of **Scene 1's own stretch**, not of the
- * transition value: 0 is the top of the page, 1 is the frame identity's hold
- * begins. `scene1At()` is the conversion.
- *
- *   0.00 .. 0.55  beat 1, the approach. The camera accelerates down the ring's
- *                 own axis; the ring winds up with it and the ambient cloud
- *                 rushes past. The mouth is crossed at about 0.37, leaving
- *   0.37 .. 0.55  ~18% of Scene 1 inside the corridor. **Deliberately short.**
- *                 This is the one part of the sequence that reads as a stock
- *                 warp tunnel, and length is what makes it read that way.
- *   0.55 .. 0.70  beat 2, the glass. The camera stops dead at its fastest,
- *                 rotation is killed, and every point ahead of the lens
- *                 collapses onto one plane facing the viewer — nearest first,
- *                 the rest following as a wave. This is the whole point of the
- *                 sequence: it converts depth into a flat surface on screen,
- *                 which is the thing the identity statements then arrive onto.
- *   0.70 .. 0.88  beat 3, the dust drifts off the glass and fades.
- *   0.88 .. 1.00  black. **A pause, not a gap** — `IDENTITY_LEAD` is 0 so
- *                 nothing reaches back to fill it, and that is on purpose.
- *
- * **None of it happens under `prefers-reduced-motion`.** Every function below
- * returns 0 there, the corridor is never built into the frame, the camera
- * never leaves its resting pose, and Scene 1 falls back to the ring scatter
- * that `bandScatterAt` / `bandExitAt` have always driven. Nothing the fallback
- * depends on is deleted — see the band layer's `curve` / `flyCurve`.
- *
- * Every one of these is a **pure function of scroll position**. Nothing here
- * accumulates and nothing runs on a clock, so scrolling down through all three
- * beats and back up returns the frame to exactly where it was.
- */
-
-// --- beat 1: the approach ---
-/** Where the camera's flight begins and ends, in Scene 1 fractions. */
-const DIVE_FROM = 0.0
-const DIVE_TO = 0.55
-/**
- * Ease-in on the flight: the camera is at its fastest the instant it stops,
- * which is what makes the stop read as hitting something. It also sets where
- * the mouth is crossed — raising it shortens the corridor, lowering it
- * lengthens it. At 2.2 the corridor is ~18% of Scene 1.
- */
-const DIVE_EASE = 2.2
-/** Where the camera comes to rest, on the ring's axis, looking straight down. */
-const DIVE_END_Y = -12
-/** Extra turns the ring and the corridor wind on during the approach. */
-const DIVE_TURNS = 2.5
-/** Ease-in on that wind-up, so the spin visibly gathers speed. */
-const SWIRL_EASE = 1.6
-/**
- * Extra travel the ambient cloud makes during the dive, as a share of its own
- * `FLY_DISTANCE_*`. Without it the cloud is only ~11% of the way past the lens
- * when the corridor arrives and floods it. At 0.9 the field is genuinely gone
- * by the glass, and the rush is most of what the speed is read from.
- */
-const CLOUD_RUSH = 0.9
-
-// --- beat 2: the corridor, and the glass ---
-/** The corridor: the ring's orbits, extended a long way down its own axis. */
-const TUNNEL_COUNT = 5000
-const TUNNEL_Y_TOP = 1.0
-const TUNNEL_Y_BOTTOM = -40
-/**
- * Sized for the corridor's own distances (~9 to 22 units at rest), not the
- * band's fixed ~10. It takes the band's **non-mipmapped** sprite for the same
- * reason the band does — see `sprite.ts`; at this size its far end lands under
- * 2 device pixels and would sample away to nothing.
- */
-const TUNNEL_POINT_SIZE = 0.05
-const TUNNEL_BRIGHT_MIN = 0.88
-const TUNNEL_BRIGHT_MAX = 1.0
-const TUNNEL_CLEAR_CHANCE = 0.3
-/**
- * How much of Scene 1 the corridor takes to appear. **It cannot simply be
- * visible from the start**: at a wide aspect the far end of it falls inside
- * the frame at page 0, and Scene 1's resting composition is the ring with
- * nothing inside it.
- */
-const TUNNEL_FADE_TO = 0.1
-/**
- * How far in front of the camera's resting place the invisible surface sits.
- *
- * It decides what the impact looks like, so it is the first thing to reach
- * for. The corridor's stars land at their own radius (~2.7) on this plane, and
- * the frame's half-height there is `tan(fov/2) * WALL_DIST` — at 14 that puts
- * the landed ring at about 61% of the way out, so it reads as a ring of spray
- * inside the frame with the centre still black. Shorten it and the spray lands
- * on the frame's edge; lengthen it and it closes on the centre.
- */
-const WALL_DIST = 14
-/** The plane itself. Everything ahead of the lens collapses onto it. */
-const WALL_Y = DIVE_END_Y - WALL_DIST
-const IMPACT_FROM = 0.55
-const IMPACT_TO = 0.7
-/** Ease-out on each point's own landing, so it arrives and stops rather than drifting in. */
-const IMPACT_EASE = 3.0
-/**
- * The share of the impact window spent spreading the wave from the nearest
- * point to the furthest. **The impact is deliberately not simultaneous** — the
- * nearest land first and the rest follow across this, which is what reads as a
- * surface being struck rather than a layer being switched off.
- *
- * It is scroll-driven like everything else here, not a timer, so how long the
- * wave takes in milliseconds depends on how fast the page is being scrolled.
- * At an ordinary wheel pace 0.6 of this window lands at a few hundred ms.
- */
-const IMPACT_WAVE = 0.6
-/**
- * How far into the impact all rotation is dead, as a share of the window.
- * Short on purpose: the spin has to stop *at* the wall, not ease down to it.
- */
-const IMPACT_SPIN_STOP = 0.18
-/** How far a point may scatter across the glass as it lands, in world units. */
-const SPLAT_SPREAD = 1.2
-
-// --- beat 3: the dust clears ---
-const SETTLE_FROM = 0.7
-const SETTLE_TO = 0.88
-/** How far the landed dust slides outward off the glass before it is gone. */
-const SETTLE_DRIFT = 4.5
-
-/** 0..1 across Scene 1's own stretch, from the transition value. */
-function scene1At(p: number): number {
-  return clamp(p / HOLD, 0, 1)
-}
-
-/** 0..1 across `from`..`to`, flat outside it. */
-function ramp(u: number, from: number, to: number): number {
-  return clamp((u - from) / (to - from), 0, 1)
-}
-
-/** How far the camera is down its flight into the ring, 0..1. */
-function diveAt(p: number): number {
-  if (REDUCED_MOTION.matches) return 0
-  return Math.pow(ramp(scene1At(p), DIVE_FROM, DIVE_TO), DIVE_EASE)
-}
-
-/** How far the impact wave has run across the corridor, 0..1. */
-function impactAt(p: number): number {
-  if (REDUCED_MOTION.matches) return 0
-  return ramp(scene1At(p), IMPACT_FROM, IMPACT_TO)
-}
-
-/** How far the landed dust has drifted off the glass, 0..1. */
-function settleAt(p: number): number {
-  if (REDUCED_MOTION.matches) return 0
-  return ramp(scene1At(p), SETTLE_FROM, SETTLE_TO)
-}
-
-/**
- * The ring's and the corridor's wind-up, in turns of `BAND_SWIRL`.
- *
- * **It ramps rather than accelerating**, and that distinction is the whole
- * reason it is written this way: an angular *speed* that rises with scroll has
- * to be integrated over time, so the total depends on how long the reader took
- * and scrolling back up would not unwind it. An extra *angle* as a function of
- * scroll looks identical on screen and rewinds exactly.
- *
- * It clamps at `IMPACT_FROM`, so the wind-up is frozen the moment the glass is
- * struck and the stars stay where they landed.
- */
-function ringSwirlAt(p: number): number {
-  if (REDUCED_MOTION.matches) return bandScatterAt(p)
-  return DIVE_TURNS * Math.pow(ramp(scene1At(p), 0, IMPACT_FROM), SWIRL_EASE)
-}
-
-/** The corridor's opacity: in over the approach, out with the settle. */
-function tunnelFadeAt(p: number): number {
-  if (REDUCED_MOTION.matches) return 0
-  return ramp(scene1At(p), 0, TUNNEL_FADE_TO) * (1 - settleAt(p))
-}
-
-/**
- * The ambient cloud's travel toward the camera: its own eased fly-past, plus
- * the dive's rush. Under reduced motion the second term is 0 and this is
- * exactly the curve it has always had.
- */
-function cloudFlyAt(p: number): number {
-  return Math.pow(p, FLY_EASE) + CLOUD_RUSH * diveAt(p)
-}
 
 /** The three scroll-driven values the glass needs, rebuilt once per frame. */
 interface DiveFrame {
@@ -834,7 +668,11 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
     // adds a rush on top, so the field is past the lens before the corridor
     // arrives instead of flooding it.
     fly: () => rand(FLY_DISTANCE_MIN, FLY_DISTANCE_MAX),
-    curve: cloudFlyAt,
+    // Its own eased fly-past, plus the dive's rush on top. Under reduced
+    // motion the second term is 0 and this is exactly the curve it has always
+    // had.
+    curve: (p) =>
+      Math.pow(p, FLY_EASE) + (REDUCED_MOTION.matches ? 0 : CLOUD_RUSH * diveAt(p)),
   })
 
   // The close-in band — the orbits that stay on screen for a whole revolution.
@@ -867,7 +705,7 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
     scatter: () => rand(BAND_SCATTER_MIN, BAND_SCATTER_MAX),
     swirl: BAND_SWIRL,
     curve: (p) => (REDUCED_MOTION.matches ? bandScatterAt(p) : 0),
-    swirlCurve: ringSwirlAt,
+    swirlCurve: (p) => (REDUCED_MOTION.matches ? bandScatterAt(p) : ringSwirlAt(p)),
     fly: () => rand(BAND_EXIT_MIN, BAND_EXIT_MAX),
     flyCurve: (p) => (REDUCED_MOTION.matches ? bandExitAt(p) : 0),
   })
@@ -899,7 +737,7 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
     sprite: bandSprite, // small points, same minification trap — see sprite.ts
   }, {
     swirl: BAND_SWIRL,
-    swirlCurve: ringSwirlAt,
+    swirlCurve: ringSwirlAt, // never shown under reduced motion, so ungated
     glass: true,
   })
   // `setLayerOpacity` skips a write that changes nothing, so the resting state
@@ -968,16 +806,21 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
     cloud.points.rotation.x += (tiltX - cloud.points.rotation.x) * TILT_LERP
 
     // --- The dive, all three beats, all pure functions of `progress` ---
-    // Read once here and handed down, so every layer reads the same frame's
-    // values and the reduced-motion branch is answered in one place.
-    const diveT = diveAt(progress)
-    dive.impact = impactAt(progress)
-    dive.settle = settleAt(progress)
+    // A reader who asked for less motion gets none of it: the camera holds its
+    // opening pose, the corridor is never drawn, nothing lands on the glass,
+    // and the ring breaks up on `bandScatterAt`/`bandExitAt` as it always has.
+    // A flight down a tunnel is the strongest optical flow on the site and
+    // exactly the kind that triggers vestibular symptoms, so switching the
+    // *smoothing* off — all this setting used to do here — is not enough.
+    const reduced = REDUCED_MOTION.matches
+    const diveT = reduced ? 0 : diveAt(progress)
+    dive.impact = reduced ? 0 : impactAt(progress)
+    dive.settle = reduced ? 0 : settleAt(progress)
     // Rotation dies *at* the wall rather than easing down to it: the stop is
     // what the invisible surface is read from.
     dive.spin = 1 - clamp(dive.impact / IMPACT_SPIN_STOP, 0, 1)
     world.setDive(diveT, DIVE_END_Y)
-    setLayerOpacity(tunnel, tunnelFadeAt(progress))
+    setLayerOpacity(tunnel, reduced ? 0 : tunnelFadeAt(progress))
 
     // The camera moves during the transition, so the fly-past direction is
     // re-read each frame: model -> camera, normalised.
