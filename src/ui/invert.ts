@@ -30,15 +30,36 @@
  * A pure function of the page value like everything else, so scrolling back up
  * lowers it again exactly.
  */
+import { easeEnds } from '../lib/phases'
 
-/** Page range over which the panel rises into place. */
-const PANEL_FROM = 0.7
-const PANEL_TO = 0.96
+/**
+ * Page range over which the panel rises into place.
+ *
+ * **It was 0.70..0.96 and that read as slow and heavy.** 0.26 of the page is
+ * 260vh of scroll for a half-screen panel, and on a `smoothstep` — which
+ * spends its whole run accelerating and then decelerating — the first fifth
+ * of that only moved it a tenth of the way. Over 0.16 on the curve below the
+ * panel reaches half height in about 66vh against the old 130vh.
+ *
+ * `PANEL_FROM` has to stay clear of the identity block's last fill sweep
+ * (page 0.627 — see `FILL_*` in `ui/identity.ts`), or the inversion arrives
+ * over type that is still filling.
+ */
+const PANEL_FROM = 0.72
+const PANEL_TO = 0.88
 
-function smooth(u: number): number {
-  const x = Math.min(Math.max(u, 0), 1)
-  return x * x * (3 - 2 * x)
-}
+/**
+ * Where the rise spends its time: a short ease in, a long settle, and a
+ * constant climb between them.
+ *
+ * `easeEnds` is `lib/phases.ts`'s, the same curve the scene boundaries use —
+ * shared rather than a second one here that has to agree. `smoothstep` is
+ * that curve at `head = tail = 0.5`, which is what this was; naming the two
+ * ramps separately is what buys the middle back and makes the panel read as
+ * light rather than as something being hauled up.
+ */
+const RISE_HEAD = 0.12
+const RISE_TAIL = 0.45
 
 /**
  * How far the panel has risen at a page value, 0..1.
@@ -52,7 +73,10 @@ function smooth(u: number): number {
  * by construction, not by two constants agreeing.
  */
 export function panelRiseAt(page: number): number {
-  return smooth((page - PANEL_FROM) / (PANEL_TO - PANEL_FROM))
+  const u = (page - PANEL_FROM) / (PANEL_TO - PANEL_FROM)
+  if (u <= 0) return 0
+  if (u >= 1) return 1
+  return easeEnds(u, RISE_HEAD, RISE_TAIL)
 }
 
 /**
