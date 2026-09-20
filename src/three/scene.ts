@@ -41,6 +41,7 @@ import {
   PRESS_MIN_DEPTH,
   RELEASE_SPREAD,
   SETTLED_POINT_SIZE,
+  SPRITE_SWAP_AT,
   faceAt,
   isMoving,
   pressAt,
@@ -741,7 +742,7 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
     // texture — see SETTLED_POINT_SIZE.
     setPointSize(cloud, CLOUD_POINT_SIZE, settled)
     setPointSize(band, BAND_POINT_SIZE, settled)
-    setSprite(cloud, frame.press > 0 ? plainSprite : mippedSprite)
+    setSprite(cloud, frame.press > SPRITE_SWAP_AT ? plainSprite : mippedSprite)
 
     // **Nothing in the starfield changes again once Scene 1 is over**: every
     // press curve has clamped, the orbit has stopped and the parallax is dead.

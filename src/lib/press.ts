@@ -98,6 +98,25 @@ export const RELEASE_EASE = 2.2
  */
 export const RELEASE_SPREAD = 7
 
+/**
+ * The point in the press at which the ambient cloud gives up its mipmapped
+ * sprite for the plain one.
+ *
+ * **It is a step, and it is the one visible discontinuity in the sequence.**
+ * The two textures cannot be blended, so the far stars — the ones small enough
+ * for minification to be eating them — come up to full brightness on a single
+ * frame. It is put at the very first frame of scroll for two reasons: the
+ * resting composition is protected and nothing may change at page 0, and one
+ * frame later the far field brightening *is* the press's first beat, the depth
+ * cue draining out of the brightness. `PRESS_EASE` is an ease-out, so the
+ * sizes are moving fastest at exactly that moment and the eye is tracking
+ * that rather than the step.
+ *
+ * Raise it and the swap lands mid-press, where nothing else is changing fast
+ * enough to cover it.
+ */
+export const SPRITE_SWAP_AT = 0
+
 // --- the settled field ---
 /**
  * The size every star lands on, and the reason the two layers converge on one
