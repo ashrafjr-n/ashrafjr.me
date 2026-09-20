@@ -34,13 +34,17 @@ own to scroll. The scroll range comes from a `min-height` on `body`, and
 | **02** | three statements, sliding in and filling from outline to solid | 320vh |
 | **03** | a white half rising from the bottom, inverting everything it covers | 340vh |
 
-The bridge between the first two is **the press** (`src/lib/press.ts`): the
-star field is not cleared away and replaced, it is flattened. Every star is
-pulled along its own sightline onto one plane facing the camera, the ring turns
-to face it and opens from an ellipse into a circle, the motion runs out, and
-the ring disperses into the field. What is left is a flat, still, evenly
-weighted field of points — which is Scene 2's backdrop, and which Scene 3's
-panel inverts to black-on-white without a second copy of anything.
+The bridge between the first two is **the scatter** (`src/lib/scatter.ts`):
+the star field is not cleared away and replaced, it is dispersed. The ring
+winds up, then breaks apart in two directions only — the stars on its inner
+edge travel inward and through the centre, the ones on its outer edge travel
+out — while the wind-up still turning underneath them bends both into spirals.
+The orbit runs out, and a slice of the ambient cloud drifts to evenly spread
+places across the frame. What is left is a still, even field of points, which
+is Scene 2's backdrop and which Scene 3's panel inverts to black-on-white
+without a second copy of anything.
+
+The camera never moves, and nothing is ever turned to face it.
 
 ## Layout
 
@@ -59,7 +63,7 @@ There is exactly one animation loop, in `src/main.ts`. Features expose an
 
 ## The self-checks
 
-`npm run check` runs `src/lib/phases.check.ts` and `src/lib/press.check.ts`
+`npm run check` runs `src/lib/phases.check.ts` and `src/lib/scatter.check.ts`
 under node, with no test framework. They guard the two properties that fail
 silently on screen rather than loudly in a console: that the scenes hand over
 without a jump in speed, and that scrolling down through a sequence and back
