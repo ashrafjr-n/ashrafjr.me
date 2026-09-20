@@ -1,26 +1,27 @@
 /**
  * How the page's one smoothed scroll value splits into the three scenes.
  *
- *   page 0 .. IDENTITY_FROM   Scene 1 -> the ring breaks up   (transition 0 .. HOLD)
+ *   page 0 .. IDENTITY_FROM   Scene 1 -> the press             (transition 0 .. HOLD)
  *   IDENTITY_FROM .. _TO      02 — IDENTITY                   (transition held at HOLD)
  *   IDENTITY_TO .. 1          ring gathers, model rises       (transition HOLD .. 1)
  *
  * `transition` is the value every star and model constant was tuned
  * against, so none of them change: identity is inserted by pausing it. HOLD is
- * RISE_START (0.45) — the ambient cloud has flown past, a scattered
- * third of the ring is still orbiting on screen, and the model has not
- * started. Those few stars are the identity scene's sky.
+ * RISE_START (0.45) — and by then **the press is complete**: the whole star
+ * field has flattened onto one plane, stopped moving and settled at one size,
+ * and the model has not started. That settled field is the identity scene's
+ * backdrop, and Scene 3's panel inverts it to black-on-white for free.
  *
- * Scroll lengths, of a 900vh range (body is 1000vh in style.css — change them
- * together): Scene 1's break-up gets 240vh, identity 320vh, and the move into
+ * Scroll lengths, of a 960vh range (body is 1060vh in style.css — change them
+ * together): Scene 1 gets 300vh, identity 320vh, and the move into
  * Scene 3 340vh — **eased in and out**, so the transition leaves identity
  * gently instead of resuming at full speed, and settles as the model lands.
  *
- * **Scene 1's 240vh is what paces the scatter.** The ring flying apart and the
- * cloud streaming past the camera are pure functions of this value, and their
- * own distances and easings are solved against the camera frustum and must not
- * be retuned — so the only honest way to slow the break-up down is to spend
- * more scroll on it. It ran in 90vh and read as far too quick.
+ * **Scene 1's 300vh is what paces the press.** Every beat of it is a pure
+ * function of this value (`lib/press.ts`), so the only honest way to slow the
+ * flattening down is to spend more scroll on it. It was 240vh when Scene 1 was
+ * a scatter and nothing more; the press has four beats to get through and the
+ * last of them is the subtlest.
  *
  * **Both ends of the hold are velocity-continuous, and that is the point.**
  * Scene 1's break-up used to run dead linear and then stop the instant
@@ -32,8 +33,8 @@
  */
 export const HOLD = 0.45
 /** Exported for `phases.check.ts`, so its boundaries cannot go stale. */
-export const IDENTITY_FROM = 240 / 900
-export const IDENTITY_TO = 560 / 900
+export const IDENTITY_FROM = 300 / 960
+export const IDENTITY_TO = 620 / 960
 
 /**
  * 0..1 with **zero slope at both ends**, easing over only `head` and `tail` of
@@ -93,25 +94,20 @@ export function toTransition(page: number): number {
  * How far the identity scene reaches past its own stretch, at each end, in
  * page units.
  *
- * **This is what closes the black gap between the scenes.** The transition is
- * held through identity, so at the hold the ambient cloud has already streamed
- * past the camera and all that is left of Scene 1 is a scattered handful of
- * ring stars — and the model does not clear the bottom of the frame until well
- * into Scene 3. Without an overlap the page passes through two stretches with
- * nothing on them at all. Reaching back lets the thread start climbing while
- * Scene 1 is still breaking up, and reaching forward keeps the last statement
- * fading as the model rises into it.
+ * **The lead is small now, and it used to carry the whole handover.** It was
+ * 0.16, because Scene 1 emptied well before its own stretch was up: the ring
+ * flew off, the cloud streamed past the camera and the page sat on a blank
+ * frame waiting for the statements. That gap shipped twice.
  *
- * **The lead is 0.16, up from 0.1, because Scene 1 empties before its own
- * stretch is over.** The ring reaches the edge of the frame on the scatter
- * alone by about page 0.14 and is streaking off from 0.12, but identity used to
- * arrive at 0.167 and the model at 0.22 — so the page passed through a stretch
- * with a blank frame and nothing but the outline of a line that had not started
- * yet. Reaching further back lands the text while the ring is still on its way
- * out, which is what turns three separate events into one handover.
+ * **The press removed the gap rather than covering it.** Nothing leaves any
+ * more — Scene 1's star field flattens and *stays*, so the frame is never
+ * empty and there is nothing for the statements to have to arrive early for.
+ * What is left is a small overlap for its own sake: the first statement starts
+ * crossing while the ring is still letting go, so the two scenes hand over
+ * instead of taking turns. The trail at the far end is untouched.
  */
 /** Exported for `phases.check.ts`. */
-export const IDENTITY_LEAD = 0.16
+export const IDENTITY_LEAD = 0.05
 const IDENTITY_TRAIL = 0.09
 
 /**
@@ -123,15 +119,16 @@ const IDENTITY_TRAIL = 0.09
  * move during the scene it is now in. The page value keeps running, so the
  * rise is hung on that instead.
  *
- * **It sets off as the ring finishes leaving, and the overlap is the point.**
- * The ring runs *outward and past the lens* while the model climbs *up from
- * below the frame*; they are opposite moves, so they read as a handover rather
- * than as two things competing. Holding the model back until the ring was
- * completely gone was tried and it left a blank frame between them.
+ * **It starts where identity does.** It used to reach back into Scene 1 to
+ * close the same blank frame the statements did; with the press there is no
+ * blank frame, and a model rising through the flattening field would be
+ * fighting it. The model is off (`MODEL_ENABLED`), so this costs nothing
+ * today — it is here so that flipping that flag back on lands it in the scene
+ * it belongs to.
  */
 /** Exported for `phases.check.ts`. */
-export const MODEL_FROM = 0.15
-const MODEL_TO = 0.4
+export const MODEL_FROM = IDENTITY_FROM
+const MODEL_TO = 0.62
 
 /** 0..1 across the model's rise into Scene 2, 0 before it and 1 after. */
 export function toModel(page: number): number {
