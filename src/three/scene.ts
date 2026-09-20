@@ -1,11 +1,20 @@
 /**
- * Base Three.js scene — an orbiting starfield, plus the Scene 1 world layer
- * (the model) composited on top of it.
+ * Base Three.js scene — the orbiting starfield, plus the world layer (the
+ * model) composited on top of it.
  *
  * The stars orbit the model's centre on roughly the model's own orbital plane,
  * each at its own randomised speed, so they read as one system with the stars
  * embedded in the model rather than as a separate dolly-ing backdrop. Mouse
  * parallax is layered on top via shared input state, lerped for smooth motion.
+ *
+ * **On scroll the whole field is pressed flat** (`lib/press.ts`): every star
+ * is pulled along its own sightline onto one plane facing the camera, the ring
+ * turns to face it too, the motion runs out and the ring disperses. That is
+ * the bridge between Scene 1's 3D space and Scene 2's flat one, and it is why
+ * nothing here flies off or fades any more — **the settled field is Scene 2's
+ * backdrop and, through `ui/invert.ts`'s panel, Scene 3's inverted one.** Once
+ * it has settled this file stops writing positions entirely; see the
+ * still-frame gate in `update()`.
  *
  * Two render passes share one renderer. The starfield is drawn through the
  * world layer's bird's-eye camera, then — behind a depth clear, so the model
