@@ -35,6 +35,15 @@ export interface Invert {
   el: HTMLDivElement
   /** `page` is the smoothed 0..1 page scroll. */
   update(page: number): void
+  /**
+   * The panel's top edge in CSS pixels — the boundary between the black page
+   * and the white half — or `Infinity` while it is parked off the bottom.
+   *
+   * `ui/cursor.ts` is the caller: the inverting pointer only exists inside this
+   * panel, so it needs to know where the line is. Read from the panel's own
+   * geometry rather than measured, so it costs no layout.
+   */
+  topEdge(): number
 }
 
 export function createInvert(): Invert {
@@ -42,6 +51,7 @@ export function createInvert(): Invert {
   el.className = 'invert'
   el.setAttribute('aria-hidden', 'true')
 
+  /** How far up the panel has come, 0..1. -1 until the first update. */
   let shown = -1
 
   function update(page: number): void {
@@ -54,5 +64,16 @@ export function createInvert(): Invert {
     el.style.visibility = up <= 0 ? 'hidden' : 'visible'
   }
 
-  return { el, update }
+  /**
+   * The panel is `height: 50vh` anchored to the bottom and pushed down by
+   * `(1 - up)` of its own height, so its top edge sits at
+   * `H - 0.5 * H * up`. At `up` 0 that is the bottom of the screen; at 1 it is
+   * the middle.
+   */
+  function topEdge(): number {
+    if (shown <= 0) return Infinity
+    return window.innerHeight * (1 - 0.5 * shown)
+  }
+
+  return { el, update, topEdge }
 }
