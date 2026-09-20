@@ -43,10 +43,13 @@ inside out through itself into a field with no knot in the middle and no trace
 of the circle it came from, each winding on a spiral that is tighter the
 shorter its travel, the way an orbiting body turns as its radius changes. The
 orbit runs out, and a slice of the ambient cloud drifts to evenly spread places
-across the frame. All of it eases to a dead stop in the scene's first
-third, and the rest of Scene 1 is a settled composition rather than more
+across the frame. Every star's travel ends on the same frame,
+whenever the wave let it go, so the field settles all at once rather than in
+stragglers. All of it eases to a dead stop in the scene's first third, and the rest of Scene 1 is a settled composition rather than more
 movement. Only stars already inside the frame are redistributed — nothing
-enters the picture from beyond its edge.
+enters the picture from beyond its edge. From the moment it settles to the
+bottom of the page the pointer tilts the whole field a few degrees — the only
+thing left moving once the scroll has stopped the stars.
 
 The camera never moves, nothing is turned to face it, and no star's depth
 changes. Where Scene 3's white panel covers the field, the stars are drawn
