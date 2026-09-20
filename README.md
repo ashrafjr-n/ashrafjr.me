@@ -35,16 +35,19 @@ own to scroll. The scroll range comes from a `min-height` on `body`, and
 | **03** | a white half rising from the bottom, inverting everything it covers | 340vh |
 
 The bridge between the first two is **the scatter** (`src/lib/scatter.ts`):
-the star field is not cleared away and replaced, it is dispersed. The ring
-winds up, then breaks apart in two directions only — the stars on its inner
-edge travel inward and through the centre, the ones on its outer edge travel
-out — while the wind-up still turning underneath them bends both into spirals.
-The orbit runs out, and a slice of the ambient cloud drifts to evenly spread
-places across the frame. What is left is a still, even field of points, which
-is Scene 2's backdrop and which Scene 3's panel inverts to black-on-white
-without a second copy of anything.
+the star field is not cleared away and replaced, it is dispersed. A wave runs
+once around the ring's circumference letting stars go, so the ring unravels
+from a point and keeps its shape everywhere the wave has not reached. Each star
+that lets go travels in one of only two directions — inward through the centre
+and out the far side, or outward — winding on a spiral that is tighter the
+shorter its travel, the way an orbiting body turns as its radius changes. The
+orbit runs out, and a slice of the ambient cloud drifts to evenly spread places
+across the frame.
 
-The camera never moves, and nothing is ever turned to face it.
+The camera never moves, nothing is turned to face it, and no star's depth
+changes. Where Scene 3's white panel covers the field, the stars are drawn
+heavier so they survive being inverted; scrolling back up takes that away
+again.
 
 ## Layout
 
