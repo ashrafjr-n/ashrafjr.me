@@ -109,6 +109,14 @@
 /* ===========================================================
    Base
    =========================================================== */
+html {
+  /* No rubber-band or pull-to-refresh at the two ends of a 1060vh page.
+     Everything on screen is `position: fixed`, so an overscroll bounce drags
+     the viewport away from a composition that cannot follow it, and on a phone
+     an overscroll at the top of Scene 1 is a refresh rather than a scroll. */
+  overscroll-behavior-y: none;
+}
+
 body {
   /* Flat, ungraded black — shows through the transparent canvas and must stay
      pixel-identical to the model's black, so no gradient here. */
@@ -927,7 +935,15 @@ html.has-cursor button {
   z-index: 30;
   /* Pure white is what makes `difference` a clean negation: the result is
      `1 - backdrop`, so the panel contributes no colour of its own. Any other
-     value would tint the half instead of inverting it. */
+     value would tint the half instead of inverting it.
+
+     **What it negates is the canvas as well as the type**, and that is now
+     load-bearing rather than incidental: the press leaves the whole star field
+     on screen for the rest of the page, so the half rises over a field of
+     white points on black and turns it into black points on white. No second
+     copy of anything, and nothing to keep in sync. If the stars ever stop
+     being drawn through Scene 3 — the still-frame gate in `three/scene.ts` is
+     what could do it — the white half goes blank. */
   background: #ffffff;
   mix-blend-mode: difference;
   pointer-events: none;

@@ -26,6 +26,14 @@ import { CanvasTexture, LinearFilter } from 'three'
  * Leave them on for a layer whose points vary in size and get genuinely large
  * up close — there minification is real and mipmaps are what stop the dot
  * shimmering as it moves.
+ *
+ * **A layer can need both, at different points in the page.** The ambient
+ * cloud is the case: at rest its points run ~1.7px to ~7.7px and it wears the
+ * mipmapped texture, but the press flattens the whole field onto one plane and
+ * lands every point at 2.2px — the failing case above, for 20,000 points at
+ * once. `three/scene.ts` swaps its map on the first frame of scroll rather
+ * than choosing one for good. Both textures are built up front; a swap is one
+ * assignment and a `needsUpdate` flag.
  */
 export function createCircleTexture({ mipmaps = true }: { mipmaps?: boolean } = {}): CanvasTexture {
   const size = 64
