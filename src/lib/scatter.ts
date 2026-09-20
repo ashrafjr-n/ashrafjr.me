@@ -53,7 +53,7 @@ export const SWIRL_TO = 0.8
  * read as *accelerating* on the first touch of the scroll. A gentler curve
  * gives one flat rate change and no sense of being set off.
  */
-export const SWIRL_EASE = 2.6
+export const SWIRL_EASE = 2.0
 /** Extra turns the ring gains across the wind-up. */
 export const RING_SWIRL_TURNS = 1.2
 /**
@@ -66,8 +66,13 @@ export const CLOUD_SWIRL_TURNS = 0.06
 
 // --- the scatter ---
 export const SCATTER_TO = 0.85
-/** Ease-out: it leaves fast and arrives slow. */
-export const SCATTER_EASE = 2.4
+/**
+ * Ease-out: it leaves fast and arrives slow, which is what was asked for — but
+ * **gently**. At 2.4 the ring was 70% scattered a quarter of the way into
+ * Scene 1 and off the frame entirely, so the scene was over before it had
+ * started; measured on screen.
+ */
+export const SCATTER_EASE = 1.4
 /**
  * How far an inner-half ring star travels inward, in world units.
  *
@@ -76,12 +81,18 @@ export const SCATTER_EASE = 2.4
  * `x = cos * radius` is exactly the antipode. The range is wide on purpose:
  * the short travellers stop near the middle and the long ones cross it, so the
  * hole in the ring fills and then spreads instead of emptying again.
+ *
+ * **The far end is bounded by the frame, not by taste.** At the ring's own
+ * plane the frustum reaches about 2.85 units vertically and 5.07 horizontally,
+ * so a star past ~5 is gone for good — and the settled field is what Scene 2
+ * is read against and what Scene 3 inverts, so the ring emptying itself off
+ * screen costs both of those. These were 2..8 and the ring vanished.
  */
-export const INWARD_MIN = 2.0
-export const INWARD_MAX = 8.0
+export const INWARD_MIN = 1.5
+export const INWARD_MAX = 5.0
 /** And outward, for the outer half. */
-export const OUTWARD_MIN = 1.0
-export const OUTWARD_MAX = 7.0
+export const OUTWARD_MIN = 0.6
+export const OUTWARD_MAX = 3.5
 
 // --- the orbit running out ---
 export const STILL_FROM = 0.2
