@@ -707,6 +707,9 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
    */
   function resync(): void {
     prevTime = performance.now()
+    // The canvas was covered while frames were skipped, and the still-frame
+    // gate would otherwise trust a drawing nobody can vouch for.
+    stillDrawn = false
     // The scroll was frozen for the whole pause, so the spring has nowhere
     // left to travel; whatever speed it was carrying when frames stopped would
     // only arrive as a kick on the first frame back.
@@ -716,6 +719,9 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
   function resize(): void {
     const w = window.innerWidth
     const h = window.innerHeight
+    // A resized drawing buffer is a blank one, so the settled field has to be
+    // drawn again even when nothing about it has changed.
+    stillDrawn = false
     world.resize(w / h) // one camera drives the starfield and world passes
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
     renderer.setSize(w, h, false)
