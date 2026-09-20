@@ -350,6 +350,33 @@ function advance(layer: StarLayer, delta: number, frame: PressFrame): void {
 }
 
 /**
+ * Swap a layer between the mipmapped sprite and the plain one, skipping the
+ * write when it is already on the right one.
+ *
+ * **The press walks the ambient cloud straight into the trap `sprite.ts`
+ * describes, and this is the way out.** Today the cloud's points run from
+ * ~1.7px at the field's far edge to ~7.7px close in, so its minification is
+ * real and varied and mipmaps are what stop them shimmering as they orbit.
+ * Pressed flat they all land at 2.2px — one small size, every point at once,
+ * which is the exact condition that took the ring's stars to 92/255 before its
+ * own sprite was made mipmap-free. Left alone the settled cloud would read
+ * dim *and* would not match the ring beside it, and a field that is visibly
+ * two populations is not the one texture the backdrop has to be.
+ *
+ * It is a step rather than a ramp, and it is put on the very first frame of
+ * scroll on purpose. The resting composition is protected, so nothing may
+ * change at page 0; one frame later the far stars come up to meet the near
+ * ones, which **is** the press's first beat — the depth cue in the brightness
+ * draining away. Getting it from a texture swap costs nothing per frame.
+ */
+function setSprite(layer: StarLayer, texture: CanvasTexture): void {
+  const material = layer.points.material as PointsMaterial
+  if (material.map === texture) return
+  material.map = texture
+  material.needsUpdate = true
+}
+
+/**
  * Ease a layer's point size from what it was authored at toward the one size
  * the settled field shares, skipping the write when it has not changed.
  *
@@ -647,6 +674,7 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
     // texture — see SETTLED_POINT_SIZE.
     setPointSize(cloud, CLOUD_POINT_SIZE, settled)
     setPointSize(band, BAND_POINT_SIZE, settled)
+    setSprite(cloud, frame.press > 0 ? bandSprite : sprite)
 
     // Nothing in the starfield changes again once Scene 1 is over: every press
     // curve has clamped, the orbit has stopped and the parallax is dead. One
