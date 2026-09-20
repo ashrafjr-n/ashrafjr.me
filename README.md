@@ -38,8 +38,9 @@ The bridge between the first two is **the scatter** (`src/lib/scatter.ts`):
 the star field is not cleared away and replaced, it is dispersed. A wave runs
 once around the ring's circumference letting stars go, so the ring unravels
 from a point and keeps its shape everywhere the wave has not reached. Each star
-that lets go travels in one of only two directions — inward through the centre
-and out the far side, or outward — winding on a spiral that is tighter the
+that lets go moves to a resting radius drawn evenly by area, so the ring turns
+inside out through itself into a field with no knot in the middle and no trace
+of the circle it came from, each winding on a spiral that is tighter the
 shorter its travel, the way an orbiting body turns as its radius changes. The
 orbit runs out, and a slice of the ambient cloud drifts to evenly spread places
 across the frame. All of it eases to a dead stop in the scene's first

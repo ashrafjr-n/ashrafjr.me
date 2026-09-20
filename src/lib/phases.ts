@@ -97,20 +97,35 @@ export function toTransition(page: number): number {
  * How far the identity scene reaches past its own stretch, at each end, in
  * page units.
  *
- * **The lead is small now, and it used to carry the whole handover.** It was
- * 0.16, because Scene 1 emptied well before its own stretch was up: the ring
- * flew off, the cloud streamed past the camera and the page sat on a blank
- * frame waiting for the statements. That gap shipped twice.
+ * **The two scenes overlap on purpose, and the lead is how much.** Nothing
+ * leaves the frame any more — Scene 1's field disperses and *stays* — so this
+ * is not covering a blank frame the way it was when it stood at 0.16 and the
+ * ring flew off the screen. It is the handover itself: the statements are
+ * already crossing while the field is still settling, so the page moves from
+ * one scene to the next rather than finishing one and starting the other.
  *
- * **The press removed the gap rather than covering it.** Nothing leaves any
- * more — Scene 1's star field flattens and *stays*, so the frame is never
- * empty and there is nothing for the statements to have to arrive early for.
- * What is left is a small overlap for its own sake: the first statement starts
- * crossing while the ring is still letting go, so the two scenes hand over
- * instead of taking turns. The trail at the far end is untouched.
+ * **0.26 is set against where the scatter stops**, which is page 0.125 now
+ * (`SCATTER_END`, 40% of Scene 1's scroll) — and it is set against **the
+ * first glyph reaching the frame**, not against the scene opening. The two
+ * are far apart: a statement starts 1.05 viewport widths out, so it is still
+ * wholly off screen for the first ~9% of the scene and the layer's own
+ * opening is invisible. `SLIDE_SPAN` and `SLIDE_FROM` put the first edge in
+ * frame at **page 0.113**, just before the field stops, which is the overlap.
+ * The scene itself opens at `IDENTITY_FROM - IDENTITY_LEAD` = 0.0525.
+ *
+ * It was 0.05, which opened at 0.2625 and put the first glyph at 0.31 — a
+ * screen and a half of scroll after the field had already stopped, with
+ * nothing happening in between. Solve it from the glyph, not from the lead:
+ * `start + 0.088 * (0.7358 - start)` is where the first edge lands.
+ *
+ * **Raising it lengthens the identity scene, which pushes its fill later in
+ * page terms**, so the far end is what to re-check: `FILL_FROM + 2 *
+ * FILL_STEP + FILL_SPAN` of the scene has to land before `ui/invert.ts`'s
+ * panel starts rising at page 0.70. At 0.20 the last sweep completes at 0.686.
+ * The trail at the far end is untouched.
  */
 /** Exported for `phases.check.ts`. */
-export const IDENTITY_LEAD = 0.05
+export const IDENTITY_LEAD = 0.26
 const IDENTITY_TRAIL = 0.09
 
 /**
