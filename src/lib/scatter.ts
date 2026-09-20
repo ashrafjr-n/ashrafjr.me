@@ -53,14 +53,15 @@ import { easeEnds, HOLD } from './phases.ts'
  * Scene 1's scroll are the same composition. Ending here spends that scroll on
  * a settled frame instead of on movement nobody can see.
  *
- * **It is the scroll fraction that this is set by, not its own value.** 0.555
- * of the transition is **43% of Scene 1's scroll** — `toTransition` has its
+ * **It is the scroll fraction that this is set by, not its own value.** 0.516
+ * of the transition is **40% of Scene 1's scroll** — `toTransition` has its
  * own ramp into the hold, so the two are not the same number and the second
- * is the one anybody can see. It was 0.85 (68%), then 0.77 (60%), then 0.645
- * (50%); below 0.55 the whole run sits inside `toTransition`'s linear middle,
- * where the scroll fraction is just this over 1.29.
+ * is the one anybody can see. It was 0.85 (68%), then 0.77 (60%), 0.645 (50%)
+ * and 0.555 (43%). At or under 0.55 the whole run sits inside
+ * `toTransition`'s linear middle, so the scroll fraction is simply this over
+ * 1.29; above it the ramp into the hold makes the two diverge.
  */
-export const SCATTER_END = 0.555
+export const SCATTER_END = 0.516
 /**
  * How much of the run above is spent slowing down, as a share of it.
  *
