@@ -14,7 +14,6 @@ import { initScene } from './three/scene'
 import { lockScroll, unlockScroll } from './lib/scroll-lock'
 import { state, initPointer, initScroll } from './lib/state'
 import { buildSocialBadges } from './ui/social'
-import { createCues } from './ui/cues'
 import { createCursor } from './ui/cursor'
 import { createIdentity } from './ui/identity'
 import { createInvert } from './ui/invert'
@@ -51,11 +50,10 @@ canvas.id = 'scene'
 
 const intro = buildIntro()
 const identity = createIdentity()
-const cues = createCues()
 const invert = createInvert()
 // The inversion panel is appended last of the page's own layers: it blends with
 // everything painted before it, so document order is part of what it does.
-app.append(canvas, intro, identity.el, cues.el, invert.el)
+app.append(canvas, intro, identity.el, invert.el)
 
 // --- Starfield + model, and the input they read ---
 const scene = initScene(canvas)
@@ -138,9 +136,6 @@ function raf(time: number) {
     const progress = toTransition(page)
     updateIntro(progress)
     identity.update(toIdentity(page))
-    // Off the raw page value, not the transition: these mark the two ends of
-    // the scroll itself, not a point inside any one scene.
-    cues.update(page)
     invert.update(page)
     // The disc is the pointer only inside the panel, so it is told where the
     // panel's edge is every frame — it moves under a stationary pointer as the

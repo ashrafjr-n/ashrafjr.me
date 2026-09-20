@@ -121,11 +121,6 @@ export function createIdentity(): Identity {
     return { row, outline, fill, filledAt: -1 }
   })
 
-  const name = document.createElement('p')
-  name.className = 'identity-meta identity-meta--name'
-  name.textContent = '02 — IDENTITY'
-  el.append(name)
-
   /**
    * Set each statement's own size so all three are flush to both margins.
    *
