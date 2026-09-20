@@ -50,15 +50,23 @@ export const SWIRL_TO = 0.8
  * changing rate.
  */
 export const SWIRL_EASE = 2.0
-/** Extra turns the ring gains across the wind-up, on top of its own orbit. */
-export const RING_SWIRL_TURNS = 0.45
+/**
+ * Extra turns the ring gains across the wind-up, on top of its own orbit.
+ *
+ * **Deliberately almost nothing.** It was 0.45, and stacked on top of the
+ * orbit and each star's own spiral it made three separate rotations running at
+ * once — the scatter read as several movements happening together rather than
+ * as one. The per-star spiral is what turns a scattering star now; this is
+ * only enough to feel the field pick up on the first touch of the scroll.
+ */
+export const RING_SWIRL_TURNS = 0.12
 /**
  * And the ambient cloud's, which has to be far smaller for the same *look*.
  * Its stars orbit at radii out to 62 against the ring's 2.7, so a turn there
  * is twenty times the arc across the frame. Set by how far a cloud star
  * travels on screen, not by how much it turns.
  */
-export const CLOUD_SWIRL_TURNS = 0.05
+export const CLOUD_SWIRL_TURNS = 0.035
 
 // --- the scatter ---
 export const SCATTER_TO = 1.0
@@ -88,8 +96,8 @@ export const SCATTER_SPAN = 1 - SCATTER_STAGGER
  */
 export const WAVE_SHARE = 0.8
 /** The range of ease-out exponents rolled per star, so arrivals differ. */
-export const EASE_MIN = 1.7
-export const EASE_MAX = 3.4
+export const EASE_MIN = 1.9
+export const EASE_MAX = 2.7
 /**
  * How far an inner-half ring star travels inward, in world units.
  *
@@ -98,8 +106,8 @@ export const EASE_MAX = 3.4
  * `x = cos * radius` is exactly the antipode. The far end is wide so the ones
  * that cross keep going instead of piling into a knot in the middle.
  */
-export const INWARD_MIN = 1.0
-export const INWARD_MAX = 5.5
+export const INWARD_MIN = 0.8
+export const INWARD_MAX = 3.6
 /**
  * And outward, which is bounded hard **by the frame, not by taste**. At the
  * ring's own plane the frustum reaches about 2.85 units vertically against the
@@ -107,19 +115,32 @@ export const INWARD_MAX = 5.5
  * travel starts pushing stars off the top and bottom at once. Measured: at
  * 2..8 the whole ring was gone by a tenth of the page.
  */
-export const OUTWARD_MIN = 0.4
-export const OUTWARD_MAX = 2.2
+export const OUTWARD_MIN = 0.3
+export const OUTWARD_MAX = 1.4
 /**
  * Turns a star winds on across its own travel: the **most** for the shortest
  * travel, the least for the longest. See the note at the top of the file —
- * this inverse correlation is what makes the paths read as one system.
+ * this inverse correlation is what makes the paths read as one system. Halved
+ * from 0.62 along with everything else, so the whole move stays one unhurried
+ * gesture rather than a flourish.
  */
-export const SPIRAL_MIN = 0.06
-export const SPIRAL_MAX = 0.62
+export const SPIRAL_MIN = 0.05
+export const SPIRAL_MAX = 0.3
 
 // --- the orbit running out ---
-export const STILL_FROM = 0.35
-export const STILL_TO = 0.95
+export const STILL_FROM = 0.25
+export const STILL_TO = 1.0
+/**
+ * How the orbit's rate falls away: `(1 - u) ** SPIN_EASE`.
+ *
+ * **It was linear, and a linear fall stops the field on a corner** — the rate
+ * is still dropping at a constant clip right up to the instant it reaches
+ * zero, so the last of the motion is cut off rather than spent. This sheds
+ * most of the speed early and then eases the rest away, so the field slows
+ * quickly, keeps drifting for a while, and comes to rest without a seam. It
+ * reaches exactly 0 at `STILL_TO`, with zero slope there.
+ */
+export const SPIN_EASE = 2.4
 
 // --- the settled field's even spread ---
 /**
@@ -147,8 +168,8 @@ export const FILL_FAR = 46
  * frame. A little over 1 so the spread has no visible border.
  */
 export const FILL_REACH = 1.15
-export const SETTLE_FROM = 0.3
-export const SETTLE_TO = 0.85
+export const SETTLE_FROM = 0.15
+export const SETTLE_TO = 0.95
 
 // --- the weight worn inside Scene 3's white half ---
 /**
@@ -195,7 +216,7 @@ export function scatterAt(p: number): number {
 
 /** What is left of the orbit's rate — 1 turning, 0 at rest. */
 export function spinAt(p: number): number {
-  return 1 - ramp(scene1At(p), STILL_FROM, STILL_TO)
+  return Math.pow(1 - ramp(scene1At(p), STILL_FROM, STILL_TO), SPIN_EASE)
 }
 
 /** How far the field has spread out and let go of the pointer, 0..1. */

@@ -27,6 +27,7 @@ import {
   SETTLE_TO,
   SCATTER_SPAN,
   SCATTER_STAGGER,
+  SPIN_EASE,
   WAVE_SHARE,
   STILL_FROM,
   STILL_TO,
@@ -114,6 +115,15 @@ ok(Math.abs(SCATTER_SPAN - (1 - SCATTER_STAGGER)) < 1e-12, 'the span and the sta
 // The last star to be let go still has to finish inside the scatter's window.
 ok(SCATTER_STAGGER + SCATTER_SPAN <= 1 + 1e-12, 'the slowest star is still travelling when Scene 1 ends')
 ok(WAVE_SHARE > 0 && WAVE_SHARE < 1, 'the delay is all wave or all jitter — one reads mechanical, the other as noise')
+
+// **The field has to come to rest, not be cut off.** A linear fall in the
+// orbit's rate is still dropping at full clip the instant it reaches zero,
+// which reads as the motion stopping rather than running out. The curve has to
+// shed speed early and arrive with no slope left.
+ok(SPIN_EASE > 1, 'the orbit stops on a corner instead of easing to rest')
+const spinSlopeAtRest = (spinAt(HOLD) - spinAt(HOLD * 0.999)) / 0.001
+ok(Math.abs(spinSlopeAtRest) < 0.02, `the orbit is still slowing hard as it stops (${spinSlopeAtRest})`)
+ok(spinAt(at(0.5)) < 0.5, 'the orbit sheds most of its speed late — it should go early and then ease')
 ok(scene1At(HOLD) === 1 && scene1At(0) === 0, 'Scene 1 does not span its own stretch')
 
 console.log('scatter: ok')
