@@ -856,8 +856,10 @@ body {
 
 /* ===========================================================
    The pointer (ui/cursor.ts)
-   A disc that negates whatever the page has drawn under it. Same mechanism as
-   the inversion panel below, shrunk to a circle and moved with the mouse.
+   A disc that negates whatever the page has drawn under it — and it is the
+   pointer **only inside the inversion panel below**. Everywhere else the
+   reader keeps their own system cursor. Same mechanism as that panel, shrunk
+   to a circle and moved with the mouse.
    =========================================================== */
 .cursor {
   position: fixed;
@@ -883,14 +885,19 @@ body {
   visibility: hidden;
 }
 
-/* Added by ui/cursor.ts on the first real pointer movement, so the disc is
-   never seen parked at the origin. */
+/* Added by ui/cursor.ts while the pointer is inside the white panel, and taken
+   away again on the way out.
+
+   `visibility` rather than `opacity` on purpose: a hidden element is not
+   painted at all, so outside the panel there is no blended element for the
+   browser to rasterise a backdrop for. That is what keeps the rest of the site
+   at the speed it ran at before this existed. */
 .cursor.is-live {
   visibility: visible;
 }
 
-/* The native cursor goes only once the disc is actually live — the class is
-   written from JS for exactly that reason, so a failed script leaves the
+/* The native cursor goes only while the disc is standing in for it — the class
+   is written from JS for exactly that reason, so a failed script leaves the
    ordinary pointer behind rather than no pointer at all.
 
    `a` and `button` are named because a UA stylesheet rule that matches the

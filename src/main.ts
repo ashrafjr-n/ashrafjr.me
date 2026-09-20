@@ -97,7 +97,7 @@ app.append(buildSocialBadges())
 // painted under it, so anything mounted after it — or given a z-index above its
 // 100 — is simply not inverted. See ui/cursor.ts for the other half of that
 // rule: nothing on the way up to `<html>` may create a stacking context.
-createCursor(app)
+const cursor = createCursor(app)
 
 window.addEventListener('resize', () => {
   scene.resize()
@@ -135,6 +135,10 @@ function raf(time: number) {
     // the scroll itself, not a point inside any one scene.
     cues.update(page)
     invert.update(page)
+    // The disc is the pointer only inside the panel, so it is told where the
+    // panel's edge is every frame — it moves under a stationary pointer as the
+    // page scrolls. Must follow `invert.update()`, which is what moves it.
+    cursor.update(invert.topEdge())
   }
   revealWindow.update(state)
   requestAnimationFrame(raf)
