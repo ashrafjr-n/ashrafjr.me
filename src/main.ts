@@ -9,7 +9,7 @@
  */
 import './style.css'
 import { HOLD, toIdentity, toTransition } from './lib/phases'
-import { PRESS_TO } from './lib/press'
+import { FLATTEN_TO } from './lib/scatter'
 import { initScene } from './three/scene'
 import { lockScroll, unlockScroll } from './lib/scroll-lock'
 import { state, initPointer, initScroll } from './lib/state'
@@ -23,13 +23,10 @@ import { createRevealWindow } from './ui/reveal-window'
  * Scroll progress at which the intro line has fully gone.
  *
  * **Derived rather than picked**, so it cannot drift out of step with the
- * scene it belongs to: it lands exactly where the press finishes flattening
- * the field and the ring completes its turn. The line and the composition it
- * is written over therefore settle on the same frame, instead of one of them
- * still moving while the other has arrived. It was a hand-set 0.28, which is
- * what this evaluates to today.
+ * scene it belongs to: it lands where the field finishes flattening, with the
+ * scatter still running on past it. It was a hand-set 0.28.
  */
-const INTRO_FADE_END = HOLD * PRESS_TO
+const INTRO_FADE_END = HOLD * FLATTEN_TO
 /** How far the line drifts upward as it goes, in px. */
 const INTRO_DRIFT = 70
 

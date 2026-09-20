@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "check": "node --experimental-strip-types src/lib/phases.check.ts && node --experimental-strip-types src/lib/press.check.ts"
+    "check": "node --experimental-strip-types src/lib/phases.check.ts && node --experimental-strip-types src/lib/scatter.check.ts"
   },
   "devDependencies": {
     "@types/three": "^0.185.0",
