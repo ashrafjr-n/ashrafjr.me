@@ -13,15 +13,22 @@
  * backdrop, and Scene 3's panel inverts it to black-on-white for free.
  *
  * Scroll lengths, of a 960vh range (body is 1060vh in style.css — change them
- * together): Scene 1 gets 300vh, identity 320vh, and the move into
- * Scene 3 340vh — **eased in and out**, so the transition leaves identity
- * gently instead of resuming at full speed, and settles as the model lands.
+ * together): Scene 1 gets **600vh**, identity 205vh, and the move into
+ * Scene 3 155vh — **eased in and out**, so the transition leaves identity
+ * gently instead of resuming at full speed.
  *
- * **Scene 1's 300vh is what paces the press.** Every beat of it is a pure
- * function of this value (`lib/press.ts`), so the only honest way to slow the
- * flattening down is to spend more scroll on it. It was 240vh when Scene 1 was
- * a scatter and nothing more; the press has four beats to get through and the
- * last of them is the subtlest.
+ * **Scene 1's 600vh is what paces the scatter, and it is the only honest way
+ * to slow it down.** Every beat is a pure function of this value, so speed on
+ * screen is distance over scroll and nothing else. It was 300vh, and with
+ * `SCATTER_END` cutting the move to the scene's first 29% the whole
+ * dispersal — the ring unravelling, every star's travel, the wind-up and the
+ * settle — was spent in **87vh**. That is what read as flung rather than
+ * cinematic, and no curve fixes it. At 600vh the same move has 174vh: exactly
+ * twice as slow, with the composition untouched.
+ *
+ * **The scroll it took came from Scene 3, which had 340vh for a panel that
+ * finished in 70 of them.** Nothing was compressed to pay for it; 280vh of
+ * the old split was a finished composition being scrolled past.
  *
  * **Both ends of the hold are velocity-continuous, and that is the point.**
  * Scene 1's break-up used to run dead linear and then stop the instant
@@ -33,8 +40,8 @@
  */
 export const HOLD = 0.45
 /** Exported for `phases.check.ts`, so its boundaries cannot go stale. */
-export const IDENTITY_FROM = 300 / 960
-export const IDENTITY_TO = 620 / 960
+export const IDENTITY_FROM = 600 / 960
+export const IDENTITY_TO = 805 / 960
 
 /**
  * 0..1 with **zero slope at both ends**, easing over only `head` and `tail` of
@@ -128,7 +135,7 @@ export function toTransition(page: number): number {
  * The trail at the far end is untouched.
  */
 /** Exported for `phases.check.ts`. */
-export const IDENTITY_LEAD = 0.3
+export const IDENTITY_LEAD = 0.52
 const IDENTITY_TRAIL = 0.09
 
 /**
@@ -149,7 +156,7 @@ const IDENTITY_TRAIL = 0.09
  */
 /** Exported for `phases.check.ts`. */
 export const MODEL_FROM = IDENTITY_FROM
-const MODEL_TO = 0.62
+const MODEL_TO = 0.8
 
 /** 0..1 across the model's rise into Scene 2, 0 before it and 1 after. */
 export function toModel(page: number): number {

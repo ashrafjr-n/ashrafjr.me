@@ -170,9 +170,9 @@ body {
   /* Scroll length for all three scenes. Everything on screen is
      position:fixed, so the page has no content to scroll — this is what
      creates the scroll range that drives `state.scroll`. 1060vh leaves 9.6
-     viewport heights of travel; lib/phases.ts splits them 300 / 320 / 340 and
-     has to change with this. Scene 1 took the extra 60: the press has four
-     beats where the old scatter had one. */
+     viewport heights of travel; lib/phases.ts splits them 600 / 205 / 155 and
+     has to change with this. Scene 1 holds most of it because the scatter's
+     pace is that split and nothing else — see IDENTITY_FROM there. */
   min-height: 1060vh;
   color: var(--text-dim);
   font-family: var(--font-code);
