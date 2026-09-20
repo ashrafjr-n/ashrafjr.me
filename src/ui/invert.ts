@@ -44,17 +44,19 @@ import { easeEnds } from '../lib/phases'
  * sooner.
  *
  * `PANEL_FROM` has to stay clear of the identity block's last fill sweep,
- * which completes at page 0.519 (see `FILL_*` in `ui/identity.ts`), or the
- * inversion arrives over type that is still filling. That is what bounds how
- * much earlier this can come, and the two move together.
+ * which completes at page 0.797 (see `FILL_*` in `ui/identity.ts`), or the
+ * inversion arrives over type that is still filling. **The 0.023 of page
+ * between them is the whole margin and it is meant to be that tight** — the
+ * gap where the block sat finished and nothing happened was the dead beat at
+ * the end of Scene 2. The two move together.
  *
- * **Everything on the page is now over by 0.72**, which leaves the last 280vh
- * of the scroll range on a finished composition. The honest fix for that is a
- * shorter page (`body { min-height }` plus the splits in `lib/phases.ts`),
- * not a slower panel.
+ * The range sat at 0.60..0.72 while Scene 3 still held 340vh of the split and
+ * everything finished in the first fifth of it. `lib/phases.ts` gives that
+ * scroll to Scene 1 now, so these are late in page terms again while being
+ * the same 115vh of travel.
  */
-const PANEL_FROM = 0.6
-const PANEL_TO = 0.72
+const PANEL_FROM = 0.82
+const PANEL_TO = 0.94
 
 /**
  * Where the rise spends its time: a short ease in, a long settle, and a
