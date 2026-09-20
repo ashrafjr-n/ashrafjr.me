@@ -17,21 +17,23 @@
  * `three/scene.ts` reads these; this file holds no Three.js and no DOM so that
  * `lib/press.check.ts` can run it under plain node.
  *
- *   0.00 .. 0.62  **the depth drains.** Every star is pulled along its own
+ *   0.00 .. 0.58  **the depth drains.** Every star is pulled along its own
  *                 sightline onto one plane facing the camera. Its place on
  *                 screen does not move — only its distance — so the field does
  *                 not rearrange itself, it *equalises*: the far faint specks
  *                 and the near bright ones converge on one size and one
  *                 weight, and the picture stops being a space.
- *   0.18 .. 0.62  **the ring turns to face you.** Its plane rotates the ~27°
+ *   0.18 .. 0.58  **the ring turns to face you.** Its plane rotates the ~27°
  *                 that separates it from the camera, so its ellipse opens into
  *                 a true circle and lands flat with the rest. This is the one
  *                 frame the whole sequence is built around: the object has
  *                 become a mark.
- *   0.55 .. 0.78  **the motion decays.** A circular orbit pressed onto a plane
+ *   0.46 .. 0.62  **the motion decays.** A circular orbit pressed onto a plane
  *                 is already only a left-right swing; this takes the swing to
  *                 nothing. The movement is not switched off, it runs out.
- *   0.72 .. 1.00  **the ring lets go** and disperses into the field, which is
+ *   0.62 .. 0.74  **the still frame.** Flat, circular, motionless — held, not
+ *                 cut to. See the note on it below.
+ *   0.74 .. 1.00  **the ring lets go** and disperses into the field, which is
  *                 what makes the backdrop one even scatter rather than a ring
  *                 sitting in front of a cloud.
  *
@@ -46,7 +48,7 @@ import { HOLD } from './phases.ts'
 
 // --- beat 1: the depth drains ---
 export const PRESS_FROM = 0.0
-export const PRESS_TO = 0.62
+export const PRESS_TO = 0.58
 /**
  * Ease-out. The depth goes early and then settles, so the scene reads as
  * *relaxing* into a surface rather than being crushed onto one — and the last
@@ -74,16 +76,37 @@ export const PRESS_MIN_DEPTH = 2.0
 
 // --- beat 2: the ring turns to face the camera ---
 export const FACE_FROM = 0.18
-export const FACE_TO = 0.62
+export const FACE_TO = 0.58
 /** Ease-in-out: the turn starts and ends at rest, so it reads as one move. */
 export const FACE_EASE = 2.0
 
 // --- beat 3: the motion decays ---
-export const STILL_FROM = 0.55
-export const STILL_TO = 0.78
+export const STILL_FROM = 0.46
+export const STILL_TO = 0.62
+
+/**
+ * **Between `STILL_TO` and `RELEASE_FROM` nothing happens at all, and that is
+ * the point of the whole sequence.**
+ *
+ * By 0.58 the field is flat and the ring has opened into a true circle; by
+ * 0.62 the motion has run out. For the 12% of Scene 1 that follows, the screen
+ * holds one complete, still, evenly weighted composition — a circle of points
+ * on black, with no depth, no perspective and no movement left in it. That is
+ * the frame the bridge exists to produce: the object has become a mark, and
+ * the page has finished speaking 3D before it starts speaking 2D.
+ *
+ * **A held frame is a composition; an empty frame is a gap.** The distinction
+ * matters because this page has shipped the second kind twice (see
+ * `IDENTITY_LEAD` in `phases.ts`). There is something to look at here, and it
+ * is the thing everything before it was building.
+ *
+ * It did not exist at first: the release began at 0.72 while the ring was
+ * still turning at a quarter speed, so the circle was never once seen still.
+ * `press.check.ts` guards the gap now.
+ */
 
 // --- beat 4: the ring lets go ---
-export const RELEASE_FROM = 0.72
+export const RELEASE_FROM = 0.74
 export const RELEASE_TO = 1.0
 /** Ease-out, so the ring loosens rather than bursting. */
 export const RELEASE_EASE = 2.2
@@ -129,7 +152,7 @@ export const SPRITE_SWAP_AT = 0
 export const SETTLED_POINT_SIZE = 0.031
 /** Where the size and the mouse parallax finish converging. */
 export const SETTLE_FROM = 0.3
-export const SETTLE_TO = 0.62
+export const SETTLE_TO = 0.58
 
 /**
  * What the settled field actually measures, at 1536x864 with `devicePixelRatio`

@@ -28,9 +28,9 @@ import {
   PRESS_TO,
   RELEASE_FROM,
   RELEASE_TO,
+  STILL_TO,
   SETTLE_TO,
   STILL_FROM,
-  STILL_TO,
   faceAt,
   isMoving,
   pressAt,
@@ -78,6 +78,21 @@ ok(FACE_TO === PRESS_TO, 'the ring does not land flat with the rest of the field
 ok(STILL_FROM < PRESS_TO, 'the motion only starts dying after the field is already flat')
 ok(RELEASE_FROM > PRESS_TO, 'the ring lets go before it has become a circle — the money frame is lost')
 ok(RELEASE_FROM > STILL_FROM, 'the ring disperses while it is still spinning')
+// **The still frame.** Everything has to land, and then be left alone for a
+// while, before the ring lets go — a flat, circular, motionless composition is
+// what the whole bridge exists to produce, and it is not produced if the
+// release overlaps the last of the spin. It did not exist at first.
+ok(RELEASE_FROM >= STILL_TO, 'the ring lets go before it has come to rest')
+ok(RELEASE_FROM - STILL_TO > 0.05, 'the still frame is too brief to register as a held one')
+const held = (STILL_TO + RELEASE_FROM) / 2
+ok(
+  pressAt(held * HOLD) === 1 &&
+    faceAt(held * HOLD) === 1 &&
+    spinAt(held * HOLD) === 0 &&
+    releaseAt(held * HOLD) === 0 &&
+    settleAt(held * HOLD) === 1,
+  'the held frame is not actually still — something is mid-move inside it',
+)
 
 // 4. Everything is finished, and finished together, by the end of Scene 1.
 for (const name of Object.keys(drivers) as Driver[]) {
