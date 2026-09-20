@@ -21,11 +21,25 @@ import {
   Float32BufferAttribute,
   Points,
   PointsMaterial,
+  Quaternion,
   Scene,
+  Vector3,
   WebGLRenderer,
 } from 'three'
 import { clamp, rand } from '../lib/math'
-import { HOLD, toModel, toTransition } from '../lib/phases'
+import {
+  PRESS_DIST,
+  PRESS_MIN_DEPTH,
+  RELEASE_SPREAD,
+  SETTLED_POINT_SIZE,
+  faceAt,
+  isMoving,
+  pressAt,
+  releaseAt,
+  settleAt,
+  spinAt,
+} from '../lib/press'
+import { toModel, toTransition } from '../lib/phases'
 import type { InputState } from '../lib/state'
 import { createCircleTexture } from './sprite'
 import { createWorld, MODEL_SPIN_RATE } from './world'
@@ -221,38 +235,6 @@ const REDUCED_MOTION = window.matchMedia('(prefers-reduced-motion: reduce)')
  */
 const MODEL_ENABLED: boolean = false
 
-/**
- * Extra orbit radius each band star gains by full scroll — it flies apart.
- *
- * These ranges and the easing exponents below were solved against the frustum
- * rather than guessed: displacement that is too large empties the frame within
- * the first fifth of the scroll and leaves nothing to watch for the rest of it.
- * Both layers stay populated the whole way down with these values. Re-check
- * with the same method before changing them.
- */
-const BAND_SCATTER_MIN = 8
-const BAND_SCATTER_MAX = 26
-/** Ease-in on the scatter, so the ring holds its shape before breaking up. */
-const BAND_SCATTER_EASE = 2.2
-/**
- * Extra orbit angle the band sweeps by full scroll, on the same eased curve as
- * the scatter — so the ring spirals outward instead of flying straight apart.
- * Positive: the band's own clockwise direction. Pure function of progress, so
- * scrolling back up unwinds it exactly.
- */
-const BAND_SWIRL = Math.PI * 2
-
-/**
- * How far out the band is, 0..1 of each star's scatter, at a transition value.
- *
- * It holds at its HOLD value for good. The ring used to gather back in across
- * Scene 3, unwinding the swirl; the ring now leaves the screen entirely at the
- * end of Scene 1 and there is nothing left up there to gather.
- */
-function bandScatterAt(p: number): number {
-  return Math.pow(Math.min(p, HOLD), BAND_SCATTER_EASE)
-}
-
 // --- Interaction tuning (mouse parallax; gentle / clamped) ---
 const MAX_TILT = 0.09 // max parallax tilt from the mouse (~5°), radians
 const TILT_LERP = 0.05 // how fast tilt eases toward the target
@@ -265,12 +247,12 @@ interface StarLayer {
   heights: Float32Array
   angles: Float32Array
   speeds: Float32Array
-  /** Per-star extra orbit radius at full scroll — the band flying apart. */
-  scatter: Float32Array | null
-  /** Extra orbit angle at full scroll — the band spiralling as it scatters. */
-  swirl: number
-  /** Maps scroll progress to how far along this layer's displacement is. */
-  curve: (progress: number) => number
+  /**
+   * Per-star drift as the ring lets go and joins the field, x/z interleaved
+   * and in the layer's own plane — which, by the time it is used, is the plane
+   * facing the camera. Only the ring carries one.
+   */
+  release: Float32Array | null
   /**
    * The attribute's **own** backing array, written directly each frame.
    *
@@ -284,35 +266,80 @@ interface StarLayer {
   posAttr: Float32BufferAttribute
 }
 
+/** Everything the press needs for one layer, for one frame. Mutated in place. */
+interface PressFrame {
+  /** How flat the field is: 0 is Scene 1's depth, 1 is a single plane. */
+  press: number
+  /** What is left of the orbit's speed — 1 turning, 0 stopped. */
+  spin: number
+  /** How far the ring has dispersed into the field, 0..1. */
+  release: number
+  /** The camera's position, in the layer's own local space. */
+  camX: number
+  camY: number
+  camZ: number
+  /** The view axis, in the layer's own local space. */
+  fwdX: number
+  fwdY: number
+  fwdZ: number
+}
+
 /**
- * Advance every star in a layer along its own circle, then apply whichever
- * scroll-driven displacement that layer carries.
+ * Advance every star in a layer along its own circle, then press the result
+ * flat by however far the scroll has taken it.
  *
  * The orbit angle is unbounded and only ever increases, so the underlying
  * motion stays a true endless 360° revolution — there is no clamp, wrap or
- * easing here by design.
+ * easing here by design. `spin` is the one thing that stops it, and it does so
+ * by scaling the *rate*, so a stopped field simply stays where it is.
  *
- * Both displacements are computed *from* `progress` rather than accumulated
- * frame to frame. That makes the whole transition a pure function of scroll
- * position, so scrubbing back up rewinds it exactly instead of drifting — and
- * it is why the fly-past needs no wrap-around: a star that has passed the
- * camera simply keeps going, and nothing brings it back into view.
+ * **The press moves a star along its own sightline, not along the view axis**,
+ * and that distinction is the whole design. Scaling the star's offset *from
+ * the camera* leaves its direction — and so its exact place on screen —
+ * untouched while taking its depth to `PRESS_DIST`. The field therefore does
+ * not rearrange itself as it flattens: it keeps Scene 1's composition, already
+ * tuned for density, and only loses the size and brightness spread that made
+ * it read as a space. Pressing along the view axis instead would have thrown
+ * the deep stars outward off the frame and emptied the picture.
+ *
+ * Everything but the orbit is computed *from* the scroll value rather than
+ * accumulated, so scrubbing back up rewinds it exactly.
  */
-function advance(layer: StarLayer, delta: number, progress: number): void {
+function advance(layer: StarLayer, delta: number, frame: PressFrame): void {
   const arr = layer.positions
-  // Same scroll value for every layer; each just responds on its own curve —
-  // and the band's two displacements are on two different ones.
-  const t = layer.curve(progress)
+  const { press, release, camX, camY, camZ, fwdX, fwdY, fwdZ } = frame
+  const spun = delta * frame.spin
 
   for (let i = 0; i < layer.count; i++) {
-    const angle = layer.angles[i] + layer.speeds[i] * delta
+    const angle = layer.angles[i] + layer.speeds[i] * spun
     layer.angles[i] = angle
 
-    const radius = layer.scatter ? layer.radii[i] + layer.scatter[i] * t : layer.radii[i]
-    const shown = angle + layer.swirl * t
-    let x = Math.cos(shown) * radius
+    const radius = layer.radii[i]
+    let x = Math.cos(angle) * radius
     let y = layer.heights[i]
-    let z = Math.sin(shown) * radius
+    let z = Math.sin(angle) * radius
+
+    // The ring letting go. Its own plane is the pressed one by this point, so
+    // a drift in local x/z is a drift across the surface the reader is facing.
+    if (layer.release) {
+      x += layer.release[i * 2] * release
+      z += layer.release[i * 2 + 1] * release
+    }
+
+    if (press > 0) {
+      const dx = x - camX
+      const dy = y - camY
+      const dz = z - camZ
+      const depth = dx * fwdX + dy * fwdY + dz * fwdZ
+      // Below PRESS_MIN_DEPTH the scaling runs away and there is nothing on
+      // screen to protect — see the constant.
+      if (depth > PRESS_MIN_DEPTH) {
+        const pull = 1 + (PRESS_DIST / depth - 1) * press
+        x = camX + dx * pull
+        y = camY + dy * pull
+        z = camZ + dz * pull
+      }
+    }
 
     const i3 = i * 3
     arr[i3] = x
@@ -320,6 +347,20 @@ function advance(layer: StarLayer, delta: number, progress: number): void {
     arr[i3 + 2] = z
   }
   layer.posAttr.needsUpdate = true
+}
+
+/**
+ * Ease a layer's point size from what it was authored at toward the one size
+ * the settled field shares, skipping the write when it has not changed.
+ *
+ * A material size change is free in Three — no rebuild, no re-upload — but the
+ * value holds for the whole of Scenes 2 and 3, so the comparison is worth more
+ * than the assignment it saves.
+ */
+function setPointSize(layer: StarLayer, authored: number, settled: number): void {
+  const size = authored + (SETTLED_POINT_SIZE - authored) * settled
+  const material = layer.points.material as PointsMaterial
+  if (material.size !== size) material.size = size
 }
 
 /**
@@ -380,11 +421,7 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
       /** Defaults to the mipmapped cloud sprite; the band passes its own. */
       sprite?: CanvasTexture
     } = {},
-    transition: {
-      scatter?: () => number
-      swirl?: number
-      curve?: (progress: number) => number
-    } = {},
+    transition: { release?: boolean } = {},
   ): StarLayer {
     const positions = new Float32Array(count * 3)
     const colors = new Float32Array(count * 3)
@@ -392,7 +429,7 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
     const heights = new Float32Array(count)
     const angles = new Float32Array(count)
     const speeds = new Float32Array(count)
-    const scatter = transition.scatter ? new Float32Array(count) : null
+    const release = transition.release ? new Float32Array(count * 2) : null
     const c = new Color()
 
     for (let i = 0; i < count; i++) {
@@ -404,7 +441,14 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
       heights[i] = y
       angles[i] = angle
       speeds[i] = randomOrbitSpeed()
-      if (scatter) scatter[i] = transition.scatter!()
+      if (release) {
+        // An even spread over the area, not over the radius: `sqrt` is what
+        // stops them piling up around the ring they came from.
+        const drift = Math.sqrt(Math.random()) * RELEASE_SPREAD
+        const heading = Math.random() * Math.PI * 2
+        release[i * 2] = Math.cos(heading) * drift
+        release[i * 2 + 1] = Math.sin(heading) * drift
+      }
 
       positions[i3] = Math.cos(angle) * radius
       positions[i3 + 1] = y // fixed height: orbits stay level
@@ -458,9 +502,7 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
       heights,
       angles,
       speeds,
-      scatter,
-      swirl: transition.swirl ?? 0,
-      curve: transition.curve ?? ((p) => p),
+      release,
       // The attribute's copy of `positions`, not `positions` itself.
       positions: posAttr.array as Float32Array,
       posAttr,
@@ -492,17 +534,43 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
     clearChance: BAND_CLEAR_CHANCE,
     clearLevel: BAND_CLEAR_LEVEL,
     sprite: bandSprite,
-  }, {
-    scatter: () => rand(BAND_SCATTER_MIN, BAND_SCATTER_MAX),
-    swirl: BAND_SWIRL,
-    curve: bandScatterAt,
-  })
+  }, { release: true })
 
   // --- Scene 1 world layer (the model), drawn over the starfield ---
   const world = createWorld(window.innerWidth / window.innerHeight)
 
   /** Both layers, in one array so the frame loop allocates nothing per frame. */
   const layers = [cloud, band]
+
+  // --- The press's fixed geometry, solved once: the camera never moves ---
+  /** The view axis, world space: the direction the bird's-eye camera faces. */
+  const viewAxis = new Vector3()
+  world.camera.getWorldDirection(viewAxis)
+  /** The ring's resting orientation, and the one that faces the camera. */
+  const NO_TURN = new Quaternion()
+  const faceCamera = new Quaternion().setFromUnitVectors(
+    // The ring lies in the XZ plane, so its own normal is +Y. Turning that
+    // normal onto the line to the camera is what opens the ellipse.
+    new Vector3(0, 1, 0),
+    world.camera.position.clone().normalize(),
+  )
+  /** Scratch, reused every frame so the loop allocates nothing. */
+  const inverseTurn = new Quaternion()
+  const camLocal = new Vector3()
+  const axisLocal = new Vector3()
+  const frame: PressFrame = {
+    press: 0,
+    spin: 1,
+    release: 0,
+    camX: 0,
+    camY: 0,
+    camZ: 0,
+    fwdX: 0,
+    fwdY: 0,
+    fwdZ: 0,
+  }
+  /** Whether the settled field has already been put on the canvas. */
+  let stillDrawn = false
 
   // --- Animation: orbits, smoothed mouse parallax, scroll transition ---
   let prevTime = performance.now()
@@ -544,18 +612,67 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
     // Paused through the identity scene — see lib/phases.ts.
     const progress = toTransition(page)
 
-    // Mouse parallax — tilt the wide field a few degrees, lerped. The band is
-    // deliberately left untilted: its full-loop visibility was solved for a
-    // level plane and a 5° tilt is enough to push its near side off frame. It
-    // also reads as an extension of the model's own rings, which do not react
-    // to the mouse either.
-    const tiltY = state.mouseX * MAX_TILT
-    const tiltX = -state.mouseY * MAX_TILT
-    cloud.points.rotation.y += (tiltY - cloud.points.rotation.y) * TILT_LERP
-    cloud.points.rotation.x += (tiltX - cloud.points.rotation.x) * TILT_LERP
+    // --- The press: Scene 1's depth draining away, all off `progress` ---
+    frame.press = pressAt(progress)
+    frame.spin = spinAt(progress)
+    frame.release = releaseAt(progress)
+    const settled = settleAt(progress)
+
+    // The ring turns to face the camera, so its ellipse opens into a true
+    // circle before it is flattened. It is the only layer that turns; the
+    // cloud has no orientation worth speaking of.
+    band.points.quaternion.slerpQuaternions(NO_TURN, faceCamera, faceAt(progress))
+
+    // Mouse parallax — tilt the wide field a few degrees, lerped. **It dies
+    // with the press**, and that is what sells the flatness more than anything
+    // else here: a surface does not have parallax, so a field that still
+    // answered the mouse would keep reading as a space however flat it looked.
+    // The band is deliberately never tilted; its full-loop visibility was
+    // solved for a level plane, and a 5° tilt pushes its near side off frame.
+    const reach = MAX_TILT * (1 - settled)
+    if (reach === 0) {
+      // Snapped rather than chased, so the tilt actually reaches zero — a lerp
+      // only approaches it, which would leave the scene permanently "moving"
+      // and defeat the still-frame gate below.
+      cloud.points.rotation.y = 0
+      cloud.points.rotation.x = 0
+    } else {
+      cloud.points.rotation.y += (state.mouseX * reach - cloud.points.rotation.y) * TILT_LERP
+      cloud.points.rotation.x += (-state.mouseY * reach - cloud.points.rotation.x) * TILT_LERP
+    }
+
+    // Both layers converge on one point size. Two layers authored for two
+    // different distances would otherwise land on one plane drawing at four
+    // times each other's size, and the settled field has to read as one
+    // texture — see SETTLED_POINT_SIZE.
+    setPointSize(cloud, CLOUD_POINT_SIZE, settled)
+    setPointSize(band, BAND_POINT_SIZE, settled)
+
+    // Nothing in the starfield changes again once Scene 1 is over: every press
+    // curve has clamped, the orbit has stopped and the parallax is dead. One
+    // more frame is drawn to put that settled state on the canvas, and then
+    // the whole loop — 20,600 points of position writes, the buffer uploads
+    // and both render passes — is skipped for the remaining two thirds of the
+    // page. Scene 3's blended panel makes that worth more than it looks: it
+    // recomposites everything beneath it whenever the canvas is touched.
+    const moving = isMoving(progress) || frame.spin > 0 || reach > 0 || MODEL_ENABLED
+    if (!moving && stillDrawn) return page
+    stillDrawn = !moving
 
     for (const layer of layers) {
-      advance(layer, delta, progress)
+      // The press is written into each layer's own buffer, which its rotation
+      // then turns, so the camera and the view axis are converted into that
+      // layer's local space first.
+      inverseTurn.copy(layer.points.quaternion).invert()
+      camLocal.copy(world.camera.position).applyQuaternion(inverseTurn)
+      axisLocal.copy(viewAxis).applyQuaternion(inverseTurn)
+      frame.camX = camLocal.x
+      frame.camY = camLocal.y
+      frame.camZ = camLocal.z
+      frame.fwdX = axisLocal.x
+      frame.fwdY = axisLocal.y
+      frame.fwdZ = axisLocal.z
+      advance(layer, delta, frame)
     }
 
     // The transition for the spin and the Scene 3 lift, and the page for the
