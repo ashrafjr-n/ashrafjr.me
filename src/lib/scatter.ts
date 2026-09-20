@@ -61,15 +61,20 @@ export const RING_SWIRL_TURNS = 0.45
 export const CLOUD_SWIRL_TURNS = 0.05
 
 // --- the scatter ---
-export const SCATTER_TO = 0.95
+export const SCATTER_TO = 1.0
 /**
  * The share of the scatter spent letting stars go, before the last of them has
- * started. **This is the single most load-bearing number here.** At 0 every
- * star sets off together and the ring stops being a ring within a few percent
- * of the page; the larger it is, the longer the ring holds its shape while
- * being eaten into.
+ * started. **This is the single most load-bearing number here.**
+ *
+ * At 0 every star sets off together and the ring stops being a ring within a
+ * few percent of the page. The larger it is, the longer an intact arc of ring
+ * survives while the rest is eaten away: at driver `t` roughly `1 - t/STAGGER`
+ * of the ring has not moved at all. It was 0.55, and the ring still read as
+ * finished by the halfway point of Scene 1 — because a ring only 0.2 units
+ * thick loses its identity after a very small displacement, so what has to
+ * last is the part that has not been touched yet, not the part in flight.
  */
-export const SCATTER_STAGGER = 0.55
+export const SCATTER_STAGGER = 0.72
 /** What is left for any one star's own travel, once it has been let go. */
 export const SCATTER_SPAN = 1 - SCATTER_STAGGER
 /**
@@ -81,7 +86,7 @@ export const SCATTER_SPAN = 1 - SCATTER_STAGGER
  * way toward the wave, with enough jitter to soften its edge, is what makes it
  * look like something coming apart rather than something being animated.
  */
-export const WAVE_SHARE = 0.68
+export const WAVE_SHARE = 0.8
 /** The range of ease-out exponents rolled per star, so arrivals differ. */
 export const EASE_MIN = 1.7
 export const EASE_MAX = 3.4
@@ -133,7 +138,7 @@ export const STILL_TO = 0.95
  * black half. The stars there were not faint, there were barely any, and
  * neither size nor sprite could fix that — both were tried and measured.
  */
-export const FILL_CHANCE = 0.025
+export const FILL_CHANCE = 0.038
 /** The depths the spread targets are drawn between, in world units. */
 export const FILL_NEAR = 14
 export const FILL_FAR = 46
