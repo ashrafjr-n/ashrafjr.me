@@ -11,11 +11,16 @@
  * black and the page background is the same black, so it reads as one
  * continuous surface.
  *
- * **Neither camera moves.** Scene 1 has no model at all — only the ring, empty
- * inside. The model rises from below into Scene 2, grows and turns once, then
- * the move into Scene 3 carries it up the screen at the same size. All of it
- * is on the pivot and the lens; nothing here runs on a clock but the idle
- * spin.
+ * **`modelCamera` never moves and never pitches**, and the bird's-eye camera
+ * moves in exactly one place: `setDive`, which flies it into the ring and down
+ * the corridor as a pure function of scroll. At rest it writes nothing, so
+ * Scene 1's opening pose is still the one the constructor set. Everything the
+ * model does is on the pivot and the lens; nothing here runs on a clock but
+ * the idle spin.
+ *
+ * Scene 1 has no model at all — only the ring, empty inside. The model rises
+ * from below into Scene 2, grows and turns once, then the move into Scene 3
+ * carries it up the screen at the same size.
  *
  * Palette: white/black/silver-gray only.
  */
@@ -267,19 +272,68 @@ export interface WorldLayer {
   /**
    * Advance the spin and the framing. Driven by the single RAF loop; `delta`
    * is in seconds and `progress` is the 0..1 transition. Neither camera is
-   * touched — see the note at the top of the file.
+   * touched here — the bird's-eye one moves only through `setDive`, and
+   * `modelCamera` only ever has its lens slid.
    */
   update(delta: number, progress: number, entrance: number): void
+  /**
+   * Fly the bird's-eye camera into the ring, `t` of the way, ending on the
+   * ring's axis looking straight down it. `endY` is where it comes to rest.
+   * The **only** thing that moves a camera here; `modelCamera` never moves.
+   */
+  setDive(t: number, endY: number): void
   resize(aspect: number): void
 }
 
 export function createWorld(aspect: number): WorldLayer {
   const scene = new Scene()
 
-  // Set once, never written again: the stars' vantage in both scenes.
+  // The stars' vantage. At rest it is exactly CAMERA_POS/CAMERA_TARGET and
+  // nothing else writes to it; `setDive` below is the one exception, and it is
+  // a no-op until the reader scrolls.
   const camera = new PerspectiveCamera(CAMERA_FOV, aspect, 0.1, 200)
   camera.position.set(CAMERA_POS.x, CAMERA_POS.y, CAMERA_POS.z)
   camera.lookAt(CAMERA_TARGET.x, CAMERA_TARGET.y, CAMERA_TARGET.z)
+
+  /**
+   * Fly the bird's-eye camera down its own axis and into the ring, `t` of the
+   * way, and pitch it to look straight down as it goes.
+   *
+   * **This is the one thing that moves a camera in this file, and it is a
+   * deliberate exception to the rule above — see the note at the top.** At
+   * `t = 0` it writes nothing at all, so Scene 1 at rest is exactly the pose
+   * the constructor set; everything below happens only after the reader has
+   * scrolled.
+   *
+   * `endY` is the tunnel's business, not the camera's, so it comes from
+   * `scene.ts` — the dive's geometry and the corridor the camera ends up
+   * inside have to agree, and they are tuned together in one block there.
+   *
+   * At `t = 1` the camera sits on the ring's own axis of rotation looking
+   * straight down it, which is what lets the corridor reuse the orbit
+   * machinery every star in the site already runs on.
+   *
+   * A pure function of `t`, never integrated, so scrolling back up retraces
+   * the flight exactly. Skipped when the value has not changed, which is every
+   * frame of Scene 1 at rest and every frame after the dive has landed.
+   */
+  let diveAt = 0
+  function setDive(t: number, endY: number): void {
+    if (t === diveAt) return
+    diveAt = t
+    camera.position.set(
+      CAMERA_POS.x * (1 - t),
+      CAMERA_POS.y + (endY - CAMERA_POS.y) * t,
+      CAMERA_POS.z * (1 - t),
+    )
+    // The target lands one unit below the camera, so the look direction
+    // arrives at straight-down rather than being rotated there separately.
+    camera.lookAt(
+      CAMERA_TARGET.x * (1 - t),
+      CAMERA_TARGET.y + (endY - 1 - CAMERA_TARGET.y) * t,
+      CAMERA_TARGET.z * (1 - t),
+    )
+  }
 
   const modelCamera = new PerspectiveCamera(CAMERA_FOV, aspect, 0.1, 200)
   modelCamera.position.set(0, 0, MODEL_CAMERA_DIST)
@@ -509,5 +563,5 @@ export function createWorld(aspect: number): WorldLayer {
     }
   }
 
-  return { scene, camera, modelCamera, update, resize }
+  return { scene, camera, modelCamera, update, setDive, resize }
 }
