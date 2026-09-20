@@ -79,10 +79,23 @@ export const SCATTER_TO = 0.9
  */
 export const SCATTER_EASE = 1.3
 /**
+ * A short slow start in front of that ease-out.
+ *
+ * **A pure ease-out puts maximum speed at the very first frame of scroll**,
+ * and the band is only 0.2 units thick — so the ring lost its shape and became
+ * a diffuse haze within 4% of the page, measured on screen, before the reader
+ * had registered that anything was happening. This holds it together for the
+ * first moment so there is a ring to watch fly apart. The deceleration that
+ * was asked for is still the whole second half of the travel.
+ */
+export const SCATTER_HEAD = 1.8
+/**
  * How far an inner-half ring star travels inward, in world units.
  *
- * The band runs 2.6..2.8, so anything past ~2.8 carries the star **through the
- * centre** and out the other side — `radius` goes negative, which with
+ * The range is wide at the far end so the stars that cross the centre keep
+ * going rather than piling up just past it: at 1.2..4.2 they settled into a
+ * visible knot in the middle of the frame. The band runs 2.6..2.8, so anything
+ * past ~2.8 carries the star **through the centre** and out the other side — `radius` goes negative, which with
  * `x = cos * radius` is exactly the antipode. The range is wide on purpose:
  * the short travellers stop near the middle and the long ones cross it, so the
  * hole in the ring fills and then spreads instead of emptying again.
@@ -96,8 +109,8 @@ export const SCATTER_EASE = 1.3
  * before the scatter was a third done. What is left has to stay — it is what
  * Scene 2 is read against and what Scene 3 inverts.
  */
-export const INWARD_MIN = 1.2
-export const INWARD_MAX = 4.2
+export const INWARD_MIN = 1.0
+export const INWARD_MAX = 5.5
 /** And outward, for the outer half. */
 export const OUTWARD_MIN = 0.4
 export const OUTWARD_MAX = 2.2
@@ -161,7 +174,7 @@ export function swirlAt(p: number): number {
 
 /** How far along its own travel each ring star is, 0..1. */
 export function scatterAt(p: number): number {
-  return easeOut(ramp(scene1At(p), 0, SCATTER_TO), SCATTER_EASE)
+  return easeOut(Math.pow(ramp(scene1At(p), 0, SCATTER_TO), SCATTER_HEAD), SCATTER_EASE)
 }
 
 /** What is left of the orbit's rate — 1 turning, 0 at rest. */
