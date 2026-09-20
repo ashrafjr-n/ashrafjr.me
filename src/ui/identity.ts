@@ -116,7 +116,9 @@ export function createIdentity(): Identity {
     fill.setAttribute('aria-hidden', 'true')
     row.append(outline, fill)
     block.append(row)
-    return { row, outline, fill }
+    // `filledAt` is the last clip written for this statement, so an unchanged
+    // one can be skipped — see `update`.
+    return { row, outline, fill, filledAt: -1 }
   })
 
   const name = document.createElement('p')
@@ -151,6 +153,7 @@ export function createIdentity(): Identity {
   let hidden = true
   /** Last arrival value written, so the landed block writes nothing per frame. */
   let arrivedAt = -1
+  let fadedAt = -1
 
   function update(tt: number): void {
     const fade = smooth(tt / EDGE)
@@ -169,7 +172,14 @@ export function createIdentity(): Identity {
       fittedAt = window.innerWidth
       fitType()
     }
-    el.style.opacity = fade.toFixed(3)
+    // Skipped when unchanged, which is most of the scene: `fade` is pinned at
+    // 1 between the two EDGE ramps, and this layer is still being updated all
+    // through Scene 3, where every write under the inversion panel costs a
+    // repaint of the half it covers.
+    if (Math.abs(fade - fadedAt) > 0.001) {
+      fadedAt = fade
+      el.style.opacity = fade.toFixed(3)
+    }
 
     // The arrival. One value for all three — they travel together and only
     // their direction differs. Skipped once landed, so the still block writes
@@ -189,8 +199,13 @@ export function createIdentity(): Identity {
 
     for (let i = 0; i < lines.length; i++) {
       const filled = smooth((tt - (FILL_FROM + i * FILL_STEP)) / FILL_SPAN)
-      // Unclipped from the left, so the white sweeps across the word. The only
-      // property written per frame once the block has landed.
+      // Unclipped from the left, so the white sweeps across the word. Skipped
+      // once a statement's own sweep is over: all three sit at a complete 1 for
+      // the last fifth of the scene and the whole of Scene 3, and rewriting an
+      // unchanged clip there repaints the block under the inversion panel for
+      // nothing.
+      if (Math.abs(filled - lines[i].filledAt) <= 0.0005) continue
+      lines[i].filledAt = filled
       lines[i].fill.style.clipPath = `inset(0 ${(100 - filled * 100).toFixed(2)}% 0 0)`
     }
   }
