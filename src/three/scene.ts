@@ -31,11 +31,16 @@ import {
   Points,
   PointsMaterial,
   Scene,
+  Vector3,
   WebGLRenderer,
 } from 'three'
 import { clamp, rand } from '../lib/math'
 import {
   CLOUD_SWIRL_TURNS,
+  FILL_CHANCE,
+  FILL_FAR,
+  FILL_NEAR,
+  FILL_REACH,
   INWARD_MAX,
   INWARD_MIN,
   OUTWARD_MAX,
@@ -269,6 +274,12 @@ interface StarLayer {
    */
   scatter: Float32Array | null
   /**
+   * Where a star drifts to as the field settles, x/y/z interleaved, or `NaN`
+   * for the great majority that stay where their orbit leaves them. Only the
+   * ambient cloud carries one — see `FILL_CHANCE`.
+   */
+  spread: Float32Array | null
+  /**
    * The attribute's **own** backing array, written directly each frame.
    *
    * This must be read back off the attribute, never kept from the array passed
@@ -287,6 +298,8 @@ interface ScatterFrame {
   swirl: number
   /** How far along its own travel each scattering star is, 0..1. */
   spread: number
+  /** How far the settled field has spread out and grown, 0..1. */
+  settled: number
   /** What is left of the orbit's rate — 1 turning, 0 at rest. */
   spin: number
 }
@@ -323,7 +336,7 @@ interface ScatterFrame {
  */
 function advance(layer: StarLayer, delta: number, frame: ScatterFrame): void {
   const arr = layer.positions
-  const { swirl, spread } = frame
+  const { swirl, spread, settled } = frame
   const spun = delta * frame.spin
 
   for (let i = 0; i < layer.count; i++) {
@@ -337,6 +350,17 @@ function advance(layer: StarLayer, delta: number, frame: ScatterFrame): void {
     let z = Math.sin(shown) * radius
 
     const i3 = i * 3
+    // The even spread. Only a small slice of the ambient cloud carries a
+    // target; the rest are marked NaN and skipped by the self-comparison.
+    if (layer.spread) {
+      const tx = layer.spread[i3]
+      if (tx === tx) {
+        x += (tx - x) * settled
+        y += (layer.spread[i3 + 1] - y) * settled
+        z += (layer.spread[i3 + 2] - z) * settled
+      }
+    }
+
     arr[i3] = x
     arr[i3 + 1] = y
     arr[i3 + 2] = z
@@ -417,6 +441,34 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
    * ~9px close in and mipmaps are what stop them shimmering as they orbit. The
    * press takes it off again on the first frame of scroll — see `setSprite`.
    */
+  // --- Scene 1 world layer (the model), drawn over the starfield ---
+  // Built before the star layers: the camera's basis is what aims their
+  // settled spread targets, and it is fixed for the life of the page.
+  const world = createWorld(window.innerWidth / window.innerHeight)
+
+  /**
+   * A world-space point at a uniformly random place in the visible frame, at a
+   * uniformly random depth — which is what makes the settled field even on
+   * screen, since a star's screen position is exactly this `sx`/`sy`.
+   */
+  const camRight = new Vector3()
+  const camUp = new Vector3()
+  const camFwd = new Vector3()
+  world.camera.updateMatrixWorld()
+  world.camera.matrixWorld.extractBasis(camRight, camUp, camFwd)
+  camFwd.negate() // the third basis column points *out of* the screen
+  const TAN_HALF_FOV = Math.tan((world.camera.fov * Math.PI) / 360)
+  function spreadTarget(into: Vector3): Vector3 {
+    const depth = rand(FILL_NEAR, FILL_FAR)
+    const halfH = TAN_HALF_FOV * depth * FILL_REACH
+    const halfW = halfH * world.camera.aspect
+    return into
+      .copy(world.camera.position)
+      .addScaledVector(camFwd, depth)
+      .addScaledVector(camRight, rand(-halfW, halfW))
+      .addScaledVector(camUp, rand(-halfH, halfH))
+  }
+
   const mippedSprite = createCircleTexture()
   /**
    * The same artwork without mipmaps, worn by the ring always and by the cloud
@@ -435,7 +487,7 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
    * why the stars in Scene 3's white half could not be seen. See
    * `SPRITE_SWAP_AT` in `lib/scatter.ts`.
    */
-  const settledSprite = createCircleTexture({ mipmaps: false, core: 0.55 })
+  const settledSprite = createCircleTexture({ mipmaps: false, core: 0.7 })
 
   /**
    * Build a layer of orbiting stars. `place` supplies each star's orbit radius
@@ -460,6 +512,8 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
      * field they scatter into and it only winds up and slows down.
      */
     scatters = false,
+    /** Whether a slice of this layer spreads evenly across the settled frame. */
+    spreads = false,
   ): StarLayer {
     const positions = new Float32Array(count * 3)
     const colors = new Float32Array(count * 3)
@@ -468,6 +522,8 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
     const angles = new Float32Array(count)
     const speeds = new Float32Array(count)
     const scatter = scatters ? new Float32Array(count) : null
+    const spread = spreads ? new Float32Array(count * 3) : null
+    const target = new Vector3()
     const c = new Color()
 
     for (let i = 0; i < count; i++) {
@@ -479,6 +535,18 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
       heights[i] = y
       angles[i] = angle
       speeds[i] = randomOrbitSpeed()
+      if (spread) {
+        // NaN marks "stays put", which is nearly all of them; the loop tests
+        // for it with `t === t` rather than carrying a second array.
+        if (Math.random() < FILL_CHANCE) {
+          spreadTarget(target)
+          spread[i3] = target.x
+          spread[i3 + 1] = target.y
+          spread[i3 + 2] = target.z
+        } else {
+          spread[i3] = NaN
+        }
+      }
       if (scatter) {
         // **Two directions only, decided by which half of the band the star
         // sits in.** The inner half goes inward — far enough that most of them
@@ -545,6 +613,7 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
       angles,
       speeds,
       scatter,
+      spread,
       // The attribute's copy of `positions`, not `positions` itself.
       positions: posAttr.array as Float32Array,
       posAttr,
@@ -563,7 +632,7 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
     // Orbit radius is the distance from the model's *vertical axis*, so height
     // drops out of it — that is what keeps each star on a level circle.
     return { radius: dist * sinPolar, y: dist * cosPolar * CLOUD_FLATTEN }
-  })
+  }, {}, false, true) // does not scatter; a slice of it spreads evenly
 
   // The close-in band — the orbits that stay on screen for a whole revolution.
   const band = createStarLayer(BAND_COUNT, BAND_POINT_SIZE, () => ({
@@ -578,14 +647,11 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
     sprite: plainSprite,
   }, true) // the ring scatters; the cloud does not
 
-  // --- Scene 1 world layer (the model), drawn over the starfield ---
-  const world = createWorld(window.innerWidth / window.innerHeight)
-
   /** Both layers, in one array so the frame loop allocates nothing per frame. */
   const layers = [cloud, band]
 
   /** Rebuilt in place each frame, so the loop allocates nothing. */
-  const frame: ScatterFrame = { swirl: 0, spread: 0, spin: 1 }
+  const frame: ScatterFrame = { swirl: 0, spread: 0, settled: 0, spin: 1 }
   /** Whether the settled field has already been written into the buffers. */
   let stillDrawn = false
   /** Last frame's scatter values, so an unchanged frame can be skipped. */
@@ -649,6 +715,7 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
     frame.spin = spinAt(progress)
     const wound = swirlAt(progress)
     const settled = settleAt(progress)
+    frame.settled = settled
 
     // Mouse parallax — tilt the wide field a few degrees, lerped. **It dies
     // with the press**, and that is what sells the flatness more than anything

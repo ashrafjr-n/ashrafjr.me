@@ -119,6 +119,38 @@ export const OUTWARD_MAX = 2.2
 export const STILL_FROM = 0.2
 export const STILL_TO = 0.85
 
+// --- the settled field's even spread ---
+/**
+ * The share of ambient stars that drift to an evenly spread target as the
+ * field settles.
+ *
+ * **Seen from the bird's-eye camera the ambient cloud is very far from even**,
+ * and it was never meant to be: the top of the frame looks out along the
+ * cloud's full depth and the bottom looks steeply down through a thin slice of
+ * it. Measured on the rendered page, the top tenth of the frame is 1.81% lit
+ * and the bottom three tenths are 0.08–0.16% — around fifteen times sparser.
+ *
+ * That is Scene 1's composition and it stays. But **Scene 3's white half
+ * covers the bottom of the frame**, so it was inverting a part of the picture
+ * that had almost nothing in it: 0.03% of it came out inked, against 1.24% of
+ * the black half. The stars in the white half were not faint, there were
+ * barely any. Nothing about size or sprite could fix that, and both were tried.
+ *
+ * So a slice of the cloud is given somewhere even to be by the time the
+ * scatter is over. They travel there rather than appearing, over the same
+ * stretch that everything else settles in, which is what was asked for: the
+ * ambient stars pick up, slow down, and end up spread about at random.
+ */
+export const FILL_CHANCE = 0.03
+/** The depths the spread targets are drawn between, in world units. */
+export const FILL_NEAR = 14
+export const FILL_FAR = 46
+/**
+ * How far past the frame edge targets may land, as a fraction of the half
+ * frame. A little over 1 so the spread has no visible border.
+ */
+export const FILL_REACH = 1.15
+
 // --- the settled field ---
 /**
  * How much bigger every star draws once the field has settled, as a multiple
@@ -131,7 +163,7 @@ export const STILL_TO = 0.85
  * nothing is flattened: each layer keeps its own depth spread, and a single
  * absolute size would need one.
  */
-export const SETTLED_SIZE_GAIN = 1.5
+export const SETTLED_SIZE_GAIN = 2.6
 /** Where the size, the sprite and the mouse parallax finish converging. */
 export const SETTLE_FROM = 0.25
 export const SETTLE_TO = 0.7
