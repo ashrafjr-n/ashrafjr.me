@@ -51,10 +51,17 @@ const SLIDE_SPAN = 0.42
  *
  * A statement is set flush to `BLOCK_WIDTH` of the viewport and is centred, so
  * its near edge is `BLOCK_WIDTH / 2` from the middle; clearing the frame takes
- * `0.5 + BLOCK_WIDTH / 2` = 0.98, and 1.05 is that with a margin. Under this
- * they are visibly on screen before the scene has begun.
+ * `0.5 + BLOCK_WIDTH / 2` = 0.98, and this is that with a margin. Under 0.98
+ * they are already on screen when the scene opens.
+ *
+ * **It was 1.05, and it is what sets how soon the first glyph is seen.** The
+ * entrance rides `smooth`, a smootherstep, which is very flat at its start —
+ * so those extra 0.07 viewport widths cost 0.088 of the scene before anything
+ * reached the frame, against 0.057 at 1.0. That is ~25vh of the overlap with
+ * Scene 1's scatter, which is the thing this is being tuned for. The margin
+ * left is 0.02 viewport widths; do not go under 0.98.
  */
-const SLIDE_FROM = 1.05
+const SLIDE_FROM = 1.0
 // The travel used to carry a `SLIDE_BLUR` stand-in for motion blur (6px,
 // peaking at the start and gone on landing). **It was removed on request** —
 // the statements are drawn with a 1px stroke and it took too much of them away
@@ -71,17 +78,19 @@ const EDGE = 0.06
  * `FILL_SPAN` is longer than the step between statements, so one is still
  * finishing as the next starts and the three read as a single pass down the
  * block. **The last has to land before Scene 3's panel starts rising**, or the
- * inversion arrives over type that is still filling — it completes at 0.85 of
- * the scene, which is page 0.627 against the panel's 0.72.
+ * inversion arrives over type that is still filling — it completes at 0.70 of
+ * the scene, which is page 0.519 against the panel's 0.60.
  *
- * **`FILL_FROM` is deliberately under `SLIDE_SPAN`, and that is the one thing
- * to preserve here.** It was 0.44 against a landing at 0.42, so the first
- * statement came to a stop and only then began to fill — two beats where the
- * scene wants one. At 0.37 the white starts crossing the first line while it
- * is still travelling, 0.05 of the scene before it lands, so the arrival and
- * the fill are the same move.
+ * **`FILL_FROM` is deliberately well under `SLIDE_SPAN` (0.42), and that is
+ * the one thing to preserve here.** It was 0.44 against that landing, so the
+ * first statement came to a stop and only then began to fill — two beats
+ * where the scene wants one. At 0.22 the white starts crossing the top line
+ * **0.20 of the scene before it lands**, so the sweep is most of the way
+ * across by the time the block settles and the arrival and the fill are one
+ * move. It went 0.44 -> 0.37 -> 0.22; the floor is 0, where the fill would
+ * start on a statement still wholly off screen.
  */
-const FILL_FROM = 0.37
+const FILL_FROM = 0.22
 const FILL_STEP = 0.14
 const FILL_SPAN = 0.2
 
