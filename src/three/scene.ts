@@ -813,6 +813,26 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
     renderer.setScissorTest(false)
   }
 
+  /**
+   * Chase the pointer with one layer's tilt, `reach` radians at the edges.
+   *
+   * It is a rotation on the `Points` object, not a write into the position
+   * buffer, so it costs nothing per star and is **independent of the position
+   * pass** — which is why the gate below can skip that pass while this keeps
+   * answering the pointer.
+   */
+  function tiltToward(layer: StarLayer, state: InputState, reach: number): void {
+    if (reach === 0) {
+      // Snapped rather than chased, so the tilt actually reaches zero — a lerp
+      // only approaches it, which would leave the layer permanently "moving".
+      layer.points.rotation.y = 0
+      layer.points.rotation.x = 0
+      return
+    }
+    layer.points.rotation.y += (state.mouseX * reach - layer.points.rotation.y) * TILT_LERP
+    layer.points.rotation.x += (-state.mouseY * reach - layer.points.rotation.x) * TILT_LERP
+  }
+
   /** Run the scatter over both layers. */
   function advanceLayers(delta: number, wound: number): void {
     for (const layer of layers) {
@@ -872,14 +892,23 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
     const settled = settleAt(progress)
     frame.settled = settled
 
-    const reach = MAX_TILT * (1 - settled)
-    if (reach === 0) {
-      cloud.points.rotation.y = 0
-      cloud.points.rotation.x = 0
-    } else {
-      cloud.points.rotation.y += (state.mouseX * reach - cloud.points.rotation.y) * TILT_LERP
-      cloud.points.rotation.x += (-state.mouseY * reach - cloud.points.rotation.x) * TILT_LERP
-    }
+    // Mouse parallax — a few degrees of tilt under the pointer, lerped.
+    //
+    // **It used to die with the settle and it no longer does.** That was the
+    // press's rule: the field ended as a flat surface, and a surface does not
+    // have parallax. The press is gone and what the scatter leaves is a
+    // dispersed field in depth, so the pointer belongs on it — and once the
+    // scroll has stopped moving the stars it is the only thing left that
+    // does, on every scene. Asked for explicitly.
+    //
+    // **The band joins in as the field settles, and never before.** At rest
+    // its whole point is a full orbit that stays on screen, which is solved
+    // for a level plane — five degrees pushes its near side off frame. Once
+    // it has dispersed there is no loop left to protect, and it has to move
+    // with the cloud or half the field answers the pointer and half does not.
+    // So Scene 1's opening frame is untouched and the settled one tilts whole.
+    tiltToward(cloud, state, MAX_TILT)
+    tiltToward(band, state, MAX_TILT * settled)
 
     // **Skip the position pass whenever nothing it reads has actually moved.**
     // That is 20,600 stars' worth of trig and writes plus the two buffer
@@ -917,7 +946,13 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
       wound !== drawnSwirl ||
       frame.spread !== drawnSpread ||
       settled !== drawnSettled
-    const moving = moved || frame.spin > 0 || reach > 0 || MODEL_ENABLED
+    // The tilt is deliberately **not** in this test. It is a rotation on the
+    // `Points` objects, which the renderer applies and `advance()` never
+    // reads, so the pointer can keep moving the field for the whole page
+    // while the position pass stays skipped. It was in here when the tilt
+    // died at the settle and cost nothing; now it would pin the pass on for
+    // every frame of every scene.
+    const moving = moved || frame.spin > 0 || MODEL_ENABLED
     if (moving || !stillDrawn) advanceLayers(delta, wound)
     stillDrawn = !moving
     drawnSwirl = wound
