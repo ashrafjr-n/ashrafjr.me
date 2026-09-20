@@ -40,6 +40,32 @@ function smooth(u: number): number {
   return x * x * (3 - 2 * x)
 }
 
+/**
+ * How far the panel has risen at a page value, 0..1.
+ *
+ * Exported because **`three/scene.ts` needs the same answer a frame earlier
+ * than this module can give it.** The starfield draws its stars heavier
+ * wherever the white half is over them, which means the renderer has to know
+ * where the boundary is *while it is drawing* — and the loop renders the scene
+ * before it updates this panel. Both read the one function, so the boundary
+ * the stars are split on and the boundary the panel paints are the same line
+ * by construction, not by two constants agreeing.
+ */
+export function panelRiseAt(page: number): number {
+  return smooth((page - PANEL_FROM) / (PANEL_TO - PANEL_FROM))
+}
+
+/**
+ * The panel's top edge in CSS pixels at a page value, or `Infinity` while it
+ * is parked. The panel is `height: 50vh` anchored to the bottom and pushed
+ * down by `(1 - up)` of its own height, so its top edge sits at
+ * `H - 0.5 * H * up`.
+ */
+export function panelTopEdgeAt(page: number, viewportHeight: number): number {
+  const up = panelRiseAt(page)
+  return up <= 0 ? Infinity : viewportHeight * (1 - 0.5 * up)
+}
+
 export interface Invert {
   el: HTMLDivElement
   /** `page` is the smoothed 0..1 page scroll. */
@@ -64,7 +90,7 @@ export function createInvert(): Invert {
   let shown = -1
 
   function update(page: number): void {
-    const up = smooth((page - PANEL_FROM) / (PANEL_TO - PANEL_FROM))
+    const up = panelRiseAt(page)
     if (Math.abs(up - shown) <= 0.001) return
     shown = up
     // Off the bottom at 0, flush with its own top edge at 1. `visibility` keeps
@@ -73,12 +99,7 @@ export function createInvert(): Invert {
     el.style.visibility = up <= 0 ? 'hidden' : 'visible'
   }
 
-  /**
-   * The panel is `height: 50vh` anchored to the bottom and pushed down by
-   * `(1 - up)` of its own height, so its top edge sits at
-   * `H - 0.5 * H * up`. At `up` 0 that is the bottom of the screen; at 1 it is
-   * the middle.
-   */
+  /** The live edge, from the value last written — see `panelTopEdgeAt`. */
   function topEdge(): number {
     if (shown <= 0) return Infinity
     return window.innerHeight * (1 - 0.5 * shown)
