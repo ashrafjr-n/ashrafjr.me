@@ -216,17 +216,38 @@ const BAND_CLEAR_LEVEL = 4.0
  * past the position the reader chose.
  *
  * Integrated semi-implicitly (velocity first, then position), which stays
- * stable for any `OMEGA * delta` well under 2 — `delta` is clamped to 0.1s
- * upstream, so the worst case here is 2.0.
+ * stable for any `OMEGA * delta` well under 2. The spring takes its own step
+ * from `SPRING_MAX_STEP` rather than from the frame's `delta`, so the worst
+ * case here is 0.53 however long a frame runs — see that constant.
  *
- * **20 is deliberately fast: the page is meant to feel like an ordinary
- * scroll.** Steady-state lag on a held scroll is `2 / OMEGA`, so this is about
- * 0.1s — enough to take the notches off the wheel and nothing more. It ran at
- * 7.0 with a second *trail* stage chased over it, together ~0.6s of coast, and
- * that read as heavy and slow. The trail is gone; don't reintroduce a second
- * stage here or anywhere else (see `ui/identity.ts`).
+ * **32 is deliberately fast: the page is meant to feel like an ordinary
+ * scroll.** Steady-state lag on a held scroll is `2 / OMEGA`, about 0.06s —
+ * enough to take the notches off the wheel and nothing more. It ran at 7.0
+ * with a second *trail* stage chased over it, together ~0.6s of coast, and
+ * that read as heavy and slow; the trail is gone, and don't reintroduce a
+ * second stage here or anywhere else (see `ui/identity.ts`).
+ *
+ * **It was 20, and the trail it left was read as lag.** That is 0.1s of
+ * steady-state lag, but a spring's lag scales with how fast the target moves,
+ * so a fast wheel put the page visibly behind the gesture — and on a reversal
+ * it had to spend the velocity it was carrying before it could turn round,
+ * which is a hesitation, not a smooth. It shows up worst under the identity
+ * statements, where the fill sweep reads the scroll position back out across
+ * the whole width of the screen. Frame rate was never the problem: measured
+ * through the fill at 6x CPU throttling, not one frame ran long.
  */
-const SCROLL_OMEGA = 20.0
+const SCROLL_OMEGA = 32.0
+/**
+ * The longest step the spring will take, in seconds.
+ *
+ * The frame `delta` is clamped at 0.1s, which is right for the orbit — a
+ * throttled tab should animate slower rather than jump — but it is also the
+ * whole stability budget of this integrator, and at `OMEGA * delta` near 2 the
+ * spring diverges instead of settling. A tighter clamp of its own is what buys
+ * the headroom the faster OMEGA needs, and costs nothing: the spring is
+ * chasing a target that did not move while the frames were missing.
+ */
+const SPRING_MAX_STEP = 1 / 60
 
 /**
  * Whether the reader has asked their system for less motion.
@@ -775,9 +796,10 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
       page = state.scroll
       pageVel = 0
     } else {
+      const step = delta < SPRING_MAX_STEP ? delta : SPRING_MAX_STEP
       pageVel +=
-        (SCROLL_OMEGA * SCROLL_OMEGA * (state.scroll - page) - 2 * SCROLL_OMEGA * pageVel) * delta
-      page += pageVel * delta
+        (SCROLL_OMEGA * SCROLL_OMEGA * (state.scroll - page) - 2 * SCROLL_OMEGA * pageVel) * step
+      page += pageVel * step
       // Critical damping does not overshoot, but the integrator can by a hair
       // on a long frame, and past 1 the Scene 3 curve turns back on itself.
       if (page < 0 || page > 1) {
