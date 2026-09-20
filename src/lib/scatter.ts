@@ -139,9 +139,28 @@ export const SCATTER_TO = 1.0
  * thick loses its identity after a very small displacement, so what has to
  * last is the part that has not been touched yet, not the part in flight.
  */
-export const SCATTER_STAGGER = 0.72
-/** What is left for any one star's own travel, once it has been let go. */
-export const SCATTER_SPAN = 1 - SCATTER_STAGGER
+export const SCATTER_STAGGER = 0.45
+/**
+ * **Every star arrives at the same moment, whenever it was let go.** A star's
+ * travel runs from its own `delay` to the driver's end — `1 - delay` of the
+ * run, not a fixed span — so the one released last and the one released first
+ * come to rest on the same frame.
+ *
+ * It used to be a fixed `1 - SCATTER_STAGGER` for all of them, which meant a
+ * star let go at 0 stopped at 0.28 of the driver and sat there while the rest
+ * of the field carried on for another two thirds of Scene 1. Part of the
+ * canvas freezing while part of it kept going was read as movement left over
+ * rather than as a field settling, and it was called out.
+ *
+ * **That is what `SCATTER_STAGGER` is now bounded by.** The spans it produces
+ * run `1 - STAGGER` to 1, and a star with a short span crosses the same
+ * ground in less of the run — so the stagger is now also the spread of
+ * *speeds*, not just of start times. At 0.72 the last stars would have moved
+ * 3.6x faster than the first; at 0.45 it is 1.8x, which reads as a field
+ * rather than as stragglers rushing to catch up. The ring still unravels: the
+ * wave runs around its circumference over the first 45% of the driver, and a
+ * star that has just been let go has barely moved.
+ */
 /**
  * How much of a star's delay comes from a **wave running once around the
  * ring**, the rest being a per-star jitter.

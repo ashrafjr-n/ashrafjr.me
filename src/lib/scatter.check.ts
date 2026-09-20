@@ -24,7 +24,6 @@ import {
   SCATTER_TO,
   BOLD_SIZE_GAIN,
   SETTLE_TO,
-  SCATTER_SPAN,
   SCATTER_STAGGER,
   SPIN_EASE,
   WAVE_SHARE,
@@ -115,9 +114,10 @@ ok(BOLD_SIZE_GAIN > 1, 'the stars are no heavier inside the white half — they 
 // within a few percent of the page; these guard the shape of the fix.
 ok(SCATTER_STAGGER > 0, 'every star lets go at once — the ring will not unravel, it will vanish')
 ok(SCATTER_STAGGER < 1, 'the last star never lets go')
-ok(Math.abs(SCATTER_SPAN - (1 - SCATTER_STAGGER)) < 1e-12, 'the span and the stagger disagree')
-// The last star to be let go still has to finish inside the scatter's window.
-ok(SCATTER_STAGGER + SCATTER_SPAN <= 1 + 1e-12, 'the slowest star is still travelling when Scene 1 ends')
+// **Every star's travel ends at the driver's end**, so the spread of spans is
+// `1 - STAGGER` to 1 and the stagger is also the spread of speeds. Past a
+// point the stars let go last are visibly rushing to catch the rest up.
+ok(1 / (1 - SCATTER_STAGGER) < 2.5, 'the last stars released travel far faster than the first')
 ok(WAVE_SHARE > 0 && WAVE_SHARE < 1, 'the delay is all wave or all jitter — one reads mechanical, the other as noise')
 
 // **The field has to come to rest, not be cut off.** A linear fall in the

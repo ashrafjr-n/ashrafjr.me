@@ -51,7 +51,6 @@ import {
   BOLD_SIZE_GAIN,
   EASE_MAX,
   EASE_MIN,
-  SCATTER_SPAN,
   SCATTER_STAGGER,
   SPIRAL_MAX,
   SPIRAL_MIN,
@@ -344,6 +343,13 @@ interface ScatterRolls {
   delay: Float32Array
   /** Signed change of orbit radius — negative goes in through the centre. */
   travel: Float32Array
+  /**
+   * `1 / (1 - delay)` — how much of the driver is left for it once it has
+   * been let go, reciprocated at build so the hot loop multiplies. **Every
+   * star's travel ends at the driver's end**, so this differs per star and is
+   * not one shared span; see `SCATTER_STAGGER`.
+   */
+  rate: Float32Array
   /** Its own ease-out exponent, so arrivals differ. */
   ease: Float32Array
   /** Radians it winds on as it goes; most for the shortest travels. */
@@ -402,11 +408,14 @@ function advance(layer: StarLayer, delta: number, frame: ScatterFrame): void {
     layer.angles[i] = angle
 
     // Each star reads its own delayed, differently-eased travel off the one
-    // shared driver, so the ring comes apart progressively instead of at once.
+    // shared driver, so the ring comes apart progressively but settles all at
+    // once — see `SCATTER_STAGGER` in lib/scatter.ts.
     let radius = layer.radii[i]
     let shown = angle + swirl
     if (layer.scatter) {
-      const u = (spread - layer.scatter.delay[i]) / SCATTER_SPAN
+      // Its own `rate` rather than one shared span: every star's travel ends
+      // where the driver does, so they all come to rest on the same frame.
+      const u = (spread - layer.scatter.delay[i]) * layer.scatter.rate[i]
       if (u > 0) {
         const gone = 1 - Math.pow(1 - (u < 1 ? u : 1), layer.scatter.ease[i])
         radius += layer.scatter.travel[i] * gone
@@ -575,6 +584,7 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
     const scatter: ScatterRolls | null = scatters
       ? {
           delay: new Float32Array(count),
+          rate: new Float32Array(count),
           travel: new Float32Array(count),
           ease: new Float32Array(count),
           spiral: new Float32Array(count),
@@ -628,8 +638,12 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
         // jitter so its edge is ragged rather than a clean unzip. `angle` is
         // the star's own place on the ring, so the wave travels with it.
         const around = (angle % TWO_PI) / TWO_PI
-        scatter.delay[i] =
+        const delay =
           (around * WAVE_SHARE + Math.random() * (1 - WAVE_SHARE)) * SCATTER_STAGGER
+        scatter.delay[i] = delay
+        // Its travel runs from there to the driver's end, so whenever it was
+        // let go it comes to rest on the same frame as everything else.
+        scatter.rate[i] = 1 / (1 - delay)
         scatter.ease[i] = rand(EASE_MIN, EASE_MAX)
         // **Most for the shortest travel, least for the longest** — what an
         // orbiting body actually does as its radius changes. This one
@@ -858,17 +872,8 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
     const settled = settleAt(progress)
     frame.settled = settled
 
-    // Mouse parallax — tilt the wide field a few degrees, lerped. **It dies
-    // with the press**, and that is what sells the flatness more than anything
-    // else here: a surface does not have parallax, so a field that still
-    // answered the mouse would keep reading as a space however flat it looked.
-    // The band is deliberately never tilted; its full-loop visibility was
-    // solved for a level plane, and a 5° tilt pushes its near side off frame.
     const reach = MAX_TILT * (1 - settled)
     if (reach === 0) {
-      // Snapped rather than chased, so the tilt actually reaches zero — a lerp
-      // only approaches it, which would leave the scene permanently "moving"
-      // and defeat the still-frame gate below.
       cloud.points.rotation.y = 0
       cloud.points.rotation.x = 0
     } else {
