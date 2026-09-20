@@ -162,69 +162,42 @@ const BAND_CLEAR_LEVEL = 4.0
  *
  * Every part of the transition reads this one smoothed value, so the spin, the
  * growth, the scatter, the fly-past and the identity scene stay locked
- * together. What it is smoothed *with* is what decides whether the scroll
- * feels smooth:
- *
- * - The old form was a first-order chase, `page += (target - page) * (1 -
- *   exp(-rate * delta))`. That has no memory of its own speed, so the instant
- *   the target moves the output's velocity moves with it. Scroll does not
- *   arrive continuously — a wheel delivers it in coarse notches — so the
- *   output's velocity was a sawtooth even while the value itself looked
- *   smooth, and that is what reads as a rough scroll.
- * - A critically damped spring carries velocity as state, so it can only
- *   *accelerate* toward a new target. Velocity is continuous whatever shape
- *   the input arrives in, and critical damping is what guarantees it settles
- *   without ever overshooting past the scroll position the reader chose.
+ * together. The spring is what that smoothing is done with, rather than a
+ * first-order chase: a chase has no memory of its own speed, so the instant the
+ * target moves the output's velocity moves with it — and a wheel delivers
+ * scroll in coarse notches, so the output's velocity was a sawtooth even while
+ * the value itself looked smooth. A critically damped spring carries velocity
+ * as state, can only *accelerate* toward a new target, and never overshoots
+ * past the position the reader chose.
  *
  * Integrated semi-implicitly (velocity first, then position), which stays
  * stable for any `OMEGA * delta` well under 2 — `delta` is clamped to 0.1s
- * upstream, so the worst case here is 0.7.
+ * upstream, so the worst case here is 2.0.
  *
- * 7.0 tracks a held scroll with the same ~0.29s lag the old rate-5 chase had,
- * so the transition has not been slowed down; only its velocity was smoothed.
+ * **20 is deliberately fast: the page is meant to feel like an ordinary
+ * scroll.** Steady-state lag on a held scroll is `2 / OMEGA`, so this is about
+ * 0.1s — enough to take the notches off the wheel and nothing more. It ran at
+ * 7.0 with a second *trail* stage chased over it, together ~0.6s of coast, and
+ * that read as heavy and slow. The trail is gone; don't reintroduce a second
+ * stage here or anywhere else (see `ui/identity.ts`).
  */
-const SCROLL_OMEGA = 7.0
-
-/**
- * Per-second rate the page value trails the spring at — the **second** stage of
- * the smoothing, and the one that gives the whole site its coast.
- *
- * The spring alone is already velocity-continuous, but it still arrives with
- * the scroll: stop the wheel and it is essentially there. Chasing its output
- * with a time-based exponential adds a stage whose *acceleration* is continuous
- * too, so nothing on the page ever changes speed abruptly — the motion carries
- * on past the gesture and eases down into its resting place instead of landing
- * with it.
- *
- * **This is not new behaviour, it is the identity scene's own smoothing made
- * shared.** That scene used to chase the page value privately at this exact
- * rate, which is why its fill read better than everything else on the page.
- * Doing it once here means the stars, the model, the intro line and the
- * statements are all on the identical curve rather than the type being smoother
- * than the thing behind it — and the identity scene's fill is unchanged to the
- * frame, since it was already the composition of these two stages.
- *
- * Together they cost about 0.6s of lag on a held scroll. That is deliberate and
- * it is the top of the usable range: the page still tracks the reader, but it
- * finishes the sentence they started.
- */
-const SCROLL_TRAIL = 3.2
+const SCROLL_OMEGA = 20.0
 
 /**
  * Whether the reader has asked their system for less motion.
  *
  * **The smoothing is the part that has to go.** Everything on this page is a
- * pure function of the page value, so the two stages above are what put ~0.6s
- * of travel between the reader's gesture and the screen — the scroll carries on
+ * pure function of the page value, so the spring above is what puts any travel
+ * at all between the reader's gesture and the screen — the scroll carries on
  * after the wheel stops, the model keeps rising, the stars keep streaming. That
- * coast is the whole point of the effect and it is exactly the kind of
- * uncommanded movement that triggers vestibular symptoms. With this on, `page`
- * *is* the scroll position: the page still moves through all three scenes, but
- * only while the reader is moving it, and it stops dead when they do.
+ * is exactly the kind of uncommanded movement that triggers vestibular
+ * symptoms. With this on, `page` *is* the scroll position: the page still moves
+ * through all three scenes, but only while the reader is moving it, and it
+ * stops dead when they do.
  *
  * `matches` is live, so it is read per frame rather than listened to — the
- * setting can be changed mid-session and the next frame honours it, and both
- * stages are kept synced so switching back cannot jump.
+ * setting can be changed mid-session and the next frame honours it, and the
+ * spring is held on the target so switching back cannot jump.
  */
 const REDUCED_MOTION = window.matchMedia('(prefers-reduced-motion: reduce)')
 
@@ -617,15 +590,13 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
 
   // --- Animation: orbits, smoothed mouse parallax, scroll transition ---
   let prevTime = performance.now()
-  /** The spring's own output — the first smoothing stage. */
-  let springPage = 0
-  /** Its velocity, in page units per second — the spring's other half. */
-  let springVel = 0
   /**
-   * Smoothed page scroll, 0..1: the spring's output with the trail chased over
-   * it. **The single driver for every scene**, 3D and DOM alike.
+   * Smoothed page scroll, 0..1 — the spring's output. **The single driver for
+   * every scene**, 3D and DOM alike.
    */
   let page = 0
+  /** Its velocity, in page units per second — the spring's other half. */
+  let pageVel = 0
   const flyDir = new Vector3()
   const layerFly = new Vector3()
   const invRotation = new Quaternion()
@@ -641,27 +612,21 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
     // however coarsely the wheel delivers the scroll — see SCROLL_OMEGA.
     if (REDUCED_MOTION.matches) {
       // No smoothing at all: the page goes exactly where the reader put it, and
-      // stops when they do. Both stages are held on the target, so turning the
+      // stops when they do. The spring is held on the target, so turning the
       // setting back off mid-session resumes from here instead of springing in
-      // from wherever the spring had been left.
+      // from wherever it had been left.
       page = state.scroll
-      springPage = state.scroll
-      springVel = 0
+      pageVel = 0
     } else {
-      springVel +=
-        (SCROLL_OMEGA * SCROLL_OMEGA * (state.scroll - springPage) - 2 * SCROLL_OMEGA * springVel) *
-        delta
-      springPage += springVel * delta
+      pageVel +=
+        (SCROLL_OMEGA * SCROLL_OMEGA * (state.scroll - page) - 2 * SCROLL_OMEGA * pageVel) * delta
+      page += pageVel * delta
       // Critical damping does not overshoot, but the integrator can by a hair
       // on a long frame, and past 1 the Scene 3 curve turns back on itself.
-      if (springPage < 0 || springPage > 1) {
-        springPage = clamp(springPage, 0, 1)
-        springVel = 0
+      if (page < 0 || page > 1) {
+        page = clamp(page, 0, 1)
+        pageVel = 0
       }
-      // Second stage: the trail. Time-based, so it is identical at 60Hz and
-      // 120Hz, and it can only ever approach the spring — which is already
-      // clamped — so the result stays inside 0..1 without a clamp of its own.
-      page += (springPage - page) * (1 - Math.exp(-SCROLL_TRAIL * delta))
     }
     // Paused through the identity scene — see lib/phases.ts.
     const progress = toTransition(page)
@@ -726,13 +691,10 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
    */
   function resync(): void {
     prevTime = performance.now()
-    // The scroll was frozen for the whole pause, so neither stage has anywhere
-    // left to travel; whatever speed the spring was carrying when frames
-    // stopped would only arrive as a kick on the first frame back, and the
-    // trail would spend the first moments back chasing a target it had already
-    // reached.
-    springVel = 0
-    page = springPage
+    // The scroll was frozen for the whole pause, so the spring has nowhere
+    // left to travel; whatever speed it was carrying when frames stopped would
+    // only arrive as a kick on the first frame back.
+    pageVel = 0
   }
 
   function resize(): void {
