@@ -32,7 +32,6 @@ import {
   SETTLE_TO,
   STILL_FROM,
   faceAt,
-  isMoving,
   pressAt,
   releaseAt,
   scene1At,
@@ -101,16 +100,25 @@ for (const name of Object.keys(drivers) as Driver[]) {
 ok(spinAt(HOLD) === 0, 'the field is still turning when the statements arrive')
 ok(RELEASE_TO === 1 && Math.max(PRESS_TO, FACE_TO, STILL_TO, SETTLE_TO) <= 1, 'a beat runs past Scene 1')
 
-// The still-frame gate. This is what stops the renderer for two thirds of the
-// page, so it has to agree exactly with the curves it is standing in for.
-ok(isMoving(0), 'the press is asleep at the top of the page')
-ok(!isMoving(HOLD), 'the renderer never stops — Scenes 2 and 3 will redraw a field that cannot change')
-for (let i = 0; i <= 200; i++) {
-  const p = at(i / 200)
-  const changing =
-    pressAt(p) < 1 || faceAt(p) < 1 || releaseAt(p) < 1 || settleAt(p) < 1 || spinAt(p) > 0
-  ok(isMoving(p) === changing, `the still-frame gate disagrees with the curves at ${i / 200}`)
+// `three/scene.ts` skips its position pass whenever none of these changed
+// since the last frame, which is only sound if they are **exactly** constant
+// where they are supposed to be — a curve that crept by a float's width would
+// redraw 20,600 points forever and the gate would quietly buy nothing.
+const sample = (u: number): number[] => {
+  const p = at(u)
+  return [pressAt(p), faceAt(p), releaseAt(p), settleAt(p), spinAt(p)]
 }
+const constantOver = (from: number, to: number, what: string): void => {
+  const first = sample(from)
+  for (let i = 0; i <= 100; i++) {
+    const got = sample(from + ((to - from) * i) / 100)
+    ok(got.every((v, k) => v === first[k]), `${what}: a driver moves at ${from + (to - from) * (i / 100)}`)
+  }
+}
+constantOver(STILL_TO, RELEASE_FROM, 'the still frame is not still')
+constantOver(1, 1, 'the end of Scene 1 has not settled')
+// And it has to be genuinely moving before that, or there is no press at all.
+ok(sample(0).join() !== sample(0.3).join(), 'nothing changes over the first third of Scene 1')
 ok(scene1At(HOLD) === 1 && scene1At(0) === 0, 'Scene 1 does not span its own stretch')
 
 // The geometry the beats stand on. None of these is tuning — each one is a

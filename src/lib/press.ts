@@ -221,17 +221,3 @@ export function releaseAt(p: number): number {
 export function settleAt(p: number): number {
   return ramp(scene1At(p), SETTLE_FROM, SETTLE_TO)
 }
-
-/**
- * Whether anything the press drives is still changing at this scroll value.
- *
- * **This is the whole of the render-on-demand gate.** Past the end of Scene 1
- * every one of the curves above has clamped, so the field is a fixed set of
- * points that does not move again for the remaining two thirds of the page —
- * and redrawing it is wasted work on every frame of both of them, made worse
- * by Scene 3's blended panel, which forces a recomposite of everything under
- * it whenever the canvas is touched.
- */
-export function isMoving(p: number): boolean {
-  return scene1At(p) < Math.max(PRESS_TO, FACE_TO, STILL_TO, RELEASE_TO, SETTLE_TO)
-}

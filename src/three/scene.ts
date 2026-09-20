@@ -43,7 +43,6 @@ import {
   SETTLED_POINT_SIZE,
   SPRITE_SWAP_AT,
   faceAt,
-  isMoving,
   pressAt,
   releaseAt,
   settleAt,
@@ -645,6 +644,11 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
   }
   /** Whether the settled field has already been written into the buffers. */
   let stillDrawn = false
+  /** Last frame's press values, so an unchanged frame can be skipped. */
+  let drawnPress = -1
+  let drawnFacing = -1
+  let drawnRelease = -1
+  let drawnSettled = -1
 
   /**
    * Run the press over both layers. The displacement is written into each
@@ -749,13 +753,21 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
     setPointSize(band, BAND_POINT_SIZE, settled)
     setSprite(cloud, frame.press > SPRITE_SWAP_AT ? plainSprite : mippedSprite)
 
-    // **Nothing in the starfield changes again once Scene 1 is over**: every
-    // press curve has clamped, the orbit has stopped and the parallax is dead.
-    // So for the remaining two thirds of the page the position pass is skipped
-    // entirely — 20,600 stars' worth of trig and writes, and the two buffer
-    // uploads that follow it (~250KB a frame), which together are all of this
-    // loop's real cost. One frame of it still runs after the last curve lands,
-    // to put the settled state in the buffers.
+    // **Skip the position pass whenever nothing it reads has actually moved.**
+    // That is 20,600 stars' worth of trig and writes plus the two buffer
+    // uploads behind it (~250KB a frame), which together are all of this
+    // loop's real cost, and it is skippable far more often than it looks:
+    // through the whole of Scenes 2 and 3, where every press curve has clamped
+    // and the orbit has stopped; through the press's own **still frame**,
+    // where the field is deliberately doing nothing for 12% of Scene 1; and
+    // any time the reader stops scrolling after the orbit has died.
+    //
+    // It is a comparison against the last frame's values rather than a test
+    // for "past the end", because those are not the same question — every
+    // driver is clamped inside the still frame but `releaseAt` has not reached
+    // 1 yet, so a range test would keep redrawing a frame that cannot change.
+    // The clamps are what make the comparison exact: page jitter from the
+    // spring moves nothing once a curve has pinned at 0 or 1.
     //
     // **The render itself is deliberately not skipped**, and that is not an
     // oversight. The renderer is `preserveDrawingBuffer: false`, so the
@@ -773,9 +785,18 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
     // and everything that does move is moved by the reader.
     if (REDUCED_MOTION.matches) frame.spin = 0
 
-    const moving = isMoving(progress) || frame.spin > 0 || reach > 0 || MODEL_ENABLED
+    const moved =
+      frame.press !== drawnPress ||
+      facing !== drawnFacing ||
+      frame.release !== drawnRelease ||
+      settled !== drawnSettled
+    const moving = moved || frame.spin > 0 || reach > 0 || MODEL_ENABLED
     if (moving || !stillDrawn) advanceLayers(delta)
     stillDrawn = !moving
+    drawnPress = frame.press
+    drawnFacing = facing
+    drawnRelease = frame.release
+    drawnSettled = settled
 
     // The transition for the spin and the Scene 3 lift, and the page for the
     // rise into Scene 2 — the transition is frozen through identity, so it
