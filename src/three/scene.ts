@@ -714,15 +714,20 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
       renderer.render(starfield, world.camera) // same vantage -> same orbital plane
       return
     }
-    const ratio = renderer.getPixelRatio()
-    const width = Math.ceil(window.innerWidth * ratio)
-    const height = Math.ceil(window.innerHeight * ratio)
-    // Scissor coordinates run from the bottom of the drawing buffer, and the
-    // panel is anchored there, so its height is everything below the edge.
-    const under = Math.round((window.innerHeight - edge) * ratio)
+    // **`setScissor` takes CSS pixels, not drawing-buffer pixels** — Three
+    // multiplies by the renderer's pixel ratio itself. Pre-multiplying here
+    // made the heavy region exactly `devicePixelRatio` times too tall, which
+    // spilled a band of heavy stars onto the black page above the panel where
+    // nothing is inverted. Measured: with the panel's edge at 0.887 of the
+    // frame the heavy stars began at 0.76, and the bands between were 30-50x
+    // denser than with the panel parked. Scissor y runs from the **bottom**,
+    // which is where the panel is anchored, so its height is everything below
+    // the edge.
+    const width = window.innerWidth
+    const under = window.innerHeight - edge
 
     renderer.setScissorTest(true)
-    renderer.setScissor(0, under, width, height - under)
+    renderer.setScissor(0, under, width, edge)
     renderer.render(starfield, world.camera)
 
     for (const layer of layers) layer.points.material = layer.bold
