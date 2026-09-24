@@ -324,15 +324,27 @@ body {
   transition: transform 0.25s ease;
 }
 
-.social-badge:hover,
+/* Hover only where a hover exists. On a phone or an iPad a tap leaves
+   `:hover` stuck on whatever was touched until the next tap elsewhere, so the
+   effect would sit there as a glitch. Keyboard focus keeps it everywhere. */
 .social-badge:focus-visible {
   color: var(--accent);
   filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.45));
 }
 
-.social-badge:hover .social-icon,
 .social-badge:focus-visible .social-icon {
   transform: rotate(-8deg) scale(1.08);
+}
+
+@media (hover: hover) {
+  .social-badge:hover {
+    color: var(--accent);
+    filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.45));
+  }
+
+  .social-badge:hover .social-icon {
+    transform: rotate(-8deg) scale(1.08);
+  }
 }
 
 .social-badge:active {
