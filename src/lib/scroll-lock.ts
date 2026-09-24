@@ -68,7 +68,7 @@ function refuse(event: Event): void {
  * The keys that scroll a page. `Enter` and `Tab` are deliberately absent: they
  * move focus and activate controls, which the window still needs.
  */
-const SCROLL_KEYS = new Set([
+export const SCROLL_KEYS = new Set([
   ' ',
   'PageUp',
   'PageDown',

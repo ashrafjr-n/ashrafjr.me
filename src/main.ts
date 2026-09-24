@@ -11,7 +11,7 @@ import './style.css'
 import { HOLD, toIdentity, toTransition } from './lib/phases'
 import { SCATTER_END, SETTLE_TO } from './lib/scatter'
 import { initScene } from './three/scene'
-import { lockScroll, unlockScroll } from './lib/scroll-lock'
+import { SCROLL_KEYS, lockScroll, unlockScroll } from './lib/scroll-lock'
 import { state, scroller, initPointer, initScroll } from './lib/state'
 import { buildSocialBadges } from './ui/social'
 import { createCursor } from './ui/cursor'
@@ -123,6 +123,21 @@ initScroll()
 // Tab order.
 scroller.tabIndex = -1
 scroller.focus({ preventScroll: true })
+// The same goes for a key pressed on a focused control. The badges and
+// EXPLORE are `position: fixed`, and a browser walks a fixed element's scroll
+// chain straight to the document, skipping `body` — so PageUp from EXPLORE
+// (where focus lands when the projects page closes) scrolled nothing. Handing
+// focus back to the scroller before the key's default action runs is what
+// sends it there. Space on a button is that button's own press, and a key the
+// scroll lock has refused, or one inside the projects list, is left alone.
+window.addEventListener('keydown', (e) => {
+  if (e.defaultPrevented || !SCROLL_KEYS.has(e.key)) return
+  const target = e.target
+  if (!(target instanceof HTMLElement) || target === scroller) return
+  if (projects.scroller.contains(target)) return
+  if (e.key === ' ' && target.closest('button')) return
+  scroller.focus({ preventScroll: true })
+})
 
 let introShown = -1
 
