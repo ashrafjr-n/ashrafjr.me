@@ -510,15 +510,24 @@ html.has-cursor button {
   transition: transform 420ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-.explore:hover .explore-icon,
 .explore:focus-visible .explore-icon {
   transform: scale(1.08);
 }
 
 /* The arrow turns from up-right to straight right on hover. */
-.explore:hover .explore-icon svg,
 .explore:focus-visible .explore-icon svg {
   transform: rotate(45deg);
+}
+
+/* Hover only where a hover exists — see .social-badge. */
+@media (hover: hover) {
+  .explore:hover .explore-icon {
+    transform: scale(1.08);
+  }
+
+  .explore:hover .explore-icon svg {
+    transform: rotate(45deg);
+  }
 }
 
 .explore:focus-visible {
