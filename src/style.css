@@ -50,6 +50,15 @@
 /* ===========================================================
    Base
    =========================================================== */
+/* No tap flash. Mobile WebKit and Chrome paint a translucent grey/blue box over
+   a link or button the instant it is touched — outside the palette, and a
+   flicker on the badges, EXPLORE and the project cards. Keyboard focus keeps
+   its own outlines. */
+a,
+button {
+  -webkit-tap-highlight-color: transparent;
+}
+
 html {
   /* **The document itself never scrolls; `body` does.** A phone browser hides
      its toolbar whenever the document scrolls and brings it back on the way
