@@ -364,21 +364,34 @@ body {
      would simply stop being inverted. */
   z-index: 100;
   pointer-events: none;
-  /* Centres the disc on its own box. ui/cursor.ts writes the individual
-     `translate` property, which composes with this rather than replacing it. */
-  transform: translate(-50%, -50%);
+  /* Centred on the pointer by margin, not by a `translate(-50%)` transform:
+     the grow runs on `scale`, which scales about the box's centre, and a
+     centring transform applied before it would pull the disc off the pointer
+     as it grew. ui/cursor.ts writes the individual `translate` property. */
+  margin: calc(var(--cursor-size) / -2) 0 0 calc(var(--cursor-size) / -2);
+  /* Parked: shrunk to a point and not painted. On the way out the scale runs
+     first and visibility waits for it, so the disc is seen shrinking away. */
+  scale: 0.1;
+  opacity: 0;
   visibility: hidden;
+  transition: scale 260ms cubic-bezier(0.22, 1, 0.36, 1), opacity 180ms ease,
+    visibility 0s linear 260ms;
 }
 
-/* Added by ui/cursor.ts while the pointer is inside the white panel, and taken
-   away again on the way out.
+/* Added by ui/cursor.ts while the pointer is over EXPLORE: the disc grows out
+   of the pointer, and shrinks back into it on the way out.
 
-   `visibility` rather than `opacity` on purpose: a hidden element is not
-   painted at all, so outside the panel there is no blended element for the
-   browser to rasterise a backdrop for. That is what keeps the rest of the site
-   at the speed it ran at before this existed. */
+   Parked it is `visibility: hidden` once the shrink is over, not merely
+   `opacity: 0`: a hidden element is not painted at all, so away from the
+   button there is no blended element for the browser to rasterise a backdrop
+   for. That is what keeps the rest of the site at the speed it ran at before
+   this existed. */
 .cursor.is-live {
+  scale: 1;
+  opacity: 1;
   visibility: visible;
+  transition: scale 420ms cubic-bezier(0.22, 1, 0.36, 1), opacity 160ms ease,
+    visibility 0s;
 }
 
 /* The native cursor goes only while the disc is standing in for it — the class
@@ -966,6 +979,13 @@ html.has-cursor button {
   .project-stack,
   .project-stack li,
   .project-about {
+    transition: none;
+  }
+
+  /* No grow: the inverting disc is simply there at full size, or not. */
+  .cursor,
+  .cursor.is-live {
+    scale: 1;
     transition: none;
   }
 
