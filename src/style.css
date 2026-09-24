@@ -930,3 +930,91 @@ html.has-cursor button {
   transform: translateY(100%);
   will-change: transform;
 }
+
+/* ===========================================================
+   Scene 3's EXPLORE button (ui/explore.ts)
+   A black pill riding up with the white half, bottom-right. JS writes its
+   translateY off the panel's own rise, so the two move as one.
+   =========================================================== */
+.explore {
+  position: fixed;
+  right: clamp(16px, 4vw, 56px);
+  bottom: clamp(16px, 5vh, 56px);
+  /* Above the inversion panel (30) so it paints itself instead of being
+     negated; below the reveal window (40) and the pointer (100). */
+  z-index: 35;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 8px 8px 8px 30px;
+  border: 0;
+  border-radius: 999px;
+  background: #000000;
+  color: #ffffff;
+  font-family: var(--font-code);
+  font-weight: 700;
+  font-size: 15px;
+  letter-spacing: 0.28em;
+  cursor: pointer;
+  visibility: hidden;
+  transform: translateY(50vh);
+  will-change: transform;
+}
+
+.explore-icon {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: #ffffff;
+  color: #000000;
+  transition: transform 420ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.explore-icon svg {
+  width: 22px;
+  height: 22px;
+  transition: transform 420ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.explore:hover .explore-icon,
+.explore:focus-visible .explore-icon {
+  transform: scale(1.08);
+}
+
+/* The arrow turns from up-right to straight right on hover. */
+.explore:hover .explore-icon svg,
+.explore:focus-visible .explore-icon svg {
+  transform: rotate(45deg);
+}
+
+.explore:focus-visible {
+  outline: 2px solid #000000;
+  outline-offset: 4px;
+}
+
+@media (max-width: 767.98px) {
+  .explore {
+    gap: 12px;
+    padding: 6px 6px 6px 20px;
+    font-size: 12px;
+  }
+
+  .explore-icon {
+    width: 38px;
+    height: 38px;
+  }
+
+  .explore-icon svg {
+    width: 18px;
+    height: 18px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .explore-icon,
+  .explore-icon svg {
+    transition: none;
+  }
+}
