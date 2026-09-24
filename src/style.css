@@ -557,6 +557,9 @@ html.has-cursor button {
   position: absolute;
   inset: 0;
   overflow-y: auto;
+  /* The rows start a slice of the width off to their own side; without this
+     they would open a horizontal scroll while they slide in. */
+  overflow-x: hidden;
   /* The page behind is locked; a scroll that reaches either end of the list
      must not chain out to it. */
   overscroll-behavior: contain;
@@ -620,6 +623,27 @@ html.has-cursor button {
 
 .project--right {
   margin-left: auto;
+}
+
+/* Each row slides in from its own side the first time it scrolls into view
+   (`is-in`, set by an IntersectionObserver in ui/projects.ts, cleared on every
+   open). `translate`, so the card's tilt transform is left alone. */
+.project {
+  opacity: 0;
+  transition: opacity 1000ms ease, translate 1400ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.project--right {
+  translate: 14vw 0;
+}
+
+.project--left {
+  translate: -14vw 0;
+}
+
+.project.is-in {
+  opacity: 1;
+  translate: 0 0;
 }
 
 .project-card {
@@ -853,7 +877,20 @@ html.has-cursor button {
 
   .project-media img,
   .project-icon,
-  .projects-close {
+  .projects-close,
+  .project-stack,
+  .project-stack li,
+  .project-about {
     transition: none;
+  }
+
+  /* Rows simply appear where they belong. */
+  .project--right,
+  .project--left {
+    translate: 0 0;
+  }
+
+  .project {
+    transition: opacity 400ms ease;
   }
 }
