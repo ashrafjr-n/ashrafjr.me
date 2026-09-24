@@ -97,6 +97,22 @@ const FILL_STEP = 0.14
 const FILL_SPAN = 0.2
 
 /**
+ * The fill's own coast: a critically damped spring on the scene value the
+ * sweeps read, so the white **carries on a little past where the wheel
+ * stopped** and settles, rather than halting on the same frame. Lag on a held
+ * scroll is `2 / FILL_OMEGA`, ~0.33s. Asked for explicitly.
+ *
+ * **It is the one exception to "the page spring is the only smoothing", and
+ * it is scoped to the fill alone.** The slide still reads the page value
+ * directly, so the arrival stays locked to the scroll; only the sweeps coast.
+ * Under reduced motion the fill reads the scene value directly, like the page.
+ */
+const FILL_OMEGA = 6
+/** Largest integration step, so a long frame cannot destabilise the spring. */
+const FILL_MAX_STEP = 1 / 60
+const REDUCED_MOTION = window.matchMedia('(prefers-reduced-motion: reduce)')
+
+/**
  * The size everything is measured at before being scaled to fit. Arbitrary,
  * but large enough that the measurement is not dominated by rounding.
  */
@@ -111,8 +127,11 @@ function smooth(u: number): number {
 
 export interface Identity {
   el: HTMLDivElement
-  /** `t` is the identity progress, 0..1 — already smoothed by the page value. */
-  update(t: number): void
+  /**
+   * `t` is the identity progress, 0..1 — already smoothed by the page value.
+   * `time` is the loop's timestamp, for the fill's coast.
+   */
+  update(t: number, time: number): void
 }
 
 export function createIdentity(): Identity {
@@ -172,8 +191,34 @@ export function createIdentity(): Identity {
   /** Last arrival value written, so the landed block writes nothing per frame. */
   let arrivedAt = -1
   let fadedAt = -1
+  /** The fill's coasting copy of `tt`, and its velocity — see `FILL_OMEGA`. */
+  let fillT = 0
+  let fillVel = 0
+  let prevTime = -1
 
-  function update(tt: number): void {
+  /** Advance the fill's spring toward `tt`. Runs even while hidden. */
+  function coast(tt: number, time: number): void {
+    const delta = prevTime < 0 ? 0 : Math.min((time - prevTime) / 1000, 0.1)
+    prevTime = time
+    if (REDUCED_MOTION.matches) {
+      fillT = tt
+      fillVel = 0
+      return
+    }
+    for (let left = delta; left > 0; left -= FILL_MAX_STEP) {
+      const step = left < FILL_MAX_STEP ? left : FILL_MAX_STEP
+      fillVel += (FILL_OMEGA * FILL_OMEGA * (tt - fillT) - 2 * FILL_OMEGA * fillVel) * step
+      fillT += fillVel * step
+    }
+    // Snapped once there, so the skip below sees an exact, unchanging value.
+    if (Math.abs(tt - fillT) < 1e-5 && Math.abs(fillVel) < 1e-4) {
+      fillT = tt
+      fillVel = 0
+    }
+  }
+
+  function update(tt: number, time: number): void {
+    coast(tt, time)
     const fade = smooth(tt / EDGE)
     if (fade <= 0) {
       if (!hidden) {
@@ -216,7 +261,7 @@ export function createIdentity(): Identity {
     }
 
     for (let i = 0; i < lines.length; i++) {
-      const filled = smooth((tt - (FILL_FROM + i * FILL_STEP)) / FILL_SPAN)
+      const filled = smooth((fillT - (FILL_FROM + i * FILL_STEP)) / FILL_SPAN)
       // Unclipped from the left, so the white sweeps across the word. Skipped
       // once a statement's own sweep is over: all three sit at a complete 1 for
       // the last fifth of the scene and the whole of Scene 3, and rewriting an

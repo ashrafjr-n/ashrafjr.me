@@ -133,7 +133,7 @@ function raf(time: number) {
     const page = scene.update(time, state)
     const progress = toTransition(page)
     updateIntro(progress)
-    identity.update(toIdentity(page))
+    identity.update(toIdentity(page), time)
     invert.update(page)
     // The disc is the pointer only inside the panel, so it is told where the
     // panel's edge is every frame — it moves under a stationary pointer as the
