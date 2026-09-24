@@ -18,7 +18,6 @@ import { createCursor } from './ui/cursor'
 import { createIdentity } from './ui/identity'
 import { createInvert } from './ui/invert'
 import { createExplore } from './ui/explore'
-import { createRevealWindow } from './ui/reveal-window'
 
 /**
  * Scroll progress at which the intro line has fully gone.
@@ -59,29 +58,30 @@ app.append(canvas, intro, identity.el, invert.el, explore.el)
 const scene = initScene(canvas)
 
 /**
- * Whether the site behind the reveal window is standing still.
+ * Whether the site behind the projects page is standing still.
  *
- * The window covers the screen, so while it is open there is nothing back there
- * to see: Scene 1's starfield, model and transition are all paused, and only
- * the window's own scene keeps drawing. It is one flag rather than a second
- * loop — see `raf()` below.
+ * The page covers the screen, so while it is open there is nothing back there
+ * to see: the starfield and every scene are paused. It is one flag rather than
+ * a stopped loop — see `raf()` below.
  */
 let isPaused = false
 
 /**
- * Hand the page over to the window, and take it back.
+ * Hand the site over to the projects page, and take it back.
  *
- * Two things go with it. The scroll, because the transition underneath is
- * driven by scroll position and nothing in the covered page would show it
- * moving — the viewer would close the window to find themselves somewhere else
- * entirely. And the loop, because every frame it spends on a scene nobody can
- * see is wasted, and because a spin that kept turning behind the window would
- * be a jump on the way back rather than continuity.
+ * Three things go with it. The scroll, because the scenes underneath are
+ * driven by scroll position and the viewer would close the page to find
+ * themselves somewhere else entirely — only the page's own list stays
+ * scrollable. The loop, because every frame spent on a scene nobody can see is
+ * wasted. And the inverting pointer, which is parked: the projects page keeps
+ * the system cursor, and the paused loop would otherwise leave the disc live if
+ * EXPLORE was pressed from inside the white half.
  */
 function setPageTakenOver(open: boolean): void {
   if (open) {
     lockScroll()
     isPaused = true
+    cursor.update(Infinity)
     return
   }
   // Order matters on the way back: the clock is re-anchored before any frame
@@ -92,10 +92,6 @@ function setPageTakenOver(open: boolean): void {
   unlockScroll()
 }
 
-// The reveal window (the projects preview) mounts itself here and brings its own
-// 3D layer with it. Nothing is bound to open it for now — the folders that did
-// were removed, and what replaces them is still to be decided.
-const revealWindow = createRevealWindow(app, setPageTakenOver)
 app.append(buildSocialBadges())
 
 // **Last of everything, and it has to stay last.** The pointer negates what is
@@ -104,10 +100,7 @@ app.append(buildSocialBadges())
 // rule: nothing on the way up to `<html>` may create a stacking context.
 const cursor = createCursor(app)
 
-window.addEventListener('resize', () => {
-  scene.resize()
-  revealWindow.resize()
-})
+window.addEventListener('resize', () => scene.resize())
 
 initPointer()
 initScroll()
@@ -125,11 +118,10 @@ function updateIntro(progress: number): void {
 
 // --- Single RAF loop: the only one in the app; hook new per-frame work in here
 //
-// It keeps running while the reveal window is open — it is still the only loop
-// in the app — but everything belonging to the covered page is skipped, and
-// only the window's own scene is advanced. The scroll is frozen while that is
-// true, so `progress` could not have moved anyway; skipping it is what also
-// stops the model's spin from running unseen.
+// It keeps running while the projects page is open, but everything belonging
+// to the covered site is skipped. The scroll is frozen while that is true, so
+// `progress` could not have moved anyway; skipping it is what also stops the
+// stars' drift from running unseen.
 function raf(time: number) {
   if (!isPaused) {
     const page = scene.update(time, state)
@@ -143,7 +135,6 @@ function raf(time: number) {
     // page scrolls. Must follow `invert.update()`, which is what moves it.
     cursor.update(invert.topEdge())
   }
-  revealWindow.update(state)
   requestAnimationFrame(raf)
 }
 

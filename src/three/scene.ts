@@ -1001,7 +1001,7 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
    * Throw away the time that passed while this scene was not being updated.
    *
    * `update()` spends `time - prevTime` on the orbits and the model's spin, so
-   * a paused stretch — the reveal window covers the screen, and the loop stops
+   * a paused stretch — the projects page covers the screen, and the loop stops
    * calling in — would otherwise arrive as one enormous delta and jump the
    * model forward the moment it came back. The 0.1s clamp in `update()` caps
    * how bad that is, not whether it happens; this removes it. RAF timestamps

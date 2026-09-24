@@ -1,9 +1,5 @@
 /**
- * The star sprite, shared by both of the site's particle fields (`scene.ts` and
- * `reveal.ts`).
- *
- * Each scene calls this for a texture of its own rather than passing one
- * around: the two have separate renderers, so they keep separate uploads.
+ * The star sprite used by the site's particle field (`scene.ts`).
  */
 import { CanvasTexture, LinearFilter } from 'three'
 
