@@ -778,9 +778,12 @@ html.has-cursor button {
 }
 
 /* The image drifts a little against the tilt, so it reads as sitting behind
-   the frame rather than printed on it. */
-.project-card:hover .project-media img {
-  transform: scale(1.05) translate(var(--shift-x, 0), var(--shift-y, 0));
+   the frame rather than printed on it. Hover only where a hover exists —
+   see .social-badge. */
+@media (hover: hover) {
+  .project-card:hover .project-media img {
+    transform: scale(1.05) translate(var(--shift-x, 0), var(--shift-y, 0));
+  }
 }
 
 .project-meta {
@@ -910,9 +913,15 @@ html.has-cursor button {
   height: 100%;
 }
 
-.project-card:hover .project-icon,
 .project-card:focus-visible .project-icon {
   transform: scale(1.12);
+}
+
+/* Hover only where a hover exists — see .social-badge. */
+@media (hover: hover) {
+  .project-card:hover .project-icon {
+    transform: scale(1.12);
+  }
 }
 
 .project-card:focus-visible {
