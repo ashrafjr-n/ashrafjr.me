@@ -141,7 +141,10 @@ function buildProject(project: Project, index: number): HTMLLIElement {
   const media = document.createElement('div')
   media.className = 'project-media'
   const img = document.createElement('img')
-  img.src = project.image
+  // Held back until the page is first opened (see `open`): the sheet parks
+  // just below the viewport, close enough for `loading="lazy"` to fetch
+  // several megabytes of screenshots on every visit.
+  img.dataset.src = project.image
   img.alt = `${project.name} preview`
   img.loading = 'lazy'
   img.decoding = 'async'
@@ -321,6 +324,10 @@ export function createProjects(
   function open(): void {
     if (isOpen) return
     isOpen = true
+    for (const img of list.querySelectorAll<HTMLImageElement>('img[data-src]')) {
+      img.src = img.dataset.src!
+      img.removeAttribute('data-src')
+    }
     returnFocus = document.activeElement as HTMLElement | null
     scroller.scrollTop = 0
     for (const item of items) {
