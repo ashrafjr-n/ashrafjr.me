@@ -20,8 +20,16 @@ export const state: InputState = {
   scroll: 0,
 }
 
-/** Attach a pointer listener that feeds normalized mouse coords into state. */
+/**
+ * Attach a pointer listener that feeds normalized mouse coords into state.
+ *
+ * **Only on a device with a real hovering pointer.** A touch screen fires a
+ * compatibility `mousemove` on every tap, so on a phone or an iPad the whole
+ * starfield would jerk toward wherever the reader last touched — a tilt with
+ * nothing continuous behind it. There the field simply stays level.
+ */
 export function initPointer(): void {
+  if (!window.matchMedia('(hover: hover) and (pointer: fine)').matches) return
   window.addEventListener(
     'mousemove',
     (e) => {
