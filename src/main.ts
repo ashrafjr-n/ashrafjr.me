@@ -80,14 +80,14 @@ let isPaused = false
  * themselves somewhere else entirely — only the page's own list stays
  * scrollable. The loop, because every frame spent on a scene nobody can see is
  * wasted. And the inverting pointer, which is parked: the projects page keeps
- * the system cursor, and the paused loop would otherwise leave the disc live if
- * EXPLORE was pressed from inside the white half.
+ * the system cursor, and the sheet rising over EXPLORE sends it no
+ * `pointerleave`, so the disc would stay live from the click that opened it.
  */
 function setPageTakenOver(open: boolean): void {
   if (open) {
     lockScroll(projects.scroller)
     isPaused = true
-    cursor.update(Infinity)
+    cursor.hide()
     return
   }
   // Order matters on the way back: the clock is re-anchored before any frame
@@ -109,7 +109,7 @@ explore.el.addEventListener('click', projects.open)
 // painted under it, so anything mounted after it — or given a z-index above its
 // 100 — is simply not inverted. See ui/cursor.ts for the other half of that
 // rule: nothing on the way up to `<html>` may create a stacking context.
-const cursor = createCursor(app)
+const cursor = createCursor(app, explore.el)
 
 window.addEventListener('resize', () => scene.resize())
 
@@ -184,10 +184,6 @@ function raf(time: number) {
     identity.update(toIdentity(page), time)
     invert.update(page)
     explore.update(page)
-    // The disc is the pointer only inside the panel, so it is told where the
-    // panel's edge is every frame — it moves under a stationary pointer as the
-    // page scrolls. Must follow `invert.update()`, which is what moves it.
-    cursor.update(invert.topEdge())
   }
   requestAnimationFrame(raf)
 }
