@@ -167,6 +167,28 @@ const BAND_COUNT = 600
  */
 const BAND_RADIUS_MIN = 2.71
 const BAND_RADIUS_MAX = 2.92
+/**
+ * **On a narrow screen the ring is scaled down to fit its width** — asked for
+ * on phones and iPads, where at full size it ran well off both sides (NDC 2.0
+ * on a 390x844 phone, 1.36 on an iPad in portrait) and only its two arcs
+ * showed. It spans `BAND_FIT_WIDTH` of the screen's width there: 1.2 outer on
+ * that phone, 1.8 on that iPad. A wide screen is bound by the frame's height
+ * instead, so the scale caps at 1 and it keeps the radii above.
+ *
+ * `RING_NDC_PER_UNIT` is the ring's half-width in NDC, times aspect, per unit
+ * of radius — measured off the fixed bird's-eye camera (0.335, taken up a hair
+ * for the perspective of the near side). It is geometry, not taste: re-derive
+ * it if the camera ever moves, which it must not.
+ *
+ * Applied on every resize, so an iPad turned from portrait to landscape gets
+ * the larger ring back. It scales each star's radius and height together,
+ * which is the whole ring scaled about the axis — the orbit is untouched.
+ */
+const BAND_FIT_WIDTH = 0.88
+const RING_NDC_PER_UNIT = 0.34
+function ringScale(aspect: number): number {
+  return Math.min(1, (BAND_FIT_WIDTH * aspect) / (RING_NDC_PER_UNIT * BAND_RADIUS_MAX))
+}
 const BAND_Y_MIN = 0.0
 const BAND_Y_MAX = 1.0
 /**
@@ -355,6 +377,8 @@ interface StarLayer {
   posAttr: Float32BufferAttribute
   /** The pointer's share of `points.rotation.y`; the drift is the rest. */
   tiltY: number
+  /** Multiplies every star's radius and height — the band's `ringScale()`, 1 for the cloud. */
+  radiusScale: number
 }
 
 /**
@@ -365,8 +389,12 @@ interface StarLayer {
 interface ScatterRolls {
   /** When it lets go, 0..SCATTER_STAGGER: a wave around the ring, plus jitter. */
   delay: Float32Array
-  /** Signed change of orbit radius — negative goes in through the centre. */
-  travel: Float32Array
+  /**
+   * The orbit radius it comes to rest at. Its travel is this less where it
+   * started, worked out per frame: the ring's own size follows the screen
+   * (`ringScale`), and the rest does not.
+   */
+  rest: Float32Array
   /**
    * `1 / (1 - delay)` — how much of the driver is left for it once it has
    * been let go, reciprocated at build so the hot loop multiplies. **Every
@@ -432,7 +460,8 @@ function advance(layer: StarLayer, delta: number, frame: ScatterFrame): void {
     // Each star reads its own delayed, differently-eased travel off the one
     // shared driver, so the ring comes apart progressively but settles all at
     // once — see `SCATTER_STAGGER` in lib/scatter.ts.
-    let radius = layer.radii[i]
+    const scale = layer.radiusScale
+    let radius = layer.radii[i] * scale
     let shown = angle + swirl
     if (layer.scatter) {
       // Its own `rate` rather than one shared span: every star's travel ends
@@ -444,12 +473,12 @@ function advance(layer: StarLayer, delta: number, frame: ScatterFrame): void {
         // the slowing is `STOP_TAIL`'s and belongs to the whole field. See
         // the note where the per-star ease used to be rolled, in lib/scatter.
         const gone = u < 1 ? u : 1
-        radius += layer.scatter.travel[i] * gone
+        radius += (layer.scatter.rest[i] - radius) * gone
         shown += layer.scatter.spiral[i] * gone
       }
     }
     let x = Math.cos(shown) * radius
-    let y = layer.heights[i]
+    let y = layer.heights[i] * scale
     let z = Math.sin(shown) * radius
 
     const i3 = i * 3
@@ -611,7 +640,7 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
       ? {
           delay: new Float32Array(count),
           rate: new Float32Array(count),
-          travel: new Float32Array(count),
+          rest: new Float32Array(count),
           spiral: new Float32Array(count),
         }
       : null
@@ -657,8 +686,10 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
         // it already is against where it is going, so the ring turns inside
         // out through itself with no star picking a heading of its own.
         const rest = Math.sqrt(rand(REST_MIN * REST_MIN, REST_MAX * REST_MAX))
+        scatter.rest[i] = rest
+        // Against the full-size ring: the spiral is a flourish, and the few
+        // tenths a smaller ring adds to a travel do not change its character.
         const travel = rest - radius
-        scatter.travel[i] = travel
         // A wave running once around the ring's circumference, softened by a
         // jitter so its edge is ragged rather than a clean unzip. `angle` is
         // the star's own place on the ring, so the wave travels with it.
@@ -746,6 +777,7 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
       positions: posAttr.array as Float32Array,
       posAttr,
       tiltY: 0,
+      radiusScale: 1,
     }
   }
 
@@ -775,6 +807,7 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
     clearLevel: BAND_CLEAR_LEVEL,
     sprite: plainSprite,
   }, true) // the ring scatters; the cloud does not
+  band.radiusScale = ringScale(world.camera.aspect)
 
   /** Both layers, in one array so the frame loop allocates nothing per frame. */
   const layers = [cloud, band]
@@ -1040,6 +1073,7 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
     // drawn again even when nothing about it has changed.
     stillDrawn = false
     world.resize(w / h) // one camera drives the starfield and world passes
+    band.radiusScale = ringScale(w / h)
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
     renderer.setSize(w, h, false)
   }
