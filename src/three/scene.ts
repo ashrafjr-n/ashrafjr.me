@@ -295,6 +295,20 @@ const MODEL_ENABLED: boolean = false
 // --- Interaction tuning (mouse parallax; gentle / clamped) ---
 const MAX_TILT = 0.09 // max parallax tilt from the mouse (~5°), radians
 const TILT_LERP = 0.05 // how fast tilt eases toward the target
+/**
+ * The settled field's own slow turn, rad/s — ~5 minutes a revolution, clockwise
+ * like the orbit. It takes over from the orbit as the orbit dies (`1 - spin`),
+ * so the stars never actually stop: the scatter hands a dying orbit to a
+ * whole-field turn with no frame where nothing moves. At page 0 its weight is
+ * 0, so the protected opening is untouched.
+ *
+ * **It is a rotation of the `Points` about the model's axis, not a write into
+ * the position buffer** — the same trick as the tilt, so the still-frame gate
+ * keeps skipping the 20,600-star pass. Rotating the settled stars' angles
+ * would do nothing anyway: every on-screen cloud star is pinned to its spread
+ * target by `settled`, and the orbit only moves the angle under it.
+ */
+const DRIFT_RATE = 0.02
 
 /** A set of stars orbiting the model's vertical axis, drawn as one Points. */
 interface StarLayer {
@@ -329,6 +343,8 @@ interface StarLayer {
   positions: Float32Array
   /** Flagged after each write so Three re-uploads the buffer. */
   posAttr: Float32BufferAttribute
+  /** The pointer's share of `points.rotation.y`; the drift is the rest. */
+  tiltY: number
 }
 
 /**
@@ -719,6 +735,7 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
       // The attribute's copy of `positions`, not `positions` itself.
       positions: posAttr.array as Float32Array,
       posAttr,
+      tiltY: 0,
     }
   }
 
@@ -823,12 +840,16 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
     if (reach === 0) {
       // Snapped rather than chased, so the tilt actually reaches zero — a lerp
       // only approaches it, which would leave the layer permanently "moving".
-      layer.points.rotation.y = 0
+      layer.tiltY = 0
       layer.points.rotation.x = 0
-      return
+    } else {
+      layer.tiltY += (state.mouseX * reach - layer.tiltY) * TILT_LERP
+      layer.points.rotation.x += (-state.mouseY * reach - layer.points.rotation.x) * TILT_LERP
     }
-    layer.points.rotation.y += (state.mouseX * reach - layer.points.rotation.y) * TILT_LERP
-    layer.points.rotation.x += (-state.mouseY * reach - layer.points.rotation.x) * TILT_LERP
+    // Both about the same axis, so they simply add. Euler order XYZ applies
+    // the y turn first and the x tilt over it, so the tilt stays screen-fixed
+    // however far the field has drifted round.
+    layer.points.rotation.y = layer.tiltY + drift
   }
 
   /** Run the scatter over both layers. */
@@ -851,6 +872,8 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
   let page = 0
   /** Its velocity, in page units per second — the spring's other half. */
   let pageVel = 0
+  /** The settled field's accumulated turn — see `DRIFT_RATE`. */
+  let drift = 0
 
   function update(time: number, state: InputState): number {
     const delta = Math.min((time - prevTime) / 1000, 0.1) // clamp big tab-switch gaps
@@ -889,6 +912,8 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
     const wound = swirlAt(progress)
     const settled = settleAt(progress)
     frame.settled = settled
+    // Negative for clockwise, the same convention as the model's spin.
+    if (!REDUCED_MOTION.matches) drift -= DRIFT_RATE * (1 - frame.spin) * delta
 
     // Mouse parallax — a few degrees of tilt under the pointer, lerped.
     //
