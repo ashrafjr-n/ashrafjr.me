@@ -296,7 +296,7 @@ const MODEL_ENABLED: boolean = false
 const MAX_TILT = 0.09 // max parallax tilt from the mouse (~5°), radians
 const TILT_LERP = 0.05 // how fast tilt eases toward the target
 /**
- * The settled field's own slow turn, rad/s — ~5 minutes a revolution, clockwise
+ * The settled field's own slow turn, rad/s — ~3 minutes a revolution, clockwise
  * like the orbit. It takes over from the orbit as the orbit dies (`1 - spin`),
  * so the stars never actually stop: the scatter hands a dying orbit to a
  * whole-field turn with no frame where nothing moves. At page 0 its weight is
@@ -308,7 +308,7 @@ const TILT_LERP = 0.05 // how fast tilt eases toward the target
  * would do nothing anyway: every on-screen cloud star is pinned to its spread
  * target by `settled`, and the orbit only moves the angle under it.
  */
-const DRIFT_RATE = 0.02
+const DRIFT_RATE = 0.035
 
 /** A set of stars orbiting the model's vertical axis, drawn as one Points. */
 interface StarLayer {
