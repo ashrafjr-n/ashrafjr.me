@@ -17,6 +17,7 @@ import { buildSocialBadges } from './ui/social'
 import { createCursor } from './ui/cursor'
 import { createIdentity } from './ui/identity'
 import { createInvert } from './ui/invert'
+import { createExplore } from './ui/explore'
 import { createRevealWindow } from './ui/reveal-window'
 
 /**
@@ -49,9 +50,10 @@ canvas.id = 'scene'
 const intro = buildIntro()
 const identity = createIdentity()
 const invert = createInvert()
+const explore = createExplore()
 // The inversion panel is appended last of the page's own layers: it blends with
 // everything painted before it, so document order is part of what it does.
-app.append(canvas, intro, identity.el, invert.el)
+app.append(canvas, intro, identity.el, invert.el, explore.el)
 
 // --- Starfield + model, and the input they read ---
 const scene = initScene(canvas)
@@ -135,6 +137,7 @@ function raf(time: number) {
     updateIntro(progress)
     identity.update(toIdentity(page), time)
     invert.update(page)
+    explore.update(page)
     // The disc is the pointer only inside the panel, so it is told where the
     // panel's edge is every frame — it moves under a stationary pointer as the
     // page scrolls. Must follow `invert.update()`, which is what moves it.
