@@ -3,7 +3,7 @@
 My personal portfolio: one scrolled page in three scenes over a live WebGL
 starfield. A ring of stars comes apart as you scroll, three statements slide in
 and fill, and a white half rises to invert everything under it. **EXPLORE**
-then opens the projects.
+then opens the projects. Each visit opens on a short 0–99 count.
 
 ![Scene 1: a ring of stars orbiting an empty centre over a drifting field](docs/screenshots/opening.png)
 
