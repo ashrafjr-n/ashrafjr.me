@@ -33,6 +33,9 @@
   /* The projects page's rise and fall (ui/projects.ts): a long ease at both
      ends, so the sheet leaves and lands softly. */
   --projects-dur: 900ms;
+  /* The "in progress" pill's colour — the site's one deliberate accent, asked
+     for so unfinished work reads at a glance. */
+  --status-live: #f2b34a;
   --projects-ease: cubic-bezier(0.76, 0, 0.24, 1);
 
   /* The portrait's height. */
@@ -293,9 +296,9 @@ body {
   position: fixed;
   top: 2rem;
   left: 2rem;
-  /* Above the scenes and the EXPLORE button; below the projects page (80),
-     which covers everything while it is open. */
-  z-index: 60;
+  /* Above everything but the pointer (100) — including the projects page
+     (80), which keeps them live and clickable over it. */
+  z-index: 90;
   display: flex;
   align-items: center;
   gap: 1.1rem;
@@ -364,7 +367,7 @@ body {
   mix-blend-mode: difference;
   /* **The highest z-index on the page, and it has to stay that way.** A
      blended element only negates what is painted below it, so anything stacked
-     over the disc (the projects page is 80, badges 60, EXPLORE 35, the invert panel 30)
+     over the disc (the badges are 90, the projects page 80, EXPLORE 35, the invert panel 30)
      would simply stop being inverted. */
   z-index: 100;
   pointer-events: none;
@@ -410,7 +413,7 @@ html.has-cursor button {
   bottom: 0;
   height: 50vh;
   /* Above the canvas (0) and the statements (15), below the EXPLORE
-     button (35), the social badges (60) and the projects page (80), which stay
+     button (35), the projects page (80) and the social badges (90), which stay
      themselves. */
   z-index: 30;
   /* Pure white is what makes `difference` a clean negation: the result is
@@ -447,7 +450,7 @@ html.has-cursor button {
   right: clamp(16px, 4vw, 56px);
   bottom: clamp(16px, 5vh, 56px);
   /* Above the inversion panel (30) so it paints itself instead of being
-     negated; below the social badges (60), the projects page (80) and the pointer (100). */
+     negated; below the projects page (80), the social badges (90) and the pointer (100). */
   z-index: 35;
   display: flex;
   align-items: center;
@@ -563,18 +566,9 @@ html.has-cursor button {
   /* The page behind is locked; a scroll that reaches either end of the list
      must not chain out to it. */
   overscroll-behavior: contain;
-  padding: 0 clamp(16px, 5vw, 96px) 22vh;
+  /* The top clears the social badges, which stay over the page. */
+  padding: 18vh clamp(16px, 5vw, 96px) 22vh;
   outline: none;
-}
-
-.projects-title {
-  padding: 2.3rem 0 14vh;
-  font-family: var(--font-code);
-  font-weight: 400;
-  font-size: 13px;
-  letter-spacing: 0.3em;
-  text-transform: uppercase;
-  color: var(--text-dim);
 }
 
 .projects-close {
@@ -618,7 +612,7 @@ html.has-cursor button {
 
 /* Tablets take the base width; desktop and phones are set below. */
 .project {
-  width: 72%;
+  width: 64%;
 }
 
 .project--right {
@@ -733,7 +727,7 @@ html.has-cursor button {
   padding-top: 3vh;
   font-family: var(--font-display);
   font-weight: 300;
-  font-size: clamp(15px, 1.15vw, 19px);
+  font-size: clamp(17px, 1.55vw, 26px);
   line-height: 1.6;
   color: rgba(255, 255, 255, 0.72);
 }
@@ -747,15 +741,48 @@ html.has-cursor button {
 }
 
 .project-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
   padding: 7px 14px;
-  border: 1px solid rgba(255, 255, 255, 0.4);
+  border: 1px solid color-mix(in srgb, var(--status-live) 55%, transparent);
   border-radius: 999px;
+  background: color-mix(in srgb, var(--status-live) 9%, transparent);
   font-family: var(--font-code);
   font-size: 11px;
   letter-spacing: 0.24em;
   text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.7);
+  color: var(--status-live);
   white-space: nowrap;
+}
+
+/* A lit dot with a ring that swells out of it and fades — live work. */
+.project-status-dot {
+  position: relative;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--status-live);
+  animation: status-blink 1.8s ease-in-out infinite;
+}
+
+.project-status-dot::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 1px solid var(--status-live);
+  animation: status-ring 1.8s ease-out infinite;
+}
+
+@keyframes status-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.25; }
+}
+
+@keyframes status-ring {
+  0% { transform: scale(1); opacity: 0.8; }
+  100% { transform: scale(2.8); opacity: 0; }
 }
 
 .project-icon {
@@ -783,7 +810,7 @@ html.has-cursor button {
 
 @media (min-width: 900px) {
   .project {
-    width: 57%;
+    width: 50%;
   }
 }
 
@@ -823,7 +850,7 @@ html.has-cursor button {
   .project-about {
     position: absolute;
     top: calc(100cqw * 1696 / 3046);
-    width: min(24vw, 400px);
+    width: min(30vw, 480px);
     padding-top: 0;
     transform: translateY(-100%);
     opacity: 0;
@@ -832,12 +859,16 @@ html.has-cursor button {
     transition: opacity 500ms ease, translate 700ms cubic-bezier(0.22, 1, 0.36, 1);
   }
 
+  /* Set against the card: the note's edge nearest the card is the flush one,
+     a clear gap short of it. */
   .project--right .project-about {
     right: calc(100% + 4vw);
+    text-align: right;
   }
 
   .project--left .project-about {
     left: calc(100% + 4vw);
+    text-align: left;
   }
 
   .project-card:hover + .project-about,
@@ -892,5 +923,10 @@ html.has-cursor button {
 
   .project {
     transition: opacity 400ms ease;
+  }
+
+  .project-status-dot,
+  .project-status-dot::after {
+    animation: none;
   }
 }
