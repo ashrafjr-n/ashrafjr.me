@@ -48,7 +48,7 @@ whenever the wave let it go, and nothing carries an easing of its own — the
 slowing belongs to the whole field, so it settles in one move rather than in
 stragglers. The scatter eases out in the scene's first third, and as the orbit
 dies the whole field takes over with a slow clockwise turn of its own about the
-model's axis (about five minutes a revolution), so the stars never stop —
+model's axis (about three minutes a revolution), so the stars never stop —
 scrolling or not. Only stars already inside the frame are redistributed —
 nothing enters the picture from beyond its edge. From the moment it settles to
 the bottom of the page the pointer also tilts the whole field a few degrees.
