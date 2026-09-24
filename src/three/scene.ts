@@ -156,8 +156,17 @@ const STAR_OPACITY = 1.0
 // none of these bounds apply past that point — see `lib/scatter.ts`. They still apply at page 0, which is the frame they
 // were derived against.
 const BAND_COUNT = 600
-const BAND_RADIUS_MIN = 2.6
-const BAND_RADIUS_MAX = 2.8
+/**
+ * The ring at its largest — a wide screen. **Made a little bigger on request**
+ * (it was 2.6..2.8), keeping the same 0.93 inner-to-outer ratio. 2.92 is as far
+ * as the frame allows: the orbit's near side projects to the bottom of the
+ * frame, and at 2.92 its lowest star sits at NDC -0.952 against -0.909 at 2.8
+ * — past about 3.0 it leaves the screen. Computed from the fixed camera, not
+ * by eye. The model's slab bound (2.47) no longer applies while the model is
+ * off (`MODEL_ENABLED`).
+ */
+const BAND_RADIUS_MIN = 2.71
+const BAND_RADIUS_MAX = 2.92
 const BAND_Y_MIN = 0.0
 const BAND_Y_MAX = 1.0
 /**
