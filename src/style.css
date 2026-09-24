@@ -51,7 +51,7 @@
    Base
    =========================================================== */
 html {
-  /* No rubber-band or pull-to-refresh at the two ends of a 1060vh page.
+  /* No rubber-band or pull-to-refresh at the two ends of a 1060svh page.
      Everything on screen is `position: fixed`, so an overscroll bounce drags
      the viewport away from a composition that cannot follow it, and on a phone
      an overscroll at the top of Scene 1 is a refresh rather than a scroll. */
@@ -103,11 +103,11 @@ body {
   background: var(--bg);
   /* Scroll length for all three scenes. Everything on screen is
      position:fixed, so the page has no content to scroll — this is what
-     creates the scroll range that drives `state.scroll`. 1060vh leaves 9.6
+     creates the scroll range that drives `state.scroll`. 1060svh leaves 9.6
      viewport heights of travel; lib/phases.ts splits them 600 / 205 / 155 and
      has to change with this. Scene 1 holds most of it because the scatter's
      pace is that split and nothing else — see IDENTITY_FROM there. */
-  min-height: 1060vh;
+  min-height: 1060svh;
   color: var(--text-dim);
   font-family: var(--font-code);
   -webkit-font-smoothing: antialiased;
@@ -140,7 +140,7 @@ body {
    =========================================================== */
 .intro {
   position: fixed;
-  top: 10vh;
+  top: 10svh;
   left: 50%;
   z-index: 20;
   /* translateX centres it; the Y offset is driven from the RAF loop as the
@@ -252,7 +252,7 @@ body {
      resting position: main.ts still drives its fade and its upward drift from
      the scroll, on top of whatever `top` is set here. */
   .intro {
-    top: 15vh;
+    top: 15svh;
   }
 }
 
@@ -379,7 +379,12 @@ html.has-cursor button {
   left: 0;
   right: 0;
   bottom: 0;
-  height: 50vh;
+  /* `svh`, not `vh`, like every viewport height on the site: the phone's
+     toolbar is always shown (the page scrolls inside `body`), and `vh` is
+     measured as if it were hidden, so 50vh would be taller than half the
+     visible screen — and off the `innerHeight` that `topEdge()` and the
+     starfield's scissor split compute this edge from. */
+  height: 50svh;
   /* Above the canvas (0) and the statements (15), below the EXPLORE
      button (35), the projects page (80) and the social badges (90), which stay
      themselves. */
@@ -416,7 +421,7 @@ html.has-cursor button {
 .explore {
   position: fixed;
   right: clamp(16px, 4vw, 56px);
-  bottom: clamp(16px, 5vh, 56px);
+  bottom: clamp(16px, 5svh, 56px);
   /* Above the inversion panel (30) so it paints itself instead of being
      negated; below the projects page (80), the social badges (90) and the pointer (100). */
   z-index: 35;
@@ -434,7 +439,7 @@ html.has-cursor button {
   letter-spacing: 0.28em;
   cursor: pointer;
   visibility: hidden;
-  transform: translateY(50vh);
+  transform: translateY(50svh);
   will-change: transform;
 }
 
@@ -536,7 +541,7 @@ html.has-cursor button {
      must not chain out to it. */
   overscroll-behavior: contain;
   /* The top clears the social badges, which stay over the page. */
-  padding: 18vh clamp(16px, 5vw, 96px) 22vh;
+  padding: 18svh clamp(16px, 5vw, 96px) 22svh;
   outline: none;
 }
 
@@ -630,7 +635,7 @@ html.has-cursor button {
 .projects-list {
   display: flex;
   flex-direction: column;
-  gap: 20vh;
+  gap: 20svh;
   list-style: none;
 }
 
@@ -698,7 +703,7 @@ html.has-cursor button {
 }
 
 .project-meta {
-  padding: 5vh 0 6vh;
+  padding: 5svh 0 6svh;
   border-bottom: 1px solid #ffffff;
 }
 
@@ -726,7 +731,7 @@ html.has-cursor button {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
-  padding-top: 3vh;
+  padding-top: 3svh;
   list-style: none;
 }
 
@@ -750,7 +755,7 @@ html.has-cursor button {
   direction: ltr;
   text-align: left;
   max-width: 34em;
-  padding-top: 3vh;
+  padding-top: 3svh;
   font-family: var(--font-display);
   font-weight: 300;
   font-size: clamp(17px, 1.55vw, 26px);
@@ -905,7 +910,7 @@ html.has-cursor button {
 
 @media (max-width: 767.98px) {
   .projects-list {
-    gap: 12vh;
+    gap: 12svh;
   }
 
   /* One full-width column: there is no room for an empty side. */
@@ -915,7 +920,7 @@ html.has-cursor button {
 
   .project-meta {
     gap: 14px;
-    padding: 3vh 0 3.5vh;
+    padding: 3svh 0 3.5svh;
   }
 
   .project-status {
