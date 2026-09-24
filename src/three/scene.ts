@@ -185,9 +185,18 @@ const BAND_RADIUS_MAX = 2.92
  * which is the whole ring scaled about the axis — the orbit is untouched.
  */
 const BAND_FIT_WIDTH = 0.88
+/**
+ * **On a phone the ring runs a little past both sides**, on request: at 0.88 it
+ * read as too small there. 1.1 puts its left and right edges ~5% of the width
+ * off screen (1.5 outer on a 390x844 phone). Tablets keep `BAND_FIT_WIDTH`.
+ * Same bound as the stylesheet's phone block.
+ */
+const BAND_FIT_WIDTH_PHONE = 1.1
+const PHONE = window.matchMedia('(max-width: 767.98px)')
 const RING_NDC_PER_UNIT = 0.34
 function ringScale(aspect: number): number {
-  return Math.min(1, (BAND_FIT_WIDTH * aspect) / (RING_NDC_PER_UNIT * BAND_RADIUS_MAX))
+  const fit = PHONE.matches ? BAND_FIT_WIDTH_PHONE : BAND_FIT_WIDTH
+  return Math.min(1, (fit * aspect) / (RING_NDC_PER_UNIT * BAND_RADIUS_MAX))
 }
 const BAND_Y_MIN = 0.0
 const BAND_Y_MAX = 1.0
