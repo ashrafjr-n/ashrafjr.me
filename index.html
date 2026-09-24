@@ -7,19 +7,48 @@
     <title>ASHRAF</title>
 
     <!-- Google Fonts. Only the weights actually rendered are requested:
-         JetBrains Mono 400 (all body text) and 700 (the project cards' names
-         and their VIEW buttons); plus Space Grotesk 300, --font-display, used by
-         the identity scene's three statements. The 300/500/600/800
-         weights were dropped. Anything set to a weight that is not requested
-         here will synthesize. -->
+         JetBrains Mono 400 (body text, pills, labels) and 700 (EXPLORE, the
+         "View" pointer's name); plus Space Grotesk 300, --font-display (the
+         identity statements, project names and notes, the loader's count).
+         Anything set to a weight that is not requested here will
+         synthesize. -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
       href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Space+Grotesk:wght@300&display=swap"
       rel="stylesheet"
     />
+
+    <!-- The loader (src/ui/loader.ts). Inline, markup and style both, so it is
+         up from the very first paint rather than once the bundle has run. -->
+    <style>
+      html,
+      body {
+        background: #000000;
+      }
+      #loader {
+        position: fixed;
+        inset: 0;
+        z-index: 200;
+        display: grid;
+        place-items: center;
+        background: #000000;
+        color: #ffffff;
+        font: 300 clamp(40px, 6vw, 88px) / 1 "Space Grotesk", sans-serif;
+        font-variant-numeric: tabular-nums;
+        letter-spacing: -0.02em;
+        transition: opacity 300ms ease;
+      }
+      #loader.is-done {
+        opacity: 0;
+        pointer-events: none;
+      }
+    </style>
   </head>
   <body>
+    <div id="loader" role="status" aria-label="Loading">
+      <span id="loader-count" aria-hidden="true">0</span>
+    </div>
     <div id="app"></div>
     <script type="module" src="/src/main.ts"></script>
   </body>
