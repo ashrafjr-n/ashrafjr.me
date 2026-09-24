@@ -17,8 +17,8 @@
  * otherwise. See `ui/identity.ts`, which no longer fades out for exactly this.
  *
  * **The starfield is part of what it negates, and that is not incidental.**
- * The press (`lib/press.ts`) leaves the field flat and still on screen for the
- * rest of the page instead of clearing it, so the half rises over white points
+ * The scatter (`lib/scatter.ts`) leaves the field dispersed and slowly turning
+ * on screen for the rest of the page instead of clearing it, so the half rises over white points
  * on black and turns them into black points on white — the same field, seen
  * the other way round, with no second layer and nothing to keep in step. If
  * `three/scene.ts` ever stopped drawing the canvas through Scene 3, the white
