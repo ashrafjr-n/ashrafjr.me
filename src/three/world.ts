@@ -280,7 +280,11 @@ export interface WorldLayer {
   resize(aspect: number): void
 }
 
-export function createWorld(aspect: number): WorldLayer {
+/**
+ * `loadModel` false skips the GLB fetch entirely — the layer and its cameras
+ * are still built, since the starfield draws through `camera`.
+ */
+export function createWorld(aspect: number, loadModel: boolean): WorldLayer {
   const scene = new Scene()
 
   // Set once, never written again: the stars' vantage in both scenes.
@@ -347,8 +351,9 @@ export function createWorld(aspect: number): WorldLayer {
   let visibleHalfHeight = 1
 
   // Async — the starfield renders immediately, the model pops in when it has
-  // loaded.
-  new GLTFLoader().load(
+  // loaded. Not fetched at all while the model is switched off: 3MB nobody
+  // would see.
+  if (loadModel) new GLTFLoader().load(
     MODEL_URL,
     (gltf) => {
       // Before fitModel, while the GLB's own root is still untransformed, so a

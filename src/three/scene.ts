@@ -285,7 +285,7 @@ const REDUCED_MOTION = window.matchMedia('(prefers-reduced-motion: reduce)')
  * Everything about the rig is intact and turning this back on is the whole of
  * re-enabling it: the fit, the two lens compositions, the entrance, the turns
  * and the planet spins are all still there and still documented. The GLB is
- * still fetched, which is the one thing this does not save.
+ * not fetched while this is off (`createWorld`'s `loadModel`).
  *
  * Typed `boolean` rather than left to narrow to `false`, so the branches below
  * stay live code and `toModel` stays referenced.
@@ -495,7 +495,7 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
   // --- Scene 1 world layer (the model), drawn over the starfield ---
   // Built before the star layers: the camera's basis is what aims their
   // settled spread targets, and it is fixed for the life of the page.
-  const world = createWorld(window.innerWidth / window.innerHeight)
+  const world = createWorld(window.innerWidth / window.innerHeight, MODEL_ENABLED)
 
   /**
    * A world-space point at a uniformly random place in the visible frame, at a
