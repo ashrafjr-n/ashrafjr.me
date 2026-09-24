@@ -180,14 +180,14 @@ const BAND_POINT_SIZE = 0.025
  * against the field's dimmer silver spread, at full opacity. Brightness only —
  * its size, motion, speed and scatter are untouched by these.
  */
-const BAND_BRIGHT_MIN = 0.96
+const BAND_BRIGHT_MIN = 1.0
 const BAND_BRIGHT_MAX = 1.0
 const BAND_OPACITY = 1.0
 
 /**
- * A random ~35% of band stars are taken to full, clear white, so the ring reads
+ * A random ~60% of band stars are taken to full, clear white, so the ring reads
  * as mixed rather than uniformly faint. Rolled per star, so it is a different
- * scattering of stars on every load rather than a fixed pattern. The other ~65%
+ * scattering of stars on every load rather than a fixed pattern. The other ~40%
  * keep their BAND_BRIGHT_* roll untouched.
  *
  * `BAND_CLEAR_LEVEL` deliberately pushes the vertex colour **far above 1**. The
@@ -201,7 +201,9 @@ const BAND_OPACITY = 1.0
  * bright, and a random multiplier left some of them only part of the way there.
  * Brightness only — count, motion, orbit and scatter are untouched by these.
  */
-const BAND_CLEAR_CHANCE = 0.35
+// **Raised from 0.35 on request, for a whiter ring** — along with
+// BAND_BRIGHT_MIN from 0.96 to 1.0. Brightness only, like everything here.
+const BAND_CLEAR_CHANCE = 0.6
 const BAND_CLEAR_LEVEL = 4.0
 
 // --- Scene 1 -> Scene 2 scroll transition ---
