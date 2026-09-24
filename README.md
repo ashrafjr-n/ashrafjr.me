@@ -46,11 +46,12 @@ orbit runs out, and a slice of the ambient cloud drifts to evenly spread places
 across the frame. Every star's travel ends on the same frame,
 whenever the wave let it go, and nothing carries an easing of its own — the
 slowing belongs to the whole field, so it settles in one move rather than in
-stragglers. All of it eases to a dead stop in the scene's first third, and the rest of Scene 1 is a settled composition rather than more
-movement. Only stars already inside the frame are redistributed — nothing
-enters the picture from beyond its edge. From the moment it settles to the
-bottom of the page the pointer tilts the whole field a few degrees — the only
-thing left moving once the scroll has stopped the stars.
+stragglers. The scatter eases out in the scene's first third, and as the orbit
+dies the whole field takes over with a slow clockwise turn of its own about the
+model's axis (about five minutes a revolution), so the stars never stop —
+scrolling or not. Only stars already inside the frame are redistributed —
+nothing enters the picture from beyond its edge. From the moment it settles to
+the bottom of the page the pointer also tilts the whole field a few degrees.
 
 The camera never moves, nothing is turned to face it, and no star's depth
 changes. Where Scene 3's white panel covers the field, the stars are drawn
