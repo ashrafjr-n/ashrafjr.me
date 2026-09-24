@@ -16,6 +16,9 @@
  * pointer on the right brings the right edge forward, one near the bottom
  * brings the bottom forward. It is a CSS transform written through two custom
  * properties, with the transition doing the smoothing — no loop of its own.
+ *
+ * Over a card the pointer becomes a translucent silver disc reading
+ * "View <name>", grown out of a point. Fine pointers only.
  */
 
 interface Project {
@@ -133,6 +136,7 @@ function buildProject(project: Project, index: number): HTMLLIElement {
   card.href = project.url
   card.target = '_blank'
   card.rel = 'noopener noreferrer'
+  card.dataset.name = project.name
 
   const media = document.createElement('div')
   media.className = 'project-media'
@@ -253,14 +257,41 @@ export function createProjects(
   list.className = 'projects-list'
   list.append(...PROJECTS.map(buildProject))
   scroller.append(list)
-  root.append(scroller, close)
+  // The pointer over a card: a silver disc that grows out of a point and
+  // reads "View <name>". It replaces the system cursor on the cards only.
+  const view = document.createElement('div')
+  view.className = 'projects-cursor'
+  view.setAttribute('aria-hidden', 'true')
+  const viewName = document.createElement('strong')
+  view.innerHTML = '<span>View</span>'
+  view.append(viewName)
+
+  root.append(scroller, close, view)
   parent.append(root)
 
-  if (
-    window.matchMedia('(hover: hover) and (pointer: fine)').matches &&
-    !window.matchMedia('(prefers-reduced-motion: reduce)').matches
-  ) {
-    for (const card of list.querySelectorAll<HTMLElement>('.project-card')) bindTilt(card)
+  const cards = [...list.querySelectorAll<HTMLElement>('.project-card')]
+  const finePointer = window.matchMedia('(hover: hover) and (pointer: fine)').matches
+  if (finePointer) {
+    // Gated from here, not the stylesheet, so a failed script keeps the
+    // system cursor over the cards.
+    root.classList.add('has-view-cursor')
+    root.addEventListener(
+      'pointermove',
+      (e) => {
+        view.style.translate = `${e.clientX}px ${e.clientY}px`
+      },
+      { passive: true },
+    )
+    for (const card of cards) {
+      card.addEventListener('pointerenter', () => {
+        viewName.textContent = card.dataset.name ?? ''
+        view.classList.add('is-on')
+      })
+      card.addEventListener('pointerleave', () => view.classList.remove('is-on'))
+    }
+    if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      for (const card of cards) bindTilt(card)
+    }
   }
 
   // Each row slides in from its own side the first time it scrolls into view,
@@ -308,6 +339,7 @@ export function createProjects(
     if (!isOpen) return
     isOpen = false
     root.classList.remove('is-open')
+    view.classList.remove('is-on')
     setOthersInert(false)
     onOpenChange(false)
     returnFocus?.focus({ preventScroll: true })
