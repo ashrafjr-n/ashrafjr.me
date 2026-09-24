@@ -34,6 +34,16 @@ own to scroll. The scroll range comes from a `min-height` on `body`, and
 | **02** | three statements, sliding in and filling from outline to solid, the fill coasting a moment past the scroll | 205vh |
 | **03** | a white half rising from the bottom, inverting everything it covers, carrying an EXPLORE button | 155vh |
 
+**EXPLORE** raises the projects page (`src/ui/projects.ts`): a plain black
+sheet over the whole site, with its own ordinary scroll and the system cursor.
+The projects run down one column, alternating sides — the first on the right,
+the next on the left — each a screenshot over its name, an *in progress* tag
+where it applies, and a globe or GitHub mark read off the link itself. Each card
+tilts toward the pointer, the side under it coming forward. The site behind is
+paused and its scroll locked until the page is closed (× or Escape). The
+screenshots live in `public/assets/projects/`; a project without one shows a
+*preview soon* frame.
+
 The bridge between the first two is **the scatter** (`src/lib/scatter.ts`):
 the star field is not cleared away and replaced, it is dispersed. A wave runs
 once around the ring's circumference letting stars go, so the ring unravels
@@ -64,10 +74,10 @@ again.
 src/
   main.ts          mounting and the single requestAnimationFrame loop
   lib/             the scroll maths, shared state, small helpers
-  three/           the starfield, the world layer, the reveal window's scene
+  three/           the starfield and the world layer
   ui/              each feature's DOM and behaviour, one file each
   style.css        tokens, layout, and every animation that is not JS-driven
-public/            the model, the artwork
+public/            the model, the artwork, the project screenshots
 ```
 
 There is exactly one animation loop, in `src/main.ts`. Features expose an
