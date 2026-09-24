@@ -19,6 +19,7 @@ import { createIdentity } from './ui/identity'
 import { createInvert } from './ui/invert'
 import { createExplore } from './ui/explore'
 import { createProjects } from './ui/projects'
+import { createLoader } from './ui/loader'
 
 /**
  * Scroll progress at which the intro line has fully gone.
@@ -39,6 +40,10 @@ function buildIntro(): HTMLParagraphElement {
   intro.textContent = 'Hi! I am ASHRAF.'
   return intro
 }
+
+// First, so the page's scroll is held from the moment the bundle runs.
+const loader = createLoader()
+let loaderGone = false
 
 // --- Mount ---
 const app = document.querySelector<HTMLDivElement>('#app')!
@@ -129,6 +134,7 @@ function updateIntro(progress: number): void {
 // `progress` could not have moved anyway; skipping it is what also stops the
 // stars' drift from running unseen.
 function raf(time: number) {
+  if (!loaderGone) loaderGone = loader.update(time)
   if (!isPaused) {
     const page = scene.update(time, state)
     const progress = toTransition(page)
