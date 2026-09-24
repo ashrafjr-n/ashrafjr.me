@@ -3,7 +3,7 @@
  * white half** rather than appearing on its own.
  *
  * It rides the panel's own rise (`panelRiseAt`), translated by the same
- * `(1 - up) * 50vh` the panel is, so the two arrive as one piece and scrolling
+ * `(1 - up) * 50svh` the panel is, so the two arrive as one piece and scrolling
  * back up lowers them together. It sits *above* the panel (z-index 35) so it
  * paints itself rather than being negated.
  *
@@ -35,7 +35,7 @@ export function createExplore(): Explore {
     const up = panelRiseAt(page)
     if (Math.abs(up - shown) <= 0.001) return
     shown = up
-    el.style.transform = `translateY(${((1 - up) * 50).toFixed(2)}vh)`
+    el.style.transform = `translateY(${((1 - up) * 50).toFixed(2)}svh)`
     // Hidden while parked, so it is neither painted nor tabbable off-screen.
     el.style.visibility = up <= 0 ? 'hidden' : 'visible'
   }
