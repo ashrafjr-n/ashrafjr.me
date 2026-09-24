@@ -26,91 +26,12 @@
   /* The browser's own scrollbar. Grayscale like everything else: the track is
      the page's black so the bar reads as part of the composition rather than
      as a strip of chrome beside it, and the thumb is the same dim white the
-     body text and the reveal window's hairline use. */
+     body text uses. */
   --scroll-thumb: rgba(255, 255, 255, 0.35);
   --scroll-thumb-hover: rgba(255, 255, 255, 0.7);
 
-  /* The portrait's height, and the reveal window's pre-open resting offset. */
-  --row-bottom: 9vh;
+  /* The portrait's height. */
   --row-mark-h: clamp(235px, 44vh, 440px);
-
-  /* Open/close easing for the reveal window: a long expo-out tail. */
-  --reveal-ease: cubic-bezier(0.16, 1, 0.3, 1);
-  --reveal-duration: 620ms;
-  /* How far the opened window is held off every screen edge. One value drives
-     all four sides (see ui/reveal-window.ts), so the frame stays even. */
-  --reveal-inset: clamp(14px, 2.2vmin, 30px);
-  /* The line on that frame — without it the inset would just be black on
-     black. Same hairline family as the close corner. */
-  --reveal-frame: rgba(255, 255, 255, 0.22);
-
-  /* Project cards standing in the reveal window's space. Their box is authored
-     in CSS pixels and shrunk into world units by CARD_SCALE in
-     three/reveal.ts — change one without the other and the cards resize on
-     screen. Palette-safe: a soft off-white face — deliberately not stark
-     #ffffff — a soft (not harsh) black edge, black type. */
-  --pcard-surface: #e9e9ed;
-  --pcard-ink: #0b0b0d;
-  --pcard-ink-dim: rgba(11, 11, 13, 0.6);
-  --pcard-line: rgba(0, 0, 0, 0.3);
-  /* How much a hovered card grows. Nothing else in the arc moves or resizes
-     with it — each card is its own object out in the world. Kept a little under
-     the old 1.4 because the arc's near end cards already draw largest, and at
-     1.4 an enlarged one swallowed its neighbour whole. */
-  --pcard-hover: 1.32;
-  /* Hover timing. A gentler curve than the window's expo-out --reveal-ease,
-     which starts too fast to read as a card easing open, and long enough that
-     the growth, the stack line and the button arrive as one move rather than
-     three snaps. The parts are staggered by transition-delay on the way in and
-     run with no delay on the way out, so it collapses cleanly. */
-  --pcard-ease: cubic-bezier(0.22, 0.68, 0.24, 1);
-  --pcard-grow: 460ms;
-  --pcard-reveal: 380ms;
-  /* The entrance cascade: each card rises into its resting place when the
-     window opens, from the right of the row to the left. The rise is in the
-     card's own authoring pixels (the 420x230 box), so it is shrunk into the
-     world along with everything else and every card travels a distance
-     proportional to its own tier.
-     1280px is solved, not picked: the smallest card (tier 0.8) moves the least
-     on screen, and one authoring pixel lands as `0.015 * tier * fovFactor /
-     CARD_DIST` screen pixels, which works out at 0.051% of the viewport height
-     per authoring pixel for that tier. The middle card's top edge rests at
-     40.2% of the viewport, so it needs 59.8% of the height to clear the bottom
-     — 1170px — and 1280 puts it a further ~6% of the height below the fold.
-     The ratio is height-independent (everything in this scene scales with the
-     viewport height), so every card starts off screen at any window size, the
-     two ends furthest down. Anything under ~1200 leaves the middle card
-     visible at rest.
-     The curve leaves at **linear speed and spends its slowdown at the very
-     end**: the first control point sits on the diagonal (0.25, 0.25), so the
-     card sets off at an even pace, and the second at (0.6, 1) pins the finish
-     with zero velocity. It covers ~59% of the rise in the first half of the
-     time and only the last ~2% in the final eighth, so the arrival is a long
-     settle rather than a stop.
-     Two curves have been rejected here. Expo-out (0.16, 1, 0.3, 1) suited the
-     old 90px rise but over a viewport-height travel it fires the card up the
-     screen and stops it dead. (0.4, 0.9, 0.2, 1) was the same fault by degrees:
-     ~90% of the distance was gone by the halfway mark, which is why the
-     50%-overlapped cascade still read as five cards moving one at a time. The
-     stagger did not change to fix that; the curve did. --pcard-ease stays the
-     hover's.
-     The per-card delay is written inline from ui/project-cards.ts — the row's
-     order cannot be an nth-child rule, because the hovered card is moved into
-     a layer of its own and would renumber the rest. */
-  --pcard-enter-rise: 1280px;
-  --pcard-enter-dur: 1300ms;
-  --pcard-enter-ease: cubic-bezier(0.25, 0.25, 0.6, 1);
-  /* The exit: the row drops back down the way it rose, and the window only
-     starts shrinking once it has gone. Deliberately NOT the entrance in
-     reverse — all five leave at once, with no --pcard-enter-delay in the
-     leaving transition, because a staggered exit makes the close wait on the
-     last card. One move, 600ms, then the window's own 620ms close.
-     Ease-in rather than ease-out: an arriving card settles, a leaving one
-     should pick up speed and be gone. --pcard-exit-dur is the one timing in
-     this file that JS also knows (CARD_EXIT_MS in ui/project-cards.ts, which is
-     what sequences the two halves of the close) — change both together. */
-  --pcard-exit-dur: 600ms;
-  --pcard-exit-ease: cubic-bezier(0.45, 0, 0.75, 0.25);
 }
 
 /* ===========================================================
@@ -130,7 +51,7 @@ html {
      Width is stated once and never changes, which is what keeps it clear of
      the thing lib/scroll-lock.ts exists to avoid: a scrollbar that appears or
      changes width mid-session moves the initial containing block every fixed
-     element resolves against, and the reveal window would jump sideways. A
+     element resolves against, and every fixed layer would jump sideways. A
      constant width is free. */
   scrollbar-width: thin;
   scrollbar-color: var(--scroll-thumb) var(--bg);
@@ -323,7 +244,6 @@ body {
 @media (min-width: 900px) {
   :root {
     --row-mark-h: clamp(180px, 32vh, 400px);
-    --row-bottom: 4vh;
   }
 }
 
@@ -345,8 +265,6 @@ body {
    would leave a dead gap at fractional widths between 767 and 768, where a
    zoomed or scaled viewport can genuinely land.
 
-   ui/reveal-window.ts matches this same query in JS for the card drag; the two
-   have to be changed together.
    =========================================================== */
 @media (max-width: 767.98px) {
   /* The intro line sits a little lower on a phone. Scene 1 only, and only the
@@ -357,426 +275,9 @@ body {
   }
 
   :root {
-    /* Smaller portrait, and closer to the bottom edge than the base 9vh. */
+    /* Smaller portrait. */
     --row-mark-h: clamp(160px, 32vh, 280px);
-    --row-bottom: 3vh;
   }
-
-  /* The card row inside the reveal window is wider than a phone frame, so it
-     is dragged sideways to reach the far cards (see ui/reveal-window.ts).
-     Without this the browser claims the horizontal gesture for its own
-     panning and the drag never reaches us. Touch only: the desktop
-     look-around is a mouse-move and is not affected. */
-  .reveal-window {
-    touch-action: none;
-  }
-}
-
-/* ===========================================================
-   Reveal window (the projects preview — not bound to any trigger for now)
-
-   This is a MASK, not a viewport of its own. The 3D canvas inside is always
-   viewport-sized — opening only grows the mask, so what was already on screen
-   stays put, at the same size, and the extra area uncovers more of the same
-   rendered frame. Never scale the canvas to open it; that would read as a zoom
-   rather than a window opening.
-
-   It has no resting box on screen: it is invisible while closed, and grows out
-   of whichever word was clicked. left/bottom/width/height are therefore
-   written from ui/reveal-window.ts (the word's own measured box, then the
-   inset full-screen box) — the values here are only a starting point for
-   before the first open.
-
-   Open, it stops --reveal-inset short of all four screen edges and draws a
-   hairline there, so the scene reads as a framed view rather than running off
-   the edges. The frame is deliberate; it replaced an edge-to-edge takeover.
-   =========================================================== */
-.reveal-window {
-  position: fixed;
-  left: 50%;
-  bottom: var(--row-bottom);
-  width: 0;
-  height: 0;
-  /* Over everything except the badges (60). */
-  z-index: 40;
-  overflow: hidden;
-  /* border-box is global, so this sits inside the box the JS writes and the
-     canvas is cropped by it rather than pushed about. */
-  border: 1px solid var(--reveal-frame);
-  /* Invisible until it is opened. On the way out the fade waits until the
-     shrink back into the word has almost finished, so the closing animation
-     is actually seen; on the way in it is instant, since the window has to be
-     there before it starts growing. */
-  opacity: 0;
-  pointer-events: none;
-  transition: left var(--reveal-duration) var(--reveal-ease),
-    bottom var(--reveal-duration) var(--reveal-ease),
-    width var(--reveal-duration) var(--reveal-ease),
-    height var(--reveal-duration) var(--reveal-ease),
-    opacity 180ms linear 440ms;
-}
-
-/* Grown to fill the viewport (the size itself is written from JS, in
-   percentages, so a classic scrollbar cannot push it past the visible area).
-   No frame at this size: the edges are the screen's own. */
-.reveal-window.is-open {
-  opacity: 1;
-  pointer-events: auto;
-  transition: left var(--reveal-duration) var(--reveal-ease),
-    bottom var(--reveal-duration) var(--reveal-ease),
-    width var(--reveal-duration) var(--reveal-ease),
-    height var(--reveal-duration) var(--reveal-ease),
-    opacity 0s;
-}
-
-/* The 3D layer (three/reveal.ts). Always the size of the viewport and centred
-   on the window, never resized: growing the window uncovers more of the same
-   drawing buffer instead of re-rendering at a new size. */
-.reveal-canvas {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  translate: -50% -50%;
-  width: 100vw;
-  height: 100vh;
-  display: block;
-  pointer-events: none;
-}
-
-/* Close affordance, only while open. Fades in after the growth has landed. */
-.reveal-close {
-  position: absolute;
-  top: 0;
-  right: 0;
-  width: 64px;
-  height: 64px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: 0;
-  /* The only rule on the page that still draws a line — the close corner needs
-     to read against whatever the 3D view is showing behind it. */
-  border-left: 1px solid rgba(255, 255, 255, 0.3);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.3);
-  background: transparent;
-  color: #ffffff;
-  font-family: var(--font-code);
-  /* The × glyph inks at roughly half its em, so this is deliberately far
-     larger than the 64px box: it puts the mark's own edges nearly on the box's
-     edges. The line box overflows the button — harmless, the button does not
-     clip and the ink stays inside it. Retune this, not the box, if the mark
-     should sit tighter or looser in the corner. */
-  font-size: 118px;
-  line-height: 1;
-  cursor: pointer;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 300ms ease;
-}
-
-.reveal-window.is-open .reveal-close {
-  opacity: 0.85;
-  pointer-events: auto;
-  transition-delay: 380ms;
-}
-
-.reveal-close:hover,
-.reveal-close:focus-visible {
-  opacity: 1;
-}
-
-/* ===========================================================
-   Project cards (inside the reveal window's 3D space)
-
-   These are DOM elements placed in the world by a CSS3DRenderer sharing the
-   scene's camera (three/reveal.ts), so they turn with the stars and planets
-   instead of sitting on the screen. Nothing here may pin them to the viewport.
-
-   The layer is viewport-sized and centred on the window, exactly like the
-   canvas, and carries no z-index: document order alone puts it over the stars
-   and under the close corner. Keep that order in ui/reveal-window.ts.
-   =========================================================== */
-/* Both cards layers share this box: the row, and .reveal-cards-raised holding
-   whichever single card is hovered. Same box and same camera, so a card moved
-   between them does not shift by a pixel — the raised one is a second 3D
-   rendering context, which is the only way to paint it over the row. Inside the
-   row's own context the browser sorts by depth, and a turned card's inner edge
-   sits several units behind the card beside it, so neither document order nor
-   z-index could lift it; both were measured. Document order alone stacks the
-   two, so keep raised after the row in ui/reveal-window.ts. */
-.reveal-cards {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  translate: -50% -50%;
-  /* CSS3DRenderer writes its own width/height (and overflow) inline. */
-  pointer-events: none;
-}
-
-/* The element the renderer drives. Its transform belongs to the renderer and
-   its size is written from three/reveal.ts, so nothing may set either here —
-   the card inside is what carries the hover. */
-.pcard-slot {
-  pointer-events: none;
-}
-
-/* Only a grown window takes the pointer: an opacity-0 card is still a hit
-   target, and CSS3DObject's inline `pointer-events: auto` is cleared in
-   three/reveal.ts precisely so this rule is the one that decides. */
-.reveal-window.is-open .pcard-slot {
-  pointer-events: auto;
-}
-
-/* The card itself. At rest it shows nothing but its name; the stack line and
-   the VIEW button are uncovered by the same hover that grows it. */
-.pcard {
-  position: relative;
-  width: 100%;
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  /* Deeper at the foot than the head: the centred name and stack sit clear of
-     the VIEW button in the bottom corner rather than running under it. */
-  padding: 24px 20px 62px;
-  background: var(--pcard-surface);
-  /* 2px, not 1: the card's CSS box is shrunk hard into world units, so a
-     hairline here lands under a screen pixel and disappears. */
-  border: 2px solid var(--pcard-line);
-  color: var(--pcard-ink);
-  font-family: var(--font-code);
-  text-align: center;
-  /* About its own centre: the card grows in place, and since every card is its
-     own object out in the row, none of the others move or resize with it. */
-  transform-origin: 50% 50%;
-  /* The entrance rides on `translate`, not on `transform`, and that is
-     load-bearing: `transform` is the hover's, and the two would overwrite each
-     other on any card entered mid-cascade. The individual transform properties
-     compose with `transform` instead of replacing it, and `translate` is the
-     outer one, so the rise is unaffected by the hover's scale. `0 0` is the
-     resting value, stated rather than left implicit so the property the
-     entrance interpolates is always the same one. */
-  translate: 0 0;
-  transition: transform var(--pcard-grow) var(--pcard-ease),
-    translate var(--pcard-enter-dur) var(--pcard-enter-ease)
-      var(--pcard-enter-delay, 0ms),
-    opacity var(--pcard-enter-dur) var(--pcard-enter-ease)
-      var(--pcard-enter-delay, 0ms);
-}
-
-/* Armed, ready to rise: below its place and invisible, with no transition, so
-   arming is a snap and never an animation of its own. Dropping the class is the
-   whole of the entrance — the base rule above is what the card then transitions
-   back to, delay and all, and its resting value is a literal `0 0` / opacity 1,
-   so the row lands exactly where it stood with nothing left to drift.
-   Set from ui/reveal-window.ts on every open, released once the window has
-   finished growing. */
-/* Inert whenever the row is moving of its own accord: the armed hold
-   (.is-entering), the rise that follows it (.is-arriving, dropped per card by
-   ui/project-cards.ts when that card's own `translate` transition ends) and the
-   drop out (.is-leaving).
-   An armed card is at opacity 0, and an invisible card is still a hit target —
-   the same reason .reveal-window.is-open gates the row at all. A climbing card
-   is worse than surprising: hovering it raises it, and raising re-appends the
-   slot into the other CSS3D layer, which cancels the running transition and
-   drops the card at its resting place mid-cascade. A cursor already sitting
-   where a card will land was enough to do it.
-   Both selectors have to name .reveal-window.is-open: that rule is what turns
-   the row on, and a bare .pcard-slot class would lose to it on specificity
-   rather than win on source order. */
-.reveal-window.is-open .pcard-slot.is-entering,
-.reveal-window.is-open .pcard-slot.is-arriving,
-.reveal-window.is-open .pcard-slot.is-leaving {
-  pointer-events: none;
-}
-
-.pcard-slot.is-entering .pcard {
-  translate: 0 var(--pcard-enter-rise);
-  opacity: 0;
-  transition: none;
-}
-
-/* Leaving: the same distance back down, all five together. The transition list
-   is restated here for one reason — it carries no --pcard-enter-delay, so the
-   row goes as one move instead of unwinding card by card and making the close
-   wait on the last of them. `transform` is left out of it deliberately: a card
-   caught mid-hover keeps whatever scale it has and simply falls with it.
-   Set from ui/reveal-window.ts when a close is asked for, and cleared by
-   armCardEntrance() on the next open. It outlives the close on purpose — the
-   cards stay down while the window shrinks back into its word. */
-.pcard-slot.is-leaving .pcard {
-  translate: 0 var(--pcard-enter-rise);
-  opacity: 0;
-  transition: translate var(--pcard-exit-dur) var(--pcard-exit-ease),
-    opacity var(--pcard-exit-dur) var(--pcard-exit-ease);
-}
-
-/* Grown. The hovered card is also moved to the end of its parent from
-   ui/project-cards.ts, which is what puts it over every neighbour whatever its
-   depth on the arc: inside a preserve-3d container paint order follows document
-   order, and z-index does not apply. */
-.pcard:hover,
-.pcard:focus-within {
-  transform: scale(var(--pcard-hover));
-}
-
-/* The row's two end cards grow inward instead of about their centres. They are
-   the most turned, so they project widest, and they already run past the
-   window's frame — scaled about the middle they would carry their outer edge,
-   and with it the right-hand card's VIEW button, further out of sight.
-   Anchoring the outer edge pins it where it already is and spends all the
-   growth on the inward side, which is where the room is. This is about keeping
-   the button reachable, not about fitting the cards to the frame — the row is
-   sized to overrun it on purpose. The three inner cards keep the centred
-   50% 50% above. Marked from three/reveal.ts, which is what knows the row
-   order. */
-.pcard-slot[data-arc-end="left"] .pcard {
-  transform-origin: 0% 50%;
-}
-
-.pcard-slot[data-arc-end="right"] .pcard {
-  transform-origin: 100% 50%;
-}
-
-/* The one thing a resting card shows, so it carries the card. Sized against
-   the 420x230 box and the shrink into the world, not against the screen. At
-   58px the longest name still clears the box's inner width. */
-.pcard-name {
-  font-size: 56px;
-  font-weight: 700;
-  letter-spacing: 0.03em;
-  line-height: 1.2;
-  /* Never wrap: a second line would push the stack line into the VIEW button.
-     The size above is set so the longest name clears the box's inner width
-     with the letter-spacing counted in. */
-  white-space: nowrap;
-}
-
-/* Collapsed to nothing at rest, so the name sits centred on its own; the card
-   opens it out as it grows. */
-.pcard-stack {
-  max-height: 0;
-  margin-top: 0;
-  overflow: hidden;
-  opacity: 0;
-  /* Rises into place as it opens out, rather than appearing where it lands. */
-  transform: translateY(-6px);
-  /* Sized to keep the longest stack on one line inside the card's 420px box —
-     two lines run into the VIEW button in the corner. */
-  font-size: 20px;
-  line-height: 1.45;
-  color: var(--pcard-ink-dim);
-  transition: max-height var(--pcard-reveal) var(--pcard-ease),
-    margin-top var(--pcard-reveal) var(--pcard-ease),
-    transform var(--pcard-reveal) var(--pcard-ease),
-    opacity 260ms var(--pcard-ease);
-}
-
-.pcard:hover .pcard-stack,
-.pcard:focus-within .pcard-stack {
-  max-height: 4em;
-  margin-top: 12px;
-  opacity: 1;
-  transform: none;
-  /* Just behind the card's own growth, so the line opens into a card that is
-     already on its way rather than fighting it. */
-  transition-delay: 70ms;
-}
-
-/* Bottom-right, and only on a grown card. Black on the white face — the one
-   inverted patch on the card, so it reads as the thing to press. */
-.pcard-view {
-  position: absolute;
-  right: 16px;
-  bottom: 16px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  /* Deliberately large in the card's own box. The card is shrunk hard into
-     world units, so this renders at roughly half these numbers on screen even
-     while hovered — at the old 19px/9px it drew a 43x14px target on the
-     farthest card, which is why it read as not working at all. */
-  padding: 14px 22px;
-  background: #000000;
-  color: #ffffff;
-  font-size: 26px;
-  font-weight: 700;
-  letter-spacing: 0.14em;
-  line-height: 1;
-  text-decoration: none;
-  opacity: 0;
-  transform: translateY(8px);
-  /* Unreachable until it is shown, however the card is entered. */
-  pointer-events: none;
-  transition: opacity 260ms var(--pcard-ease),
-    transform 320ms var(--pcard-ease), background 200ms ease;
-}
-
-/* Last of the three to arrive, so the card reads as opening out into it. */
-.pcard:hover .pcard-view,
-.pcard:focus-within .pcard-view {
-  opacity: 1;
-  transform: none;
-  pointer-events: auto;
-  transition-delay: 140ms;
-}
-
-.pcard-view:hover,
-.pcard-view:focus-visible {
-  background: #232326;
-}
-
-/* Keyboard only. The card is white here, so the ring is the card's own edge
-   colour rather than the white one the words on the black page use. */
-.pcard-view:focus-visible {
-  outline: 1px solid var(--pcard-ink);
-  outline-offset: 3px;
-}
-
-/* Put back to rest the moment VIEW is taken, however the pointer is left
-   sitting. The class is set from ui/project-cards.ts on a real click and
-   cleared when the pointer leaves the card: once the link has been followed
-   into another tab neither :hover nor :focus-within lapses on its own, so this
-   has to beat both.
-
-   Hence the three selectors each time. `.pcard.is-dismissed .pcard-view` alone
-   only *ties* with `.pcard:hover .pcard-view` — a pseudo-class counts the same
-   as a class — and the hover rule, coming later, would win the tie and hold the
-   button open. Naming the states outranks them outright, wherever this block
-   happens to sit. It carries no delay of its own either: the stagger belongs to
-   the way in, and the three parts should close together. */
-.pcard.is-dismissed,
-.pcard.is-dismissed:hover,
-.pcard.is-dismissed:focus-within {
-  transform: none;
-}
-
-.pcard.is-dismissed .pcard-stack,
-.pcard.is-dismissed:hover .pcard-stack,
-.pcard.is-dismissed:focus-within .pcard-stack {
-  max-height: 0;
-  margin-top: 0;
-  opacity: 0;
-  transform: translateY(-6px);
-  transition-delay: 0s;
-}
-
-.pcard.is-dismissed .pcard-view,
-.pcard.is-dismissed:hover .pcard-view,
-.pcard.is-dismissed:focus-within .pcard-view {
-  opacity: 0;
-  transform: translateY(8px);
-  pointer-events: none;
-  transition-delay: 0s;
-}
-
-/* The mark on the button: GitHub's for a repo, open-in-new for a live site,
-   both flattened to one white to match the site's other logos. */
-.pcard-view-icon {
-  display: block;
-  width: 26px;
-  height: 26px;
 }
 
 /* ===========================================================
@@ -787,8 +288,8 @@ body {
   position: fixed;
   top: 2rem;
   left: 2rem;
-  /* Above the reveal window (40), which takes over the whole screen when it is
-     open — the links stay reachable at all times. */
+  /* Above the scenes and the EXPLORE button; below the projects page (80),
+     which covers everything while it is open. */
   z-index: 60;
   display: flex;
   align-items: center;
@@ -858,7 +359,7 @@ body {
   mix-blend-mode: difference;
   /* **The highest z-index on the page, and it has to stay that way.** A
      blended element only negates what is painted below it, so anything stacked
-     over the disc (badges are 60, the reveal window 40, the invert panel 30)
+     over the disc (the projects page is 80, badges 60, EXPLORE 35, the invert panel 30)
      would simply stop being inverted. */
   z-index: 100;
   pointer-events: none;
@@ -886,8 +387,7 @@ body {
    `a` and `button` are named because a UA stylesheet rule that matches the
    element directly beats an inherited value, so `cursor: none` on the root
    alone would still leave the hand over every link. Naming the two element
-   types covers the badges, the reveal window's close button and the cards'
-   VIEW links, and covers whatever is added later without a new rule. */
+   types covers the badges and the EXPLORE button, and covers whatever is added later without a new rule. */
 html.has-cursor,
 html.has-cursor a,
 html.has-cursor button {
@@ -904,8 +404,9 @@ html.has-cursor button {
   right: 0;
   bottom: 0;
   height: 50vh;
-  /* Above the canvas (0) and the statements (15), below the reveal window (40)
-     and the social badges (60) — those two stay themselves. */
+  /* Above the canvas (0) and the statements (15), below the EXPLORE
+     button (35), the social badges (60) and the projects page (80), which stay
+     themselves. */
   z-index: 30;
   /* Pure white is what makes `difference` a clean negation: the result is
      `1 - backdrop`, so the panel contributes no colour of its own. Any other
@@ -941,7 +442,7 @@ html.has-cursor button {
   right: clamp(16px, 4vw, 56px);
   bottom: clamp(16px, 5vh, 56px);
   /* Above the inversion panel (30) so it paints itself instead of being
-     negated; below the reveal window (40) and the pointer (100). */
+     negated; below the social badges (60), the projects page (80) and the pointer (100). */
   z-index: 35;
   display: flex;
   align-items: center;
@@ -1018,3 +519,4 @@ html.has-cursor button {
     transition: none;
   }
 }
+
