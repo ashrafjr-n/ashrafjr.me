@@ -331,10 +331,17 @@ export function createProjects(
     }
     returnFocus = document.activeElement as HTMLElement | null
     scroller.scrollTop = 0
+    // Put every row back in its hidden start **instantly**. Taking `is-in` off
+    // under the row's own transition animated it back out — the first card,
+    // still showing from the last visit, was seen sliding away and fading
+    // while the sheet rose, before sliding in again.
     for (const item of items) {
+      item.style.transition = 'none'
       item.classList.remove('is-in')
       reveal.unobserve(item)
     }
+    void list.offsetWidth // commit the reset before the transition comes back
+    for (const item of items) item.style.transition = ''
     // The rows start watching only once the sheet has finished rising — begun
     // with it, the first row's slide was spent while the whole sheet was still
     // moving, and never read as coming in from its side.
