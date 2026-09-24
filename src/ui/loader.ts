@@ -4,27 +4,29 @@
  *
  * **Part of it is real.** The count runs toward a 2s finish until the page is
  * actually ready (fonts in, `load` fired), then re-aims from wherever it is to
- * land at the soonest allowed moment — so a fast load counts for 1.5s and a
- * slow one for up to 2s, and the number never jumps or runs backwards.
+ * land at the soonest allowed moment — so a fast load counts for 1s and a
+ * slow one for up to its cap, and the number never jumps or runs backwards.
  *
- * **It is never on screen past 2.5s.** The markup and its style are inline in
+ * **It is never on screen past 2s.** The markup and its style are inline in
  * `index.html`, so it is up from the first paint, before this module runs; the
  * finish is therefore capped against navigation start as well, and the cap
- * wins over the 1.5s minimum on a device slow enough to need it.
+ * wins over the 1s minimum on a device slow enough to need it.
  *
  * Driven by `main.ts`'s RAF loop — `update(time)` — rather than a loop or
  * timers of its own. The page's scroll is held for as long as it is up.
  */
 import { lockScroll, unlockScroll } from '../lib/scroll-lock'
 
-/** Shortest and longest the count may take, from when it starts. */
-const MIN_MS = 1500
-const MAX_MS = 2000
+/** Shortest the count may take, from when it starts. */
+const MIN_MS = 1000
 /** 99 holds this long, then the black fades out over `FADE_MS`. */
 const HOLD_MS = 150
 const FADE_MS = 300
-/** Latest the count may finish, from navigation start: 2.5s less the exit. */
-const CAP_MS = 2500 - HOLD_MS - FADE_MS
+/**
+ * Latest the count may finish, from navigation start: 2s on screen less the
+ * exit. This is also the longest the count can run.
+ */
+const CAP_MS = 2000 - HOLD_MS - FADE_MS
 /** Once ready, the count takes at least this long to reach 99, so it glides. */
 const SETTLE_MS = 200
 
@@ -63,7 +65,7 @@ export function createLoader(): Loader {
     if (gone) return true
     if (start < 0) {
       start = time
-      end = Math.min(start + MAX_MS, CAP_MS)
+      end = CAP_MS
     }
 
     if (ready && !anchored) {
