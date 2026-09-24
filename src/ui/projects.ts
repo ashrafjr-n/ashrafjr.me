@@ -274,6 +274,7 @@ export function createProjects(
 
   const cards = [...list.querySelectorAll<HTMLElement>('.project-card')]
   const finePointer = window.matchMedia('(hover: hover) and (pointer: fine)').matches
+  const REDUCED_MOTION = window.matchMedia('(prefers-reduced-motion: reduce)')
   if (finePointer) {
     // Gated from here, not the stylesheet, so a failed script keeps the
     // system cursor over the cards.
@@ -292,7 +293,7 @@ export function createProjects(
       })
       card.addEventListener('pointerleave', () => view.classList.remove('is-on'))
     }
-    if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    if (!REDUCED_MOTION.matches) {
       for (const card of cards) bindTilt(card)
     }
   }
@@ -333,13 +334,27 @@ export function createProjects(
     for (const item of items) {
       item.classList.remove('is-in')
       reveal.unobserve(item)
-      reveal.observe(item)
     }
+    // The rows start watching only once the sheet has finished rising — begun
+    // with it, the first row's slide was spent while the whole sheet was still
+    // moving, and never read as coming in from its side.
+    if (REDUCED_MOTION.matches) watchRows()
+    else root.addEventListener('transitionend', onRisen)
     root.classList.add('is-open')
     setOthersInert(true)
     onOpenChange(true)
     // So the keys scroll the list, not the page behind it.
     scroller.focus({ preventScroll: true })
+  }
+
+  function watchRows(): void {
+    if (isOpen) for (const item of items) reveal.observe(item)
+  }
+
+  function onRisen(e: TransitionEvent): void {
+    if (e.target !== root || e.propertyName !== 'transform') return
+    root.removeEventListener('transitionend', onRisen)
+    watchRows()
   }
 
   function shut(): void {
