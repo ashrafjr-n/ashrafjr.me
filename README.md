@@ -31,8 +31,8 @@ own to scroll. The scroll range comes from a `min-height` on `body`, and
 | | scene | |
 | --- | --- | --- |
 | **01** | a ring of stars orbiting an empty centre, over a drifting field | 600vh |
-| **02** | three statements, sliding in and filling from outline to solid | 205vh |
-| **03** | a white half rising from the bottom, inverting everything it covers | 155vh |
+| **02** | three statements, sliding in and filling from outline to solid, the fill coasting a moment past the scroll | 205vh |
+| **03** | a white half rising from the bottom, inverting everything it covers, carrying an EXPLORE button | 155vh |
 
 The bridge between the first two is **the scatter** (`src/lib/scatter.ts`):
 the star field is not cleared away and replaced, it is dispersed. A wave runs
