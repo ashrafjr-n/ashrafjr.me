@@ -640,10 +640,17 @@ html.has-cursor button {
   height: 22px;
 }
 
-.projects-close:hover,
 .projects-close:focus-visible {
   border-color: #ffffff;
   transform: rotate(90deg);
+}
+
+/* Hover only where a hover exists — see .social-badge. */
+@media (hover: hover) {
+  .projects-close:hover {
+    border-color: #ffffff;
+    transform: rotate(90deg);
+  }
 }
 
 .projects-close:focus-visible {
