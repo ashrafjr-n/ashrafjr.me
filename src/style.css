@@ -35,7 +35,7 @@
   --projects-dur: 900ms;
   /* The "in progress" pill's colour — the site's one deliberate accent, asked
      for so unfinished work reads at a glance. */
-  --status-live: #f2b34a;
+  --status-live: #4d8dff;
   --projects-ease: cubic-bezier(0.76, 0, 0.24, 1);
 
   /* The portrait's height. */
