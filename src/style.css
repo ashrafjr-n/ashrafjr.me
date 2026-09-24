@@ -45,8 +45,6 @@
   --status-live: #4d8dff;
   --projects-ease: cubic-bezier(0.76, 0, 0.24, 1);
 
-  /* The portrait's height. */
-  --row-mark-h: clamp(235px, 44vh, 440px);
 }
 
 /* ===========================================================
@@ -232,42 +230,11 @@ body {
 }
 
 /* ===========================================================
-   Portrait (ui/mark.ts) — not mounted at the moment; rules kept with it
-   =========================================================== */
-/* The centrepiece: an ASCII-art portrait, inlined as an <svg> so its draw/wipe
-   cycle can be driven from the RAF loop (see ui/mark.ts). Sized by height; the
-   artwork's own viewBox decides the width. */
-.scene2-mark {
-  display: block;
-  flex-shrink: 0;
-  height: var(--row-mark-h);
-  /* The artwork's own viewBox, 1036 x 1363. Stated here rather than left to
-     the inline <svg>'s intrinsic width so the row's layout is the same before
-     and after the fetch lands, and never depends on how a flex item sizes an
-     SVG child. Keep it in step with the file. */
-  aspect-ratio: 1036 / 1363;
-  user-select: none;
-}
-
-.scene2-mark svg {
-  display: block;
-  width: 100%;
-  height: 100%;
-}
-
-/* The portrait runs smaller on desktop. */
-@media (min-width: 900px) {
-  :root {
-    --row-mark-h: clamp(180px, 32vh, 400px);
-  }
-}
-
-/* ===========================================================
    Phones only — 767.98px and below
 
    **This is deliberately not the 900px desktop breakpoint's other half.**
    There are three bands, not two:
-     - 900px and up          desktop (the block above)
+     - 900px and up          desktop (`min-width: 900px` blocks)
      - 768px - 899.98px      tablets, which take the base values and are
                              therefore untouched by either block
      - 767.98px and below    phones, this block
@@ -279,7 +246,6 @@ body {
    The fractional bound is the usual guard: an integer `max-width: 767px`
    would leave a dead gap at fractional widths between 767 and 768, where a
    zoomed or scaled viewport can genuinely land.
-
    =========================================================== */
 @media (max-width: 767.98px) {
   /* The intro line sits a little lower on a phone. Scene 1 only, and only the
@@ -287,11 +253,6 @@ body {
      the scroll, on top of whatever `top` is set here. */
   .intro {
     top: 15vh;
-  }
-
-  :root {
-    /* Smaller portrait. */
-    --row-mark-h: clamp(160px, 32vh, 280px);
   }
 }
 
