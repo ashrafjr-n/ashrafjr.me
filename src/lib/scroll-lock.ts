@@ -12,7 +12,9 @@
  * element resolves against. Measured in this page in Chrome with a classic 15px
  * scrollbar forced on: a fixed `calc(100% - 2 * inset)` box went 1481px ->
  * 1496px the instant overflow was hidden, so every fixed layer jumps sideways
- * on open and back again on close. `scrollbar-gutter: stable` does not
+ * on open and back again on close. (The page scrolls in `body` now, not the
+ * document, but the same holds: hiding body's overflow drops its scrollbar and
+ * widens everything sized against it.) `scrollbar-gutter: stable` does not
  * rescue it — Chrome drops the reserved gutter as soon as the root stops
  * scrolling, giving the same 1481 -> 1496. The window's sizing was written in
  * percentages precisely to survive a scrollbar; a lock that reintroduces the
@@ -35,6 +37,8 @@
  * the animation is never started, so there is nothing left in flight to
  * outlive the lock.
  */
+
+import { scroller } from './state'
 
 /** The scroll position to hold, and to come back to when the lock is released. */
 let lockedY = 0
@@ -92,7 +96,7 @@ function refuseKey(event: KeyboardEvent): void {
 
 /** The catch-all: put the page straight back wherever it was moved from. */
 function snapBack(): void {
-  if (window.scrollY !== lockedY) window.scrollTo(0, lockedY)
+  if (scroller.scrollTop !== lockedY) scroller.scrollTop = lockedY
 }
 
 /**
@@ -103,17 +107,18 @@ export function lockScroll(within: Element | null = null): void {
   if (locked) return
   locked = true
   allowed = within
-  lockedY = window.scrollY
+  lockedY = scroller.scrollTop
   window.addEventListener('wheel', refuse, { passive: false })
   window.addEventListener('touchmove', refuse, { passive: false })
   // Capture, so the key is refused before anything inside the window can act
   // on it — and before Chrome can start scrolling on it.
   window.addEventListener('keydown', refuseKey, { capture: true })
-  window.addEventListener('scroll', snapBack)
+  // On the scroller, not `window`: an element's `scroll` does not bubble.
+  scroller.addEventListener('scroll', snapBack)
 }
 
 /**
- * Let the page go again, exactly where it was taken. The final `scrollTo` is
+ * Let the page go again, exactly where it was taken. The final write is
  * not redundant: the catch-all may have been left mid-correction, and the
  * position the window was opened from is the one the viewer expects back.
  */
@@ -124,6 +129,6 @@ export function unlockScroll(): void {
   window.removeEventListener('wheel', refuse)
   window.removeEventListener('touchmove', refuse)
   window.removeEventListener('keydown', refuseKey, { capture: true })
-  window.removeEventListener('scroll', snapBack)
-  window.scrollTo(0, lockedY)
+  scroller.removeEventListener('scroll', snapBack)
+  scroller.scrollTop = lockedY
 }

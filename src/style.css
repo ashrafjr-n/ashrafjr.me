@@ -51,23 +51,18 @@
    Base
    =========================================================== */
 html {
-  /* No rubber-band or pull-to-refresh at the two ends of a 1060svh page.
-     Everything on screen is `position: fixed`, so an overscroll bounce drags
-     the viewport away from a composition that cannot follow it, and on a phone
-     an overscroll at the top of Scene 1 is a refresh rather than a scroll. */
-  overscroll-behavior-y: none;
-  /* The scrollbar, in the site's palette. This is the standard property
-     (Firefox, and Chrome 121+); the ::-webkit- rules below are the older
-     WebKit spelling, and where this one applies the browser ignores those, so
-     the two do not fight. Keep both — Safari still needs the second.
-
-     Width is stated once and never changes, which is what keeps it clear of
-     the thing lib/scroll-lock.ts exists to avoid: a scrollbar that appears or
-     changes width mid-session moves the initial containing block every fixed
-     element resolves against, and every fixed layer would jump sideways. A
-     constant width is free. */
-  scrollbar-width: thin;
-  scrollbar-color: var(--scroll-thumb) var(--bg);
+  /* **The document itself never scrolls; `body` does.** A phone browser hides
+     its toolbar whenever the document scrolls and brings it back on the way
+     up, which resizes the visible screen under a composition that is solved
+     against it. Scrolling an element inside the page instead keeps the
+     toolbar shown for good — so `html` is exactly one screen tall and clips,
+     and every scroll on the site happens in `body` below. `overflow: hidden`
+     here is also what `overflow-x: hidden` on the root used to be: it keeps
+     the identity rows parked off-screen from opening a horizontal scroll. */
+  height: 100%;
+  overflow: hidden;
+  /* Nothing to bounce on either element — see body. */
+  overscroll-behavior: none;
 }
 
 /* Safari, and Chrome before 121. Same palette, same constant width. */
@@ -101,19 +96,49 @@ body {
   /* Flat, ungraded black — shows through the transparent canvas and must stay
      pixel-identical to the model's black, so no gradient here. */
   background: var(--bg);
-  /* Scroll length for all three scenes. Everything on screen is
-     position:fixed, so the page has no content to scroll — this is what
-     creates the scroll range that drives `state.scroll`. 1060svh leaves 9.6
-     viewport heights of travel; lib/phases.ts splits them 600 / 205 / 155 and
-     has to change with this. Scene 1 holds most of it because the scatter's
-     pace is that split and nothing else — see IDENTITY_FROM there. */
-  min-height: 1060svh;
+  /* The page's scroller (see html). One screen tall, scrolling its own
+     content, which is #app below. */
+  height: 100%;
+  overflow-x: hidden;
+  overflow-y: auto;
+  /* No rubber-band or pull-to-refresh at the two ends of a 1060svh page.
+     Everything on screen is `position: fixed`, so an overscroll bounce drags
+     the viewport away from a composition that cannot follow it, and on a phone
+     an overscroll at the top of Scene 1 is a refresh rather than a scroll. */
+  overscroll-behavior: none;
+  /* The scrollbar, in the site's palette. It is body's now, since body is what
+     scrolls. This is the standard property (Firefox, and Chrome 121+); the
+     ::-webkit- rules above are the older WebKit spelling, and where this one
+     applies the browser ignores those, so the two do not fight. Keep both —
+     Safari still needs the second.
+
+     Width is stated once and never changes, which is what keeps it clear of
+     the thing lib/scroll-lock.ts exists to avoid: a scrollbar that appears or
+     changes width mid-session moves the box every fixed layer is sized
+     against, and every fixed layer would jump sideways. A constant width is
+     free. */
+  scrollbar-width: thin;
+  scrollbar-color: var(--scroll-thumb) var(--bg);
   color: var(--text-dim);
   font-family: var(--font-code);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
-  overflow-x: hidden;
+}
+
+/* The scroll range for all three scenes, and the only content body scrolls.
+   Everything on screen is position:fixed, so the page has nothing of its own
+   to scroll — this is what creates the range that drives `state.scroll`.
+   1060svh leaves 9.6 screen heights of travel; lib/phases.ts splits them
+   600 / 205 / 155 and has to change with this. Scene 1 holds most of it
+   because the scatter's pace is that split and nothing else — see
+   IDENTITY_FROM there.
+
+   **Height is the only thing this rule may set.** Anything that makes #app a
+   stacking context (opacity, transform, filter, isolation, will-change) cuts
+   the inverting pointer off from the page behind it — see ui/cursor.ts. */
+#app {
+  min-height: 1060svh;
 }
 
 /* ===========================================================
