@@ -18,6 +18,7 @@ import { createCursor } from './ui/cursor'
 import { createIdentity } from './ui/identity'
 import { createInvert } from './ui/invert'
 import { createExplore } from './ui/explore'
+import { createProjects } from './ui/projects'
 
 /**
  * Scroll progress at which the intro line has fully gone.
@@ -79,7 +80,7 @@ let isPaused = false
  */
 function setPageTakenOver(open: boolean): void {
   if (open) {
-    lockScroll()
+    lockScroll(projects.scroller)
     isPaused = true
     cursor.update(Infinity)
     return
@@ -93,6 +94,10 @@ function setPageTakenOver(open: boolean): void {
 }
 
 app.append(buildSocialBadges())
+
+// Over everything but the pointer. EXPLORE is what opens it.
+const projects = createProjects(app, setPageTakenOver)
+explore.el.addEventListener('click', projects.open)
 
 // **Last of everything, and it has to stay last.** The pointer negates what is
 // painted under it, so anything mounted after it — or given a z-index above its
