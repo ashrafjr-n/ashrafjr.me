@@ -12,7 +12,7 @@ import { HOLD, toIdentity, toTransition } from './lib/phases'
 import { SCATTER_END, SETTLE_TO } from './lib/scatter'
 import { initScene } from './three/scene'
 import { lockScroll, unlockScroll } from './lib/scroll-lock'
-import { state, initPointer, initScroll } from './lib/state'
+import { state, scroller, initPointer, initScroll } from './lib/state'
 import { buildSocialBadges } from './ui/social'
 import { createCursor } from './ui/cursor'
 import { createIdentity } from './ui/identity'
@@ -115,6 +115,14 @@ window.addEventListener('resize', () => scene.resize())
 
 initPointer()
 initScroll()
+// The page scrolls in `body` rather than the document, and a browser only
+// sends the scroll keys to an element once something inside it has focus —
+// with nothing focused they go to the document, which cannot scroll. Focusing
+// the scroller up front keeps Space / PageDown / the arrows working from the
+// first key, as they did when the document scrolled. -1 keeps it out of the
+// Tab order.
+scroller.tabIndex = -1
+scroller.focus({ preventScroll: true })
 
 let introShown = -1
 
