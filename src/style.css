@@ -532,6 +532,21 @@ html.has-cursor button {
   }
 }
 
+/* Phones and iPads: centred in the white half rather than bottom-right, on
+   request. The half is the bottom 50svh, so its middle is 25svh up; the
+   `translate` (-50% across, +50% down) centres the pill on that point and
+   composes with the `transform` ui/explore.ts writes for the rise. Below the
+   desktop bound, plus any touch-first screen — an iPad in landscape is over
+   900px wide and would otherwise keep the desktop corner. */
+@media (max-width: 899.98px), (pointer: coarse) {
+  .explore {
+    right: auto;
+    left: 50%;
+    bottom: 25svh;
+    translate: -50% 50%;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .explore-icon,
   .explore-icon svg {
