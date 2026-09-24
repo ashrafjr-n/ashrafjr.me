@@ -93,10 +93,11 @@ function setPageTakenOver(open: boolean): void {
   unlockScroll()
 }
 
-app.append(buildSocialBadges())
+const socialBadges = buildSocialBadges()
+app.append(socialBadges)
 
-// Over everything but the pointer. EXPLORE is what opens it.
-const projects = createProjects(app, setPageTakenOver)
+// Over everything but the social badges and the pointer. EXPLORE opens it.
+const projects = createProjects(app, setPageTakenOver, [socialBadges])
 explore.el.addEventListener('click', projects.open)
 
 // **Last of everything, and it has to stay last.** The pointer negates what is

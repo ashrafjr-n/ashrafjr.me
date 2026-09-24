@@ -154,7 +154,8 @@ function buildProject(project: Project, index: number): HTMLLIElement {
   if (project.inProgress) {
     const status = document.createElement('span')
     status.className = 'project-status'
-    status.textContent = 'In progress'
+    // The dot pulses, so it reads as live work rather than a label.
+    status.innerHTML = '<span class="project-status-dot" aria-hidden="true"></span>In progress'
     head.append(status)
   }
   const icon = document.createElement('span')
@@ -227,6 +228,8 @@ export interface Projects {
 export function createProjects(
   parent: HTMLElement,
   onOpenChange: (open: boolean) => void,
+  /** Siblings that stay live over the page — the social badges. */
+  keepLive: Element[] = [],
 ): Projects {
   const root = document.createElement('section')
   root.className = 'projects'
@@ -246,13 +249,10 @@ export function createProjects(
   const scroller = document.createElement('div')
   scroller.className = 'projects-scroller'
   scroller.tabIndex = -1
-  const heading = document.createElement('h2')
-  heading.className = 'projects-title'
-  heading.textContent = 'Projects'
   const list = document.createElement('ol')
   list.className = 'projects-list'
   list.append(...PROJECTS.map(buildProject))
-  scroller.append(heading, list)
+  scroller.append(list)
   root.append(scroller, close)
   parent.append(root)
 
@@ -282,7 +282,9 @@ export function createProjects(
 
   /** Everything else in `parent` is taken out of reach while the page is up. */
   function setOthersInert(inert: boolean): void {
-    for (const el of parent.children) if (el !== root) (el as HTMLElement).inert = inert
+    for (const el of parent.children) {
+      if (el !== root && !keepLive.includes(el)) (el as HTMLElement).inert = inert
+    }
   }
 
   function open(): void {
