@@ -420,8 +420,8 @@ html.has-cursor button {
   /* `svh`, not `vh`, like every viewport height on the site: the phone's
      toolbar is always shown (the page scrolls inside `body`), and `vh` is
      measured as if it were hidden, so 50vh would be taller than half the
-     visible screen — and off the `innerHeight` that `topEdge()` and the
-     starfield's scissor split compute this edge from. */
+     visible screen — and off the `innerHeight` the starfield's scissor
+     split (`panelTopEdgeAt`) computes this edge from. */
   height: 50svh;
   /* Above the canvas (0) and the statements (15), below the EXPLORE
      button (35), the projects page (80) and the social badges (90), which stay
