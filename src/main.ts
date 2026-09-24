@@ -138,6 +138,25 @@ window.addEventListener('keydown', (e) => {
   if (e.key === ' ' && target.closest('button')) return
   scroller.focus({ preventScroll: true })
 })
+// And the wheel, for the same reason: over the badges or EXPLORE it walks the
+// fixed element's chain to the document and scrolls nothing, so it is passed
+// to the scroller by hand. The page spring smooths the jump, as it does every
+// wheel notch. Skipped while the scroll is locked — the loader's lock refuses
+// it first, and the projects page is `isPaused`. `deltaMode` is lines (1) or
+// pages (2) on some mice in Firefox.
+// ponytail: a touch drag that *starts* on those controls still does not
+// scroll; forwarding touch means re-implementing momentum, not worth it for
+// two small targets.
+window.addEventListener(
+  'wheel',
+  (e) => {
+    if (e.defaultPrevented || isPaused || !(e.target instanceof Node)) return
+    if (!socialBadges.contains(e.target) && !explore.el.contains(e.target)) return
+    const unit = e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? scroller.clientHeight : 1
+    scroller.scrollTop += e.deltaY * unit
+  },
+  { passive: true },
+)
 
 let introShown = -1
 
