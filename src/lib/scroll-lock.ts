@@ -2,19 +2,17 @@
  * Freeze the page's scroll while a takeover is open.
  *
  * Everything on screen is `position: fixed`, so the page has no content of its
- * own to scroll and scrolling with the reveal window open changed nothing
- * visible — while silently advancing the Scene 1 -> Scene 2 transition
- * underneath it. Closing the window then dropped the viewer somewhere they
- * never chose to be.
+ * own to scroll, and scrolling under a takeover (the projects page) would
+ * silently advance the scenes underneath it. Closing it would then drop the
+ * viewer somewhere they never chose to be.
  *
  * **This deliberately does not touch `overflow`, and that is the whole design.**
  * The obvious lock — `html { overflow: hidden }` — takes the scrollbar out of
  * the layout, which widens the initial containing block that every fixed
  * element resolves against. Measured in this page in Chrome with a classic 15px
- * scrollbar forced on: the reveal window's own `calc(100% - 2 * inset)` box went
- * 1481px -> 1496px the instant overflow was hidden, and since the viewport-sized
- * canvas inside is centred on that box, the entire 3D scene would jump 7.5px
- * sideways on open and back again on close. `scrollbar-gutter: stable` does not
+ * scrollbar forced on: a fixed `calc(100% - 2 * inset)` box went 1481px ->
+ * 1496px the instant overflow was hidden, so every fixed layer jumps sideways
+ * on open and back again on close. `scrollbar-gutter: stable` does not
  * rescue it — Chrome drops the reserved gutter as soon as the root stops
  * scrolling, giving the same 1481 -> 1496. The window's sizing was written in
  * percentages precisely to survive a scrollbar; a lock that reintroduces the
@@ -41,6 +39,16 @@
 /** The scroll position to hold, and to come back to when the lock is released. */
 let lockedY = 0
 let locked = false
+/**
+ * A scroll container inside the takeover that must keep scrolling — the
+ * projects list. Gestures and keys aimed inside it are let through; its
+ * `overscroll-behavior: contain` stops them chaining out to the page, and the
+ * catch-all below covers anything that still does.
+ */
+let allowed: Element | null = null
+
+const isAllowed = (target: EventTarget | null): boolean =>
+  allowed !== null && target instanceof Node && allowed.contains(target)
 
 /**
  * Refuse a scrolling gesture. Both of these default to passive on `window`, so
@@ -48,6 +56,7 @@ let locked = false
  * not allowed to call `preventDefault` and would be ignored.
  */
 function refuse(event: Event): void {
+  if (isAllowed(event.target)) return
   event.preventDefault()
 }
 
@@ -75,7 +84,7 @@ const SCROLL_KEYS = new Set([
  * where Enter is what follows it.
  */
 function refuseKey(event: KeyboardEvent): void {
-  if (!SCROLL_KEYS.has(event.key)) return
+  if (!SCROLL_KEYS.has(event.key) || isAllowed(event.target)) return
   const target = event.target as HTMLElement | null
   if (event.key === ' ' && target?.closest?.('button')) return
   event.preventDefault()
@@ -86,10 +95,14 @@ function snapBack(): void {
   if (window.scrollY !== lockedY) window.scrollTo(0, lockedY)
 }
 
-/** Hold the page where it stands. Safe to call when already locked. */
-export function lockScroll(): void {
+/**
+ * Hold the page where it stands, leaving `within` (if given) free to scroll.
+ * Safe to call when already locked.
+ */
+export function lockScroll(within: Element | null = null): void {
   if (locked) return
   locked = true
+  allowed = within
   lockedY = window.scrollY
   window.addEventListener('wheel', refuse, { passive: false })
   window.addEventListener('touchmove', refuse, { passive: false })
@@ -107,6 +120,7 @@ export function lockScroll(): void {
 export function unlockScroll(): void {
   if (!locked) return
   locked = false
+  allowed = null
   window.removeEventListener('wheel', refuse)
   window.removeEventListener('touchmove', refuse)
   window.removeEventListener('keydown', refuseKey, { capture: true })
