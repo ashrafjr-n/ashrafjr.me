@@ -1,100 +1,42 @@
 # ashraf
 
-Personal portfolio. A single scrolled page built as three scenes on one WebGL
-starfield, with no framework and no animation library — the scroll position is
-the only clock, and everything on screen is a pure function of it.
+My personal portfolio: one scrolled page in three scenes over a live WebGL
+starfield. A ring of stars comes apart as you scroll, three statements slide in
+and fill, and a white half rises to invert everything under it. **EXPLORE**
+then opens the projects.
 
-## Stack
+![Scene 1: a ring of stars orbiting an empty centre over a drifting field](docs/screenshots/opening.png)
 
-- [Vite](https://vite.dev) — dev server and build
-- TypeScript, vanilla, `strict`
-- [Three.js](https://threejs.org) — the starfield and the model layer
-- Plain CSS, with the design tokens in the `:root` block of `src/style.css`
+![The last scene: the three statements, half inverted by the white panel, with the EXPLORE button](docs/screenshots/identity.png)
 
-No UI framework, no CSS framework, no state library, no icon package.
+## Built with
+
+- **[Three.js](https://threejs.org)**: the WebGL starfield, around 20,000 stars
+  on their own orbits
+- **TypeScript**: vanilla and `strict`, with no UI framework
+- **[Vite](https://vite.dev)**: dev server and build
+- **Plain CSS**: design tokens, layout and every transition, with no CSS
+  framework
+- **Space Grotesk** and **JetBrains Mono**, from Google Fonts
+- **Lucide** and **Simple Icons**: the icon paths are embedded inline, so there
+  is no icon package
+
+No animation library either. The scroll position drives everything on the page:
+one `requestAnimationFrame` loop and a single spring on the scroll.
 
 ## Running it
 
 ```sh
 npm install
 npm run dev      # dev server
-npm run check    # the scene-timing self-checks (see below)
+npm run check    # scene-timing self-checks
 npm run build    # typecheck, then a production build
 ```
 
-## How the page is put together
+## Projects
 
-Everything on screen is `position: fixed`, so the page has no content of its
-own to scroll. The scroll range comes from a `min-height` on `body`, and
-`src/lib/phases.ts` splits it into three scenes:
+The projects page reads a single list, `PROJECTS` in `src/ui/projects.ts`,
+which holds each project's name, link, screenshot, short note and stack. The
+screenshots live in `public/assets/projects/`.
 
-| | scene | |
-| --- | --- | --- |
-| **01** | a ring of stars orbiting an empty centre, over a drifting field | 600vh |
-| **02** | three statements, sliding in and filling from outline to solid, the fill coasting a moment past the scroll | 205vh |
-| **03** | a white half rising from the bottom, inverting everything it covers, carrying an EXPLORE button | 155vh |
-
-**EXPLORE** raises the projects page (`src/ui/projects.ts`): a plain black
-sheet over the whole site, with its own ordinary scroll and the system cursor.
-The projects run down one column, alternating sides — the first on the right,
-the next on the left — and each slides in from its own side as it scrolls into
-view. A card is a screenshot over its name, an *in progress* tag where it
-applies, and a link mark read off the URL (GitHub for a repo, an arrow for a
-site). On hover the card tilts toward the pointer, its stack unfolds under the
-name as a row of pills, and a short note on the project appears in the empty
-half beside it. The site behind is paused and its scroll locked until the page
-is closed (× or Escape). Project data — links, screenshots in
-`public/assets/projects/`, notes and stacks — is the `PROJECTS` list.
-
-The bridge between the first two is **the scatter** (`src/lib/scatter.ts`):
-the star field is not cleared away and replaced, it is dispersed. A wave runs
-once around the ring's circumference letting stars go, so the ring unravels
-from a point and keeps its shape everywhere the wave has not reached. Each star
-that lets go moves to a resting radius drawn evenly by area, so the ring turns
-inside out through itself into a field with no knot in the middle and no trace
-of the circle it came from, each winding on a spiral that is tighter the
-shorter its travel, the way an orbiting body turns as its radius changes. The
-orbit runs out, and a slice of the ambient cloud drifts to evenly spread places
-across the frame. Every star's travel ends on the same frame,
-whenever the wave let it go, and nothing carries an easing of its own — the
-slowing belongs to the whole field, so it settles in one move rather than in
-stragglers. The scatter eases out in the scene's first third, and as the orbit
-dies the whole field takes over with a slow clockwise turn of its own about the
-model's axis (about three minutes a revolution), so the stars never stop —
-scrolling or not. Only stars already inside the frame are redistributed —
-nothing enters the picture from beyond its edge. From the moment it settles to
-the bottom of the page the pointer also tilts the whole field a few degrees.
-
-The camera never moves, nothing is turned to face it, and no star's depth
-changes. Where Scene 3's white panel covers the field, the stars are drawn
-heavier so they survive being inverted; scrolling back up takes that away
-again.
-
-## Layout
-
-```
-src/
-  main.ts          mounting and the single requestAnimationFrame loop
-  lib/             the scroll maths, shared state, small helpers
-  three/           the starfield and the world layer
-  ui/              each feature's DOM and behaviour, one file each
-  style.css        tokens, layout, and every animation that is not JS-driven
-public/            the model, the artwork, the project screenshots
-```
-
-There is exactly one animation loop, in `src/main.ts`. Features expose an
-`update()` that it calls; nothing runs on a timer of its own.
-
-## The self-checks
-
-`npm run check` runs `src/lib/phases.check.ts` and `src/lib/scatter.check.ts`
-under node, with no test framework. They guard the two properties that fail
-silently on screen rather than loudly in a console: that the scenes hand over
-without a jump in speed, and that scrolling down through a sequence and back
-up returns it to exactly where it started.
-
-## Browser support
-
-Modern evergreen browsers. `prefers-reduced-motion` is honoured: the scroll
-smoothing and the idle orbit are both switched off, so nothing on the page
-moves unless the reader moves it.
+`prefers-reduced-motion` is honoured: nothing moves unless you scroll.
