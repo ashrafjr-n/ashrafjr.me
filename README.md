@@ -37,12 +37,14 @@ own to scroll. The scroll range comes from a `min-height` on `body`, and
 **EXPLORE** raises the projects page (`src/ui/projects.ts`): a plain black
 sheet over the whole site, with its own ordinary scroll and the system cursor.
 The projects run down one column, alternating sides — the first on the right,
-the next on the left — each a screenshot over its name, an *in progress* tag
-where it applies, and a globe or GitHub mark read off the link itself. Each card
-tilts toward the pointer, the side under it coming forward. The site behind is
-paused and its scroll locked until the page is closed (× or Escape). The
-screenshots live in `public/assets/projects/`; a project without one shows a
-*preview soon* frame.
+the next on the left — and each slides in from its own side as it scrolls into
+view. A card is a screenshot over its name, an *in progress* tag where it
+applies, and a link mark read off the URL (GitHub for a repo, an arrow for a
+site). On hover the card tilts toward the pointer, its stack unfolds under the
+name as a row of pills, and a short note on the project appears in the empty
+half beside it. The site behind is paused and its scroll locked until the page
+is closed (× or Escape). Project data — links, screenshots in
+`public/assets/projects/`, notes and stacks — is the `PROJECTS` list.
 
 The bridge between the first two is **the scatter** (`src/lib/scatter.ts`):
 the star field is not cleared away and replaced, it is dispersed. A wave runs
