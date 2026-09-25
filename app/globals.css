@@ -97,8 +97,7 @@ body {
 
 .intro {
   position: fixed;
-  /* Desktop and iPad (768px and up); the phone override below replaces this
-     with true centring. A little lower and a little smaller than before. */
+  /* Desktop and iPad (768px and up); the phone override below centres it. */
   top: 13svh;
   left: 50%;
   z-index: 20;
@@ -108,9 +107,11 @@ body {
   transform: translate(-50%, var(--drift, 0px));
   margin: 0;
   font-family: var(--font-intro);
-  font-size: clamp(0.85rem, 2vw, 1.4rem);
+  font-size: clamp(1.6rem, 4vw, 3.1rem);
   font-weight: 400;
-  letter-spacing: 0.16em;
+  /* Soria has one weight: a hairline stroke in the text's own colour thickens
+     it a little, where a synthetic bold would smear it. */
+  -webkit-text-stroke: 0.5px currentColor;
   white-space: nowrap;
   color: var(--accent);
   pointer-events: none;
