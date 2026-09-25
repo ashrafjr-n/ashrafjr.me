@@ -2,8 +2,10 @@
 
 My personal portfolio. It opens on a ring of clouds in a blue sky; scrolling
 dives through the ring and down a tunnel of three statements to my projects,
-which **EXPLORE** opens. There is a dark mode, and each visit opens on a short
-0–99 count.
+behind a tile that opens them. There is a dark mode, and each visit opens on a
+short 0–99 count. The scroll, the PROJECTS heading, the tile and the dark mode
+follow [mohitvirli.github.io](https://github.com/mohitvirli/mohitvirli.github.io),
+with its author's permission.
 
 ## Built with
 
