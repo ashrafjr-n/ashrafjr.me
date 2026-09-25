@@ -8,6 +8,8 @@ import { range } from './lib/math'
 import { state, initPointer, initScroll, scroller } from './lib/state'
 import { buildSocialBadges } from './ui/social'
 import { createLoader } from './ui/loader'
+import { createProjects } from './ui/projects'
+import { createTitle } from './ui/title'
 
 /** How far the line drifts upward as it goes, in px. */
 const INTRO_DRIFT = 70
@@ -34,10 +36,20 @@ const canvas = document.createElement('canvas')
 canvas.id = 'scene'
 
 const intro = buildIntro()
-/** The journey's scroll range: empty, it is only there to be scrolled through. */
+/**
+ * The journey's scroll range. Its one child is a screen-high stage that sticks
+ * to the top while the journey plays, holding the PROJECTS heading; the list
+ * follows it and rises under the heading once the journey is over.
+ */
 const journey = document.createElement('div')
 journey.className = 'journey'
-app.append(canvas, intro, journey)
+const stage = document.createElement('div')
+stage.className = 'journey-stage'
+const title = createTitle()
+stage.append(title.el)
+journey.append(stage)
+const projects = createProjects()
+app.append(canvas, intro, journey, projects)
 
 const scene = initScene(canvas)
 
@@ -50,7 +62,8 @@ initPointer()
 // (see `html` in style.css); focused, the body takes them.
 scroller.tabIndex = -1
 scroller.focus({ preventScroll: true })
-initScroll(() => journey.offsetTop + journey.offsetHeight - scroller.clientHeight)
+// The journey is over when the list's top reaches the bottom of the screen.
+initScroll(() => projects.offsetTop - scroller.clientHeight)
 
 let introShown = -1
 
@@ -67,6 +80,7 @@ function raf(time: number) {
   if (!loaderGone) loaderGone = loader.update(time)
   const p = scene.update(time, state)
   updateIntro(range(p, 0, INTRO_OUT))
+  title.update(p)
   requestAnimationFrame(raf)
 }
 

@@ -7,12 +7,21 @@
   box-sizing: border-box;
 }
 
+@font-face {
+  font-family: "DM Serif Display";
+  src: url("/fonts/DMSerifDisplay-Regular.ttf") format("truetype");
+  font-weight: 400;
+  font-display: swap;
+}
+
 /* ===========================================================
    Global tokens
    =========================================================== */
 :root {
   --font-display: "Space Grotesk", sans-serif;
   --font-code: "JetBrains Mono", monospace;
+  /* The tunnel's statements and the PROJECTS heading (public/fonts, OFL). */
+  --font-serif: "DM Serif Display", serif;
 
   /* Pure black — the same value the model's own material renders, so the model
      reads as one continuous surface with the page. Must stay #000000. */
@@ -27,19 +36,15 @@
   --scroll-thumb: rgba(255, 255, 255, 0.35);
   --scroll-thumb-hover: rgba(255, 255, 255, 0.7);
 
-  /* The projects page's rise and fall (ui/projects.ts): a long ease at both
-     ends, so the sheet leaves and lands softly. */
-  --projects-dur: 900ms;
-  /* The close is quicker than the rise: leaving should not keep anyone
-     waiting. The rise is the entrance; the fall only has to get out of the
-     way. */
-  --projects-close-dur: 560ms;
   /* The "View <name>" pointer's diameter — well over the inverting disc's
      34px, and wide enough for the longest name on one line. */
   --view-size: 148px;
   /* The "in progress" pill's colour — the site's one deliberate accent, asked
      for so unfinished work reads at a glance. */
   --status-live: #4d8dff;
+  /* How much of the journey's end the projects list overlaps (see .journey). */
+  --list-rise: 72svh;
+  /* The stack's unfold under a project's name. */
   --projects-ease: cubic-bezier(0.76, 0, 0.24, 1);
 
 }
@@ -136,10 +141,48 @@ body {
   min-height: 100svh;
 }
 
-/* The journey's scroll range (three/scene.ts): nothing in it, every layer it
-   drives is fixed. */
+/* The journey's scroll range (three/scene.ts). The canvas it drives is fixed;
+   the stage sticks to the top for as long as the journey is on screen, and
+   holds the PROJECTS heading (ui/title.ts).
+
+   The list overlaps the journey's last `--list-rise` (see .projects): the
+   journey ends as the list's top reaches the bottom of the screen, the list
+   then rises under the heading while the stage is still stuck, and the two
+   scroll away together from there, with the first card `100 - --list-rise`
+   below the top. */
 .journey {
   height: 640svh;
+}
+
+.journey-stage {
+  position: sticky;
+  top: 0;
+  /* Over the canvas (1). */
+  z-index: 2;
+  height: 100svh;
+  pointer-events: none;
+}
+
+/* The heading's resting line; ui/title.ts offsets each letter from its place
+   in it onto the diagonal, and lets go at the end. */
+.projects-title {
+  position: absolute;
+  top: 8svh;
+  left: 0;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  gap: 0.04em;
+  font-family: var(--font-serif);
+  font-weight: 400;
+  font-size: clamp(44px, 5.4vw, 104px);
+  line-height: 1;
+  color: #ffffff;
+}
+
+.projects-title span {
+  opacity: 0;
+  will-change: translate, scale, opacity;
 }
 
 /* ===========================================================
@@ -279,93 +322,22 @@ body {
 }
 
 /* ===========================================================
-   The projects page (ui/projects.ts)
-   A plain black sheet rising from the bottom over everything, with its own
-   ordinary scroll. No stars, no shadows, no blend — and the system cursor.
+   The projects list (ui/projects.ts)
+   In the page's own scroll after the journey, straight on the sky: no
+   background, no sheet. See .journey for how it meets the heading.
    =========================================================== */
 .projects {
-  position: fixed;
-  inset: 0;
-  /* Over every layer on the page but the pointer (100), which is parked while
-     this is open. */
-  z-index: 80;
-  background: #000000;
+  position: relative;
+  z-index: 5;
+  margin-top: calc(-1 * var(--list-rise));
+  padding: 0 clamp(16px, 5vw, 96px) 22svh;
   color: #ffffff;
-  transform: translateY(100%);
-  visibility: hidden;
-  /* This is the closing transition — the state being returned to decides it.
-     Visibility waits for the slide down to finish, so the sheet is seen
-     leaving and then stops being painted. */
-  transition: transform var(--projects-close-dur) var(--projects-ease),
-    visibility 0s linear var(--projects-close-dur);
-}
-
-.projects.is-open {
-  transform: translateY(0);
-  visibility: visible;
-  transition: transform var(--projects-dur) var(--projects-ease),
-    visibility 0s;
-}
-
-.projects-scroller {
-  position: absolute;
-  inset: 0;
-  overflow-y: auto;
-  /* The rows start a slice of the width off to their own side; without this
-     they would open a horizontal scroll while they slide in. */
-  overflow-x: hidden;
-  /* The page behind is locked; a scroll that reaches either end of the list
-     must not chain out to it. */
-  overscroll-behavior: contain;
-  /* The top clears the social badges, which stay over the page. */
-  padding: 18svh clamp(16px, 5vw, 96px) 22svh;
-  outline: none;
-}
-
-.projects-close {
-  position: absolute;
-  top: 1.5rem;
-  right: clamp(16px, 5vw, 96px);
-  display: grid;
-  place-items: center;
-  width: 52px;
-  height: 52px;
-  border: 1px solid rgba(255, 255, 255, 0.35);
-  border-radius: 50%;
-  background: #000000;
-  color: #ffffff;
-  cursor: pointer;
-  transition: border-color 200ms ease, transform 420ms var(--projects-ease);
-}
-
-.projects-close svg {
-  width: 22px;
-  height: 22px;
-}
-
-.projects-close:focus-visible {
-  border-color: #ffffff;
-  transform: rotate(90deg);
-}
-
-/* Hover only where a hover exists — see .social-badge. */
-@media (hover: hover) {
-  .projects-close:hover {
-    border-color: #ffffff;
-    transform: rotate(90deg);
-  }
-}
-
-.projects-close:focus-visible {
-  outline: 2px solid #ffffff;
-  outline-offset: 4px;
 }
 
 /* The "View <name>" pointer over a card (ui/projects.ts). Grows out of a
    point: scaled from almost nothing, the words arriving once it has size.
    `translate` is written per move from JS; `transform` is the grow, and the
-   two compose. The sheet carries a transform, so `fixed` here is relative to
-   it — which, open, is the viewport. */
+   two compose. */
 .projects-cursor {
   position: fixed;
   top: 0;
@@ -433,8 +405,7 @@ body {
 }
 
 /* Each row slides in from its own side the first time it scrolls into view
-   (`is-in`, set by an IntersectionObserver in ui/projects.ts, cleared on every
-   open). `translate`, so the card's tilt transform is left alone. */
+   (`is-in`, set by an IntersectionObserver in ui/projects.ts). `translate`, so the card's tilt transform is left alone. */
 .project {
   opacity: 0;
   transition: opacity 1000ms ease, translate 1400ms cubic-bezier(0.16, 1, 0.3, 1);
@@ -723,14 +694,8 @@ body {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .projects,
-  .projects.is-open {
-    transition: visibility 0s;
-  }
-
   .project-media img,
   .project-icon,
-  .projects-close,
   .project-stack,
   .project-stack li,
   .project-about {

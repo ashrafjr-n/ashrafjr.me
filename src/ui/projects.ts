@@ -1,12 +1,7 @@
 /**
- * The projects page: a plain black sheet that rises from the bottom when
- * EXPLORE is pressed, holding the projects in one column that alternates
- * sides — first on the right, second on the left, and so on — under an
- * ordinary scroll of its own.
- *
- * **Deliberately bare**: no stars, no shadows, no blend, and the system cursor
- * (the inverting disc is parked while this is open — see `main.ts`). The only
- * motion is the rise itself and each card's tilt toward the pointer.
+ * The projects list at the end of the journey, under the PROJECTS heading:
+ * one column that alternates sides — first on the right, second on the left,
+ * and so on — in the page's ordinary scroll, straight on the sky.
  *
  * Each row slides in from its own side as it scrolls into view. On hover the
  * card's stack unfolds under its name, pill by pill, and a short note on the
@@ -117,7 +112,6 @@ const WEBSITE = lucide('<path d="M7 7h10v10"/><path d="M7 17 17 7"/>')
 const GITHUB = lucide(
   '<path d="M15 22v-4a4.8 4.8 0 0 0-1-3.5c3 0 6-2 6-5.5.08-1.25-.27-2.48-1-3.5.28-1.15.28-2.35 0-3.5 0 0-1 0-3 1.5-2.64-.5-5.36-.5-8 0C6 2 5 2 5 2c-.3 1.15-.3 2.35 0 3.5A5.403 5.403 0 0 0 4 9c0 3.5 3 5.5 6 5.5-.39.49-.68 1.05-.85 1.65-.17.6-.22 1.23-.15 1.85v4"/><path d="M9 18c-4.51 2-5-2-7-2"/>',
 )
-const CLOSE = lucide('<path d="M18 6 6 18"/><path d="m6 6 12 12"/>')
 
 /** Largest tilt at the card's edges, in degrees. */
 const TILT_Y = 7
@@ -141,10 +135,7 @@ function buildProject(project: Project, index: number): HTMLLIElement {
   const media = document.createElement('div')
   media.className = 'project-media'
   const img = document.createElement('img')
-  // Held back until the page is first opened (see `open`): the sheet parks
-  // just below the viewport, close enough for `loading="lazy"` to fetch
-  // several megabytes of screenshots on every visit.
-  img.dataset.src = project.image
+  img.src = project.image
   img.alt = `${project.name} preview`
   img.loading = 'lazy'
   img.decoding = 'async'
@@ -222,44 +213,15 @@ function bindTilt(card: HTMLElement): void {
   })
 }
 
-export interface Projects {
-  open(): void
-  /** The one element the page's scroll lock has to leave scrollable. */
-  scroller: HTMLElement
-}
-
-/**
- * Mount the page into `parent`. `onOpenChange` is told at the start of every
- * open and close — `main.ts` freezes the scene behind it on that.
- */
-export function createProjects(
-  parent: HTMLElement,
-  onOpenChange: (open: boolean) => void,
-  /** Siblings that stay live over the page — the social badges. */
-  keepLive: Element[] = [],
-): Projects {
+/** Build the list, ready to be placed after the journey. */
+export function createProjects(): HTMLElement {
   const root = document.createElement('section')
   root.className = 'projects'
-  root.setAttribute('role', 'dialog')
-  root.setAttribute('aria-modal', 'true')
   root.setAttribute('aria-label', 'Projects')
 
-  const close = document.createElement('button')
-  close.type = 'button'
-  close.className = 'projects-close'
-  close.setAttribute('aria-label', 'Close projects')
-  close.innerHTML = CLOSE
-
-  // The scroller is separate from the sheet so the close button can sit still
-  // over it: the sheet carries the rise's transform, and anything positioned
-  // inside a scroll container would scroll away with the content.
-  const scroller = document.createElement('div')
-  scroller.className = 'projects-scroller'
-  scroller.tabIndex = -1
   const list = document.createElement('ol')
   list.className = 'projects-list'
   list.append(...PROJECTS.map(buildProject))
-  scroller.append(list)
   // The pointer over a card: a silver disc that grows out of a point and
   // reads "View <name>". It replaces the system cursor on the cards only.
   const view = document.createElement('div')
@@ -268,9 +230,7 @@ export function createProjects(
   const viewName = document.createElement('strong')
   view.innerHTML = '<span>View</span>'
   view.append(viewName)
-
-  root.append(scroller, close, view)
-  parent.append(root)
+  root.append(list, view)
 
   const cards = [...list.querySelectorAll<HTMLElement>('.project-card')]
   const finePointer = window.matchMedia('(hover: hover) and (pointer: fine)').matches
@@ -298,9 +258,7 @@ export function createProjects(
     }
   }
 
-  // Each row slides in from its own side the first time it scrolls into view,
-  // and again on every open.
-  const items = [...list.children] as HTMLElement[]
+  // Each row slides in from its own side the first time it scrolls into view.
   const reveal = new IntersectionObserver(
     (entries) => {
       for (const entry of entries) {
@@ -309,75 +267,9 @@ export function createProjects(
         reveal.unobserve(entry.target)
       }
     },
-    { root: scroller, rootMargin: '0px 0px -12% 0px' },
+    { rootMargin: '0px 0px -12% 0px' },
   )
+  for (const item of list.children) reveal.observe(item)
 
-  let isOpen = false
-  let returnFocus: HTMLElement | null = null
-
-  /** Everything else in `parent` is taken out of reach while the page is up. */
-  function setOthersInert(inert: boolean): void {
-    for (const el of parent.children) {
-      if (el !== root && !keepLive.includes(el)) (el as HTMLElement).inert = inert
-    }
-  }
-
-  function open(): void {
-    if (isOpen) return
-    isOpen = true
-    for (const img of list.querySelectorAll<HTMLImageElement>('img[data-src]')) {
-      img.src = img.dataset.src!
-      img.removeAttribute('data-src')
-    }
-    returnFocus = document.activeElement as HTMLElement | null
-    scroller.scrollTop = 0
-    // Put every row back in its hidden start **instantly**. Taking `is-in` off
-    // under the row's own transition animated it back out — the first card,
-    // still showing from the last visit, was seen sliding away and fading
-    // while the sheet rose, before sliding in again.
-    for (const item of items) {
-      item.style.transition = 'none'
-      item.classList.remove('is-in')
-      reveal.unobserve(item)
-    }
-    void list.offsetWidth // commit the reset before the transition comes back
-    for (const item of items) item.style.transition = ''
-    // The rows start watching only once the sheet has finished rising — begun
-    // with it, the first row's slide was spent while the whole sheet was still
-    // moving, and never read as coming in from its side.
-    if (REDUCED_MOTION.matches) watchRows()
-    else root.addEventListener('transitionend', onRisen)
-    root.classList.add('is-open')
-    setOthersInert(true)
-    onOpenChange(true)
-    // So the keys scroll the list, not the page behind it.
-    scroller.focus({ preventScroll: true })
-  }
-
-  function watchRows(): void {
-    if (isOpen) for (const item of items) reveal.observe(item)
-  }
-
-  function onRisen(e: TransitionEvent): void {
-    if (e.target !== root || e.propertyName !== 'transform') return
-    root.removeEventListener('transitionend', onRisen)
-    watchRows()
-  }
-
-  function shut(): void {
-    if (!isOpen) return
-    isOpen = false
-    root.classList.remove('is-open')
-    view.classList.remove('is-on')
-    setOthersInert(false)
-    onOpenChange(false)
-    returnFocus?.focus({ preventScroll: true })
-  }
-
-  close.addEventListener('click', shut)
-  document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') shut()
-  })
-
-  return { open, scroller }
+  return root
 }
