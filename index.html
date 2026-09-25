@@ -5,13 +5,22 @@
     <link rel="icon" type="image/png" href="/assets/heart.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>ASHRAF</title>
+    <!-- The phone browser's bar takes the sky's colour; src/ui/theme.ts keeps
+         it in step with the theme. A remembered dark theme is applied here,
+         before the first paint, so a dark visit never flashes blue. -->
+    <meta name="theme-color" content="#4f99d2" />
+    <script>
+      try {
+        if (localStorage.getItem('theme') === 'dark') document.documentElement.dataset.theme = 'dark'
+      } catch {}
+    </script>
 
     <!-- Google Fonts. Only the weights actually rendered are requested:
-         JetBrains Mono 400 (body text, pills, labels) and 700 (EXPLORE, the
-         "View" pointer's name); plus Space Grotesk 300, --font-display (the
-         identity statements, project names and notes, the loader's count).
-         Anything set to a weight that is not requested here will
-         synthesize. -->
+         JetBrains Mono 400 (body text, pills, labels) and 700 (the "View"
+         pointer's name); plus Space Grotesk 300, --font-display (project
+         names and notes, the loader's count). Anything set to a weight that
+         is not requested here will synthesize. The serif (--font-serif) is
+         self-hosted in public/fonts. -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link

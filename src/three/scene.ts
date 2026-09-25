@@ -76,8 +76,11 @@ function ringScale(aspect: number): number {
 const REDUCED_MOTION = window.matchMedia('(prefers-reduced-motion: reduce)')
 
 export interface SceneController {
-  /** Advances and renders a frame. Returns the journey's smoothed `p`. */
-  update(time: number, state: InputState): number
+  /**
+   * Advances and renders a frame. `dark` is how far into the dark theme the
+   * sky is (`ui/theme.ts`). Returns the journey's smoothed `p`.
+   */
+  update(time: number, state: InputState, dark: number): number
   resize(): void
 }
 
@@ -108,7 +111,7 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
   let yaw = 0
   let pitch = 0
 
-  function update(time: number, state: InputState): number {
+  function update(time: number, state: InputState, dark: number): number {
     const delta = Math.min((time - prevTime) / 1000, 0.1) // clamp big tab-switch gaps
     prevTime = time
 
@@ -154,6 +157,7 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
       !REDUCED_MOTION.matches,
       smoother(range(p, ...OPEN)),
       1 - smoother(range(p, ...CLOUDS_OUT)),
+      dark,
     )
     renderer.render(sky.scene, camera)
     return p

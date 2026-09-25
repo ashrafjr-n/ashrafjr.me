@@ -10,6 +10,7 @@ import { buildSocialBadges } from './ui/social'
 import { createLoader } from './ui/loader'
 import { createProjects } from './ui/projects'
 import { createTitle } from './ui/title'
+import { createThemeSwitch } from './ui/theme'
 
 /** How far the line drifts upward as it goes, in px. */
 const INTRO_DRIFT = 70
@@ -53,7 +54,8 @@ app.append(canvas, intro, journey, projects)
 
 const scene = initScene(canvas)
 
-app.append(buildSocialBadges())
+const theme = createThemeSwitch()
+app.append(buildSocialBadges(), theme.el)
 
 window.addEventListener('resize', () => scene.resize())
 
@@ -66,6 +68,7 @@ scroller.focus({ preventScroll: true })
 initScroll(() => projects.offsetTop - scroller.clientHeight)
 
 let introShown = -1
+let prevTime = performance.now()
 
 /** Fade and lift the intro line as the journey starts. */
 function updateIntro(t: number): void {
@@ -77,8 +80,13 @@ function updateIntro(t: number): void {
 
 // --- Single RAF loop: the only one in the app; hook new per-frame work in here
 function raf(time: number) {
-  if (!loaderGone) loaderGone = loader.update(time)
-  const p = scene.update(time, state)
+  const delta = Math.min((time - prevTime) / 1000, 0.1)
+  prevTime = time
+  if (!loaderGone) {
+    loaderGone = loader.update(time)
+    if (loaderGone) theme.show()
+  }
+  const p = scene.update(time, state, theme.update(delta))
   updateIntro(range(p, 0, INTRO_OUT))
   title.update(p)
   requestAnimationFrame(raf)

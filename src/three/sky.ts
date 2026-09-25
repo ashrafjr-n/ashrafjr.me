@@ -1,5 +1,7 @@
 /**
  * The sky: a flat blue with a fine grain, and a ring of clouds turning in it.
+ * In the dark theme the blue goes to near-black and stars come out behind the
+ * clouds (`ui/theme.ts`).
  *
  * The ring is built from four photographed clouds (`public/assets/hero/clouds/`,
  * keyed to transparent PNGs), each used several times as a sprite. Every sprite
@@ -10,8 +12,13 @@
  * they draw apart as the camera dives through the middle (`three/scene.ts`).
  */
 import {
+  AdditiveBlending,
+  BufferGeometry,
+  Float32BufferAttribute,
   Mesh,
   PlaneGeometry,
+  Points,
+  PointsMaterial,
   Scene,
   ShaderMaterial,
   SRGBColorSpace,
@@ -22,6 +29,7 @@ import {
 } from 'three'
 import type { PerspectiveCamera, Texture } from 'three'
 import { rand } from '../lib/math'
+import { createCircleTexture } from './sprite'
 
 const CLOUDS = [
   { url: '/assets/hero/clouds/cloud-crescent.png', weight: 3 },
@@ -63,6 +71,17 @@ const OPEN_RADIUS = 4
 const OPEN_SIZE = 1.8
 
 /**
+ * The dark theme's stars: a thin shell far out around everything, so the
+ * camera's whole dive stays inside it. Only drawn while the sky is dark.
+ */
+const STAR_COUNT = 5000
+const STAR_RADIUS = [200, 300]
+/** In drawing-buffer px: no attenuation, the shell is far off anyway. */
+const STAR_SIZE = 2.6
+/** A slow turn of the whole shell, rad/s. */
+const STAR_DRIFT = 0.01
+
+/**
  * The sky: one flat colour, sampled off the reference, with a static grain at
  * the reference's own strength (std ~5.9 / 4.9 / 2.2 per channel). Drawn
  * straight in clip space, so no camera touches it, and the grain is per CSS
@@ -73,6 +92,7 @@ void main() { gl_Position = vec4(position.xy, 0.0, 1.0); }
 `
 const SKY_FRAGMENT = /* glsl */ `
 uniform float uPixelRatio;
+uniform float uDark;
 float hash(vec2 p) {
   p = fract(p * vec2(123.34, 456.21));
   p += dot(p, p + 45.32);
@@ -81,8 +101,8 @@ float hash(vec2 p) {
 void main() {
   vec2 cell = floor(gl_FragCoord.xy / uPixelRatio);
   float n = hash(cell) * 2.0 - 1.0;
-  vec3 base = vec3(78.5, 152.9, 210.3) / 255.0;
-  vec3 grain = vec3(10.2, 8.4, 3.9) / 255.0;
+  vec3 base = mix(vec3(78.5, 152.9, 210.3), vec3(17.0), uDark) / 255.0;
+  vec3 grain = mix(vec3(10.2, 8.4, 3.9), vec3(4.0), uDark) / 255.0;
   gl_FragColor = vec4(base + n * grain, 1.0);
 }
 `
@@ -104,9 +124,10 @@ export interface Sky {
   scene: Scene
   /**
    * `turning` is false under reduced motion: the ring holds still. `open` is
-   * how far the ring has opened, 0..1, and `fade` how much of it is left.
+   * how far the ring has opened, 0..1, `fade` how much of it is left, and
+   * `dark` how far into the dark theme the sky is.
    */
-  update(delta: number, turning: boolean, open: number, fade: number): void
+  update(delta: number, turning: boolean, open: number, fade: number, dark: number): void
   /** The ring is scaled down to fit a narrow screen. */
   setScale(k: number): void
 }
@@ -117,7 +138,10 @@ export function createSky(camera: PerspectiveCamera): Sky {
   const skyMaterial = new ShaderMaterial({
     vertexShader: SKY_VERTEX,
     fragmentShader: SKY_FRAGMENT,
-    uniforms: { uPixelRatio: { value: Math.min(window.devicePixelRatio, 2) } },
+    uniforms: {
+      uPixelRatio: { value: Math.min(window.devicePixelRatio, 2) },
+      uDark: { value: 0 },
+    },
     depthTest: false,
     depthWrite: false,
   })
@@ -125,6 +149,37 @@ export function createSky(camera: PerspectiveCamera): Sky {
   skyQuad.frustumCulled = false
   skyQuad.renderOrder = -1
   scene.add(skyQuad)
+
+  const starPositions = new Float32Array(STAR_COUNT * 3)
+  const starColors = new Float32Array(STAR_COUNT * 3)
+  for (let i = 0; i < STAR_COUNT; i++) {
+    // An even direction on the sphere, at a random distance in the shell.
+    const y = rand(-1, 1)
+    const a = rand(0, Math.PI * 2)
+    const r = rand(STAR_RADIUS[0], STAR_RADIUS[1])
+    const ring = Math.sqrt(1 - y * y) * r
+    starPositions.set([Math.cos(a) * ring, y * r, Math.sin(a) * ring], i * 3)
+    const v = rand(0.35, 1)
+    starColors.set([v, v, v], i * 3)
+  }
+  const starGeometry = new BufferGeometry()
+  starGeometry.setAttribute('position', new Float32BufferAttribute(starPositions, 3))
+  starGeometry.setAttribute('color', new Float32BufferAttribute(starColors, 3))
+  const starMaterial = new PointsMaterial({
+    size: STAR_SIZE * Math.min(window.devicePixelRatio, 2),
+    sizeAttenuation: false,
+    map: createCircleTexture(),
+    vertexColors: true,
+    transparent: true,
+    depthWrite: false,
+    blending: AdditiveBlending,
+    opacity: 0,
+  })
+  const stars = new Points(starGeometry, starMaterial)
+  stars.frustumCulled = false
+  // Over the sky, under every cloud.
+  stars.renderOrder = -0.8
+  scene.add(stars)
 
   const textures: (Texture | null)[] = CLOUDS.map(() => null)
   /** Height over width of each cloud image, read once it has loaded. */
@@ -187,8 +242,12 @@ export function createSky(camera: PerspectiveCamera): Sky {
   const p = new Vector3()
   const c = new Vector3()
 
-  function update(delta: number, turning: boolean, open: number, left: number): void {
+  function update(delta: number, turning: boolean, open: number, left: number, dark: number): void {
     if (turning) spin += RING_RATE * delta
+    skyMaterial.uniforms.uDark.value = dark
+    starMaterial.opacity = dark
+    stars.visible = dark > 0
+    if (turning) stars.rotation.y -= STAR_DRIFT * delta
     if (fade < 1 && textures.every(Boolean)) fade = Math.min(1, fade + delta / FADE_IN)
     const eased = fade * fade * (3 - 2 * fade) * left
     const aspect = camera.aspect
@@ -218,6 +277,7 @@ export function createSky(camera: PerspectiveCamera): Sky {
   function setScale(k: number): void {
     scale = k
     skyMaterial.uniforms.uPixelRatio.value = Math.min(window.devicePixelRatio, 2)
+    starMaterial.size = STAR_SIZE * Math.min(window.devicePixelRatio, 2)
   }
 
   return { scene, update, setScale }

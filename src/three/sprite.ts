@@ -1,66 +1,31 @@
 /**
- * The star sprite used by the site's particle field (`scene.ts`).
+ * The star sprite used by the dark theme's stars (`three/sky.ts`).
  */
 import { CanvasTexture, LinearFilter } from 'three'
 
 /**
  * Soft round sprite so points draw as dots, not squares.
  *
- * `core` holds the sprite opaque out to that fraction of its radius before it
- * falls off, for the settled field that Scene 3 inverts; 0 is the soft
- * gradient the rest of the site uses.
- *
- * `mipmaps: false` turns off mipmapping and minifies with a plain
- * `LinearFilter`. **This matters far more than it looks, for any layer whose
- * points all draw small.** The texture is 64x64 and a point sprite maps the
- * whole of it across `gl_PointSize` pixels, so a dot drawn ~2px wide is a ~30x
- * minification: the GPU picks mip level ~5, where this gradient — mostly
- * transparent by area — has been averaged down to almost nothing. The sampled
- * alpha collapses to ~0.002 and the dot renders at a few 255ths whatever colour
- * it carries, which is not a subtle loss but the difference between a visible
- * star and none.
- *
- * Measured on the close-in band (every point ~2.1 device px): the brightest
- * pixel went **92 -> 247 out of 255** with mipmaps off, at an unchanged colour.
- *
- * Leave them on for a layer whose points vary in size and get genuinely large
- * up close — there minification is real and mipmaps are what stop the dot
- * shimmering as it moves.
- *
- * **A layer can need both, at different points in the page.** The ambient
- * cloud is the case: at rest its points run ~1.7px to ~7.7px and it wears the
- * mipmapped texture, but the press flattens the whole field onto one plane and
- * lands every point at 2.2px — the failing case above, for 20,000 points at
- * once. `three/scene.ts` swaps its map on the first frame of scroll rather
- * than choosing one for good. Both textures are built up front; a swap is one
- * assignment and a `needsUpdate` flag.
+ * **No mipmaps**, and that matters for points that all draw small: the texture
+ * is 64x64 and a point sprite maps the whole of it across `gl_PointSize`
+ * pixels, so a ~2px dot is a ~30x minification. With mipmaps the GPU samples
+ * a level where this mostly-transparent gradient has been averaged to almost
+ * nothing, and the dot renders at a few 255ths whatever colour it carries —
+ * measured once at 92/255 against 247/255 without.
  */
-export function createCircleTexture({
-  mipmaps = true,
-  core = 0,
-}: { mipmaps?: boolean; core?: number } = {}): CanvasTexture {
+export function createCircleTexture(): CanvasTexture {
   const size = 64
   const canvas = document.createElement('canvas')
   canvas.width = canvas.height = size
   const ctx = canvas.getContext('2d')!
   const g = ctx.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2)
   g.addColorStop(0, 'rgba(255,255,255,1)')
-  if (core > 0) {
-    // Opaque out to `core`, then a short falloff. The default soft gradient is
-    // full white only at its centre, which survives being drawn on black but
-    // not being *inverted* onto white — see SPRITE_SWAP_AT in lib/scatter.ts.
-    g.addColorStop(core, 'rgba(255,255,255,1)')
-    g.addColorStop(Math.min(core + 0.25, 0.999), 'rgba(255,255,255,0.35)')
-  } else {
-    g.addColorStop(0.35, 'rgba(255,255,255,0.6)')
-  }
+  g.addColorStop(0.35, 'rgba(255,255,255,0.6)')
   g.addColorStop(1, 'rgba(255,255,255,0)')
   ctx.fillStyle = g
   ctx.fillRect(0, 0, size, size)
   const texture = new CanvasTexture(canvas) // its constructor already flags needsUpdate
-  if (!mipmaps) {
-    texture.generateMipmaps = false
-    texture.minFilter = LinearFilter // the default is a mipmap filter
-  }
+  texture.generateMipmaps = false
+  texture.minFilter = LinearFilter // the default is a mipmap filter
   return texture
 }
