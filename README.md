@@ -49,3 +49,5 @@ Fonts:
   [SIL Open Font License 1.1](https://www.fontsquirrel.com/license/soria)
 - [Vercetti Regular](https://filipposfragkogiannis.com/fonts/vercetti-regular/)
   by Filippos Fragkogiannis, Licence Amicale
+- [DM Serif Display](https://fonts.google.com/specimen/DM+Serif+Display) by
+  Colophon Foundry, SIL Open Font License 1.1
