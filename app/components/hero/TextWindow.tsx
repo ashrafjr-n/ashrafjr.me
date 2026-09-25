@@ -32,7 +32,7 @@ const TextWindow = () => {
         {...fontProps}
         scale={[1, -1, 1]}
         rotation={[0, 0,  -Math.PI / 2]}>
-        FULL-STACK DEVELOPER
+        JUNIOR DEVELOPER
       </Text>
 
       <Text color="white" anchorX="right" anchorY="middle"
@@ -69,7 +69,7 @@ const TextWindow = () => {
           scale={[-1, -1, 1]}
           fontSize={0.8}
           rotation={[0, -Math.PI / 2,  -Math.PI / 2]}>
-          LARAVEL. FASTAPI
+          PYTHON. LARAVEL
         </Text>
         <Text color="white" anchorX="right" anchorY="middle"
           {...fontProps}
