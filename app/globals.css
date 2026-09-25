@@ -120,3 +120,65 @@ body {
     top: 15svh;
   }
 }
+
+.social-badges {
+  position: fixed;
+  top: 2rem;
+  left: 2rem;
+  /* Above the canvas, its scroller and the theme switch, portal open or not. */
+  z-index: 90;
+  display: flex;
+  align-items: center;
+  gap: 1.1rem;
+}
+
+/* One rule for all three links; the icon-only two simply have no caption. */
+.social-badge {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-family: var(--font-code);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  text-decoration: none;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: color 0.25s ease, filter 0.25s ease;
+}
+
+/* Only sizes the icons: the circle is in the artwork (SocialBadges.tsx). */
+.social-icon {
+  display: block;
+  width: 26px;
+  height: 26px;
+  flex-shrink: 0;
+  transition: transform 0.25s ease;
+}
+
+/* Hover only where a hover exists (a tap leaves :hover stuck); keyboard focus
+   keeps it everywhere. */
+.social-badge:focus-visible {
+  color: var(--accent);
+  filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.45));
+}
+
+.social-badge:focus-visible .social-icon {
+  transform: rotate(-8deg) scale(1.08);
+}
+
+@media (hover: hover) {
+  .social-badge:hover {
+    color: var(--accent);
+    filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.45));
+  }
+
+  .social-badge:hover .social-icon {
+    transform: rotate(-8deg) scale(1.08);
+  }
+}
+
+.social-badge:active {
+  transform: translateY(1px);
+}
