@@ -550,34 +550,35 @@ html.has-cursor button {
    across its own: those percentages put both exactly on the layer's x.
 
    Two pieces of the same rope, one above the head and one below the foot, so
-   nothing of it shows through the figure. Each keeps the scale a full-height
-   rope has (width off 100svh) and is cropped, never stretched, by
-   `object-fit: cover`. Both tuck a little behind the figure. */
+   nothing of it shows through the figure. Both run past the screen's edge and
+   well behind the figure, so no gap can open at any height. The width sets
+   the rope's thickness (0.75 of a full-height rope's scale, ~9px at 900 tall);
+   `object-fit: cover` crops, never stretches. */
 .rope {
   position: absolute;
   left: 0;
-  width: calc(100svh * 289 / 864);
+  width: calc(75svh * 289 / 864);
   object-fit: cover;
   translate: -51.5% 0;
 }
 
 .rope--top {
-  top: 0;
-  height: 28svh;
+  top: -2svh;
+  height: 36svh;
   object-position: 50% 0;
 }
 
 .rope--bottom {
-  top: 76svh;
-  height: 24svh;
+  top: 70svh;
+  height: 32svh;
   object-position: 50% 100%;
 }
 
 .figure {
   position: absolute;
-  top: 22svh;
+  top: 26svh;
   left: 0;
-  height: 60svh;
+  height: 52svh;
   translate: -51.1% 0;
   filter: drop-shadow(0 22px 34px rgba(0, 0, 0, 0.5));
 }
