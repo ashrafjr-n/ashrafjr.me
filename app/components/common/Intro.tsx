@@ -26,11 +26,13 @@ const Intro = () => {
     if (progress === 100) gsap.to(wrapRef.current, { opacity: 1, duration: 3, delay: 1 });
   }, [progress]);
 
+  // Driven by the page's own scroll (pageProgress), not scrollProgress, which
+  // the work portal resets to 0 for its timeline and would bring the line back.
   // Written straight to the style: the store changes every frame. Only the
   // drift, as a custom property — the transform itself is the breakpoint's
   // (globals.css), centred differently on phones.
-  useEffect(() => useScrollStore.subscribe(({ scrollProgress }) => {
-    const t = Math.min(scrollProgress / OUT, 1);
+  useEffect(() => useScrollStore.subscribe(({ pageProgress }) => {
+    const t = Math.min(pageProgress / OUT, 1);
     if (!lineRef.current) return;
     lineRef.current.style.opacity = String(1 - t);
     lineRef.current.style.setProperty('--drift', `${-t * DRIFT}px`);

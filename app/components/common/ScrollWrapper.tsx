@@ -12,6 +12,7 @@ const ScrollWrapper = (props: { children: React.ReactNode | React.ReactNode[]}) 
   const data = useScroll();
   const isActive = usePortalStore((state) => !!state.activePortalId);
   const setScrollProgress = useScrollStore((state) => state.setScrollProgress);
+  const setPageProgress = useScrollStore((state) => state.setPageProgress);
 
   useFrame((state, delta) => {
     if (data) {
@@ -25,6 +26,7 @@ const ScrollWrapper = (props: { children: React.ReactNode | React.ReactNode[]}) 
         camera.position.z = THREE.MathUtils.damp(camera.position.z, 5 + 10 * d, 7, delta);
 
         setScrollProgress(data.range(0, 1));
+        setPageProgress(data.range(0, 1));
       }
 
       // Move camera slightly on mouse movement.
