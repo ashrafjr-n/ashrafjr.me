@@ -59,7 +59,8 @@ export function createSplit(): Split {
   el.className = 'rope-layer'
   el.setAttribute('aria-hidden', 'true')
   el.innerHTML =
-    '<img class="rope" src="/assets/hero/h.png" alt="" decoding="async">' +
+    '<img class="rope rope--top" src="/assets/hero/h.png" alt="" decoding="async">' +
+    '<img class="rope rope--bottom" src="/assets/hero/h.png" alt="" decoding="async">' +
     '<img class="figure" src="/assets/hero/pro.png" alt="" decoding="async">'
 
   const controls = document.createElement('div')
