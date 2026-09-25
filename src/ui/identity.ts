@@ -4,9 +4,8 @@
  *
  * Two things happen here and both are scroll, not time:
  *
- * 1. **The three arrive together, from alternating sides.** They start fully
- *    off-screen — first and third to the left, second to the right — and slide
- *    to centre, where they land stacked on top of each other. That is the whole
+ * 1. **The three arrive together, from the left, as one block.** They start
+ *    fully off-screen and slide to centre, where they land stacked. That is the whole
  *    entrance; there is no fade-and-pop and no per-statement stagger.
  * 2. **Then they fill — and the first one starts before it has landed.** The
  *    white begins crossing the top line while that line is still travelling,
@@ -36,11 +35,11 @@ import { clamp } from '../lib/math'
 const STATEMENTS = ['COMPUTER SCIENCE', 'FULL-STACK DEVELOPER', 'BUILDING TOWARD AI']
 
 /**
- * Which side each statement comes in from: -1 is off to the left, +1 off to the
- * right. Alternating, so the three cross the frame in opposite directions and
- * the scene reads as closing rather than as sliding.
+ * Which side each statement comes in from: -1 is off to the left. **All three
+ * from the left, together**, on request — the block slides in as one piece,
+ * the same sideways move the rope makes, stops in the middle, then fills.
  */
-const SLIDE_SIDE = [-1, 1, -1]
+const SLIDE_SIDE = [-1, -1, -1]
 /**
  * Fraction of the scene the arrival takes. **The fill now starts 0.05 before
  * it ends**, so the two overlap rather than queue — see `FILL_FROM`.
@@ -73,26 +72,12 @@ const EDGE = 0.06
 
 /**
  * Where each statement's fill begins, and how long it takes, as fractions of
- * the scene.
- *
- * `FILL_SPAN` is longer than the step between statements, so one is still
- * finishing as the next starts and the three read as a single pass down the
- * block. **The last has to land before Scene 3's panel starts rising**, or the
- * inversion arrives over type that is still filling — it completes at 0.84 of
- * the scene, which is page 0.788 against the panel's 0.81. That 0.022 of page
- * is deliberately small: the gap between the block finishing and the white
- * half arriving was the dead beat at the end of Scene 2.
- *
- * **`FILL_FROM` is deliberately well under `SLIDE_SPAN` (0.42), and that is
- * the one thing to preserve here.** It was 0.44 against that landing, so the
- * first statement came to a stop and only then began to fill — two beats
- * where the scene wants one. At 0.36 the white starts crossing the top line
- * **0.06 of the scene before it lands**, which is enough for the two to read
- * as one move without the sweep spending most of itself on type that is still
- * travelling — 0.22 was tried and was too far ahead. The floor is 0, where
- * the fill would start on a statement wholly off screen.
+ * the scene. **The fill waits for the block to land** (`SLIDE_SPAN` 0.42), on
+ * request: slide, stop in the middle, then fill — two beats, not one.
+ * `FILL_SPAN` is longer than the step, so the three sweeps overlap into one
+ * pass down the block, finishing at 0.94.
  */
-const FILL_FROM = 0.36
+const FILL_FROM = 0.46
 const FILL_STEP = 0.14
 const FILL_SPAN = 0.2
 
@@ -113,7 +98,7 @@ const FILL_MAX_STEP = 1 / 60
 const REDUCED_MOTION = window.matchMedia('(prefers-reduced-motion: reduce)')
 
 /** Where in the scene CONTACT fades in: as the last statement's sweep lands. */
-const CONTACT_AT = 0.8
+const CONTACT_AT = 0.9
 
 /**
  * The size everything is measured at before being scaled to fit. Arbitrary,
