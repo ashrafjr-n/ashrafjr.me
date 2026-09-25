@@ -25,10 +25,15 @@ const svg = (d: string): string =>
 const ARROW_LEFT = svg('<path d="m12 19-7-7 7-7"/><path d="M19 12H5"/>')
 const ARROW_RIGHT = svg('<path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>')
 
-function sideButton(side: 'left' | 'right', icon: string, label: string): HTMLButtonElement {
+function sideButton(
+  side: 'left' | 'right',
+  world: 'day' | 'night',
+  icon: string,
+  label: string,
+): HTMLButtonElement {
   const b = document.createElement('button')
   b.type = 'button'
-  b.className = `side side--${side}`
+  b.className = `side side--${side} side--${world}`
   b.innerHTML = `<span class="side-ring">${icon}</span><span class="side-label">${label}</span>`
   return b
 }
@@ -65,9 +70,9 @@ export function createSplit(): Split {
 
   const controls = document.createElement('div')
   controls.className = 'sides'
-  const dayBtn = sideButton('left', ARROW_LEFT, 'ABOUT<br>ME')
-  const nightBtn = sideButton('right', ARROW_RIGHT, 'MY<br>WORK')
-  const backBtn = sideButton('left', ARROW_RIGHT, 'BACK')
+  const dayBtn = sideButton('left', 'day', ARROW_LEFT, 'ABOUT<br>ME')
+  const nightBtn = sideButton('right', 'night', ARROW_RIGHT, 'MY<br>WORK')
+  const backBtn = sideButton('left', 'night', ARROW_RIGHT, 'BACK')
   backBtn.classList.add('side--back')
   controls.append(dayBtn, nightBtn, backBtn)
 
@@ -87,6 +92,10 @@ export function createSplit(): Split {
     startedAt = now
     dayBtn.classList.toggle('is-shown', world === 'split')
     nightBtn.classList.toggle('is-shown', world === 'split')
+    // The picked button shows its arrow as it leaves; the other just fades.
+    dayBtn.classList.toggle('is-picked', world === 'day')
+    nightBtn.classList.toggle('is-picked', world === 'night')
+    backBtn.classList.toggle('is-picked', world === 'split' && backBtn.classList.contains('is-shown'))
     backBtn.classList.remove('is-shown')
   }
 
@@ -111,6 +120,10 @@ export function createSplit(): Split {
           const left = goal === 'night'
           backBtn.classList.toggle('side--left', left)
           backBtn.classList.toggle('side--right', !left)
+          // Coloured for the world it sits in.
+          backBtn.classList.toggle('side--night', left)
+          backBtn.classList.toggle('side--day', !left)
+          backBtn.classList.remove('is-picked')
           backBtn.querySelector('.side-ring')!.innerHTML = left ? ARROW_RIGHT : ARROW_LEFT
           backBtn.classList.add('is-shown')
         }
