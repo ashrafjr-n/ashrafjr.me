@@ -62,8 +62,8 @@ const RING_JITTER = 0.1
 /** World width of one cloud; the camera's perspective makes the near ones larger. */
 const SIZE_MIN = 1.55
 const SIZE_MAX = 2.1
-/** Clockwise, rad/s: a slow, calm turn. */
-const RING_RATE = 0.1
+/** Clockwise, rad/s: ~63s a revolution. */
+const RING_RATE = 0.099
 /** Seconds the clouds take to fade in once every texture has arrived. */
 const FADE_IN = 1.2
 /** Fully open, the ring is this many times its radius, and each cloud this many times its size. */
