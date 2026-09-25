@@ -1,0 +1,12 @@
+{
+	// Cloudflare Worker serving static assets only. Workers Builds runs
+	// `npm run build` (Next.js static export into out/) and then
+	// `npx wrangler deploy`, which reads this file. Without it wrangler guesses
+	// the framework, and for Next.js it guesses a server build that fails.
+	"name": "ashraf-me",
+	"compatibility_date": "2026-09-01",
+	"assets": {
+		"directory": "./out/",
+		"not_found_handling": "404-page"
+	}
+}
