@@ -1,25 +1,21 @@
 # ashraf
 
-My personal portfolio. A figure balances on a rope down the middle of the
-screen: night and a turning ring of stars on one side, a blue sky and a ring of
-clouds on the other. Scroll down for the night, up for the day (or click a
-side), and the rope slides away. Night brings two
-reaching hands and **EXPLORE**, which opens the projects. Day brings three
-statements and **CONTACT**. Each visit opens on a short 0–99 count.
-
-![The opening: the figure on the rope, clouds to the left, stars to the right](docs/screenshots/opening.png)
-
-![The night side: two hands reaching toward each other, with EXPLORE between them](docs/screenshots/night.png)
+My personal portfolio. It opens on a ring of clouds in a blue sky; scrolling
+dives through the ring into a tunnel of three statements and out onto my
+projects. There is a dark mode, and each visit opens on a short 0–99 count.
 
 ## Built with
 
-- **[Three.js](https://threejs.org)**: the WebGL starfield, around 20,000 stars
-  on their own orbits, and the ring of clouds
+- **[Three.js](https://threejs.org)**: the sky, the ring of clouds, the
+  scroll-driven camera and the dark mode's stars
+- **[troika-three-text](https://github.com/protectwise/troika/tree/main/packages/troika-three-text)**:
+  the tunnel's 3D type
 - **TypeScript**: vanilla and `strict`, with no UI framework
 - **[Vite](https://vite.dev)**: dev server and build
 - **Plain CSS**: design tokens, layout and every transition, with no CSS
   framework
-- **Space Grotesk** and **JetBrains Mono**, from Google Fonts
+- **Space Grotesk** and **JetBrains Mono**, from Google Fonts, and
+  **DM Serif Display** (OFL), self-hosted
 - **Lucide** and **Simple Icons**: the icon paths are embedded inline, so there
   is no icon package
 
@@ -31,15 +27,14 @@ transitions.
 ```sh
 npm install
 npm run dev      # dev server
-npm run check    # scene-timing self-checks
 npm run build    # typecheck, then a production build
 ```
 
 ## Projects
 
-The projects page reads a single list, `PROJECTS` in `src/ui/projects.ts`,
+The projects list reads a single array, `PROJECTS` in `src/ui/projects.ts`,
 which holds each project's name, link, screenshot, short note and stack. The
 screenshots live in `public/assets/projects/`.
 
-`prefers-reduced-motion` is honoured: the rings hold still and every
-transition is instant.
+`prefers-reduced-motion` is honoured: the ring holds still and the journey
+follows the scroll exactly, with no easing after it.
