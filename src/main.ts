@@ -100,7 +100,7 @@ function raf(time: number) {
   }
   const p = scene.update(time, state, theme.update(delta))
   updateIntro(range(p, 0, INTRO_OUT))
-  title.update(p)
+  title.update(p, delta)
   explore.update(p)
   requestAnimationFrame(raf)
 }

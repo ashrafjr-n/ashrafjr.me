@@ -164,11 +164,12 @@ body {
 }
 
 /* PROJECTS, after mohitvirli.github.io's EXPERIENCE: small, one wide fixed
-   pitch per letter. This is the line the letters land on; ui/title.ts lifts
-   each one off it into the diagonal. Its size never changes. */
+   pitch per letter. This is the line the letters land on, at the top (asked);
+   ui/title.ts drops each one below it into the diagonal. Its size never
+   changes. */
 .projects-title {
   position: absolute;
-  top: 62svh;
+  top: 9svh;
   left: 0;
   width: 100%;
   display: flex;
