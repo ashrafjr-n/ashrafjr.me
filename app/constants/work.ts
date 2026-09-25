@@ -1,40 +1,41 @@
 import * as THREE from "three";
 import { WorkTimelinePoint } from "../types";
 
+// Placeholders (YYYY / University / Company / Role) until the real history is in.
 export const WORK_TIMELINE: WorkTimelinePoint[] = [
   {
     point: new THREE.Vector3(0, 0, 0),
-    year: '2014',
-    title: 'IIT Roorkee',
-    subtitle: 'Electrical Engineering',
+    year: 'YYYY',
+    title: 'University',
+    subtitle: 'Computer Science',
     position: 'right',
   },
   {
     point: new THREE.Vector3(-4, -4, -3),
-    year: '2016',
-    title: 'XPrep',
-    subtitle: 'Frontend Intern',
+    year: 'YYYY',
+    title: 'Company',
+    subtitle: 'Role',
     position: 'left',
   },
   {
     point: new THREE.Vector3(-3, -1, -6),
-    year: '2017',
-    title: 'Headout',
-    subtitle: 'Software Developer Intern',
+    year: 'YYYY',
+    title: 'Company',
+    subtitle: 'Role',
     position: 'left',
   },
   {
     point: new THREE.Vector3(0, -1, -10),
-    year: '2018',
-    title: 'Cohesity',
-    subtitle: 'Member of Technical Staff',
+    year: 'YYYY',
+    title: 'Company',
+    subtitle: 'Role',
     position: 'left',
   },
   {
     point: new THREE.Vector3(1, 1, -12),
     year: new Date().toLocaleDateString('default', { year: 'numeric' }),
     title: 'Living...',
-    subtitle: '↓ 288K tokens',
+    subtitle: 'Building toward AI',
     position: 'right',
   }
 ]
