@@ -90,8 +90,6 @@ body {
 }
 /* Kept from the previous site: the intro line. */
 :root {
-  /* Soria, the reference's own title face (its "Hi, I am Mohit Virli."). */
-  --font-intro: var(--font-soria), serif;
   --accent: #e8e8ec;
 }
 
@@ -106,7 +104,10 @@ body {
      breakpoint's own transform. */
   transform: translate(-50%, var(--drift, 0px));
   margin: 0;
-  font-family: var(--font-intro);
+  /* Soria, the reference's title face, read here and not through a :root
+     variable: next/font defines --font-soria on <body>, so a copy made on
+     :root is empty and the line fell back to body's Vercetti. */
+  font-family: var(--font-soria), serif;
   font-size: clamp(1.35rem, 3.3vw, 2.5rem);
   font-weight: 400;
   /* Airy at rest; --spread (1 → 0, written by Intro.tsx) draws the letters
