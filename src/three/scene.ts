@@ -2,15 +2,20 @@
  * The Three.js scene: the sky with its cloud ring (`three/sky.ts`), seen through
  * one camera that the scroll flies.
  *
- * **The journey** is one value, `p` (0..1), a spring over the page's scroll,
- * and every move below is a pure function of it — so scrolling back up
- * rewinds all of it exactly. The camera starts over the ring at the hero's
- * ~63° angle, turns to look straight down while the ring opens around it,
- * dives through the middle and on down the statements' tunnel
- * (`three/tunnel.ts`), out past its end.
+ * **The journey** is one value, `p` (0..1), and every target below is a pure
+ * function of it, so scrolling back up rewinds all of it. The camera starts
+ * over the ring at the hero's ~63° angle, turns to look straight down while
+ * the ring opens around it, drops through the middle — where the statements
+ * rise into the tunnel under it (`three/tunnel.ts`) — and travels down the
+ * tunnel to the end of it, where PROJECTS comes in (`ui/title.ts`).
+ *
+ * **The scroll feels like mohitvirli.github.io's, by construction**: `p` is
+ * the scroll run through maath's `damp` with drei `ScrollControls`' settings
+ * there (`damping` 0.4, `maxSpeed` 1), and the camera then chases its target
+ * with that site's own damping (λ 7 for position, 5 for the turn).
  */
 import { Matrix4, PerspectiveCamera, Quaternion, Vector3, WebGLRenderer } from 'three'
-import { clamp, range, smoother } from '../lib/math'
+import { damp, range, smoother } from '../lib/math'
 import type { InputState } from '../lib/state'
 import { createSky } from './sky'
 import { createTunnel } from './tunnel'
@@ -24,35 +29,41 @@ const DIVE_FOV = 62
 /**
  * Where the camera is once it has turned, how far the first drop takes it (to
  * the tunnel's mouth, through the ring) and how far the second (down the
- * tunnel and out past its end).
+ * tunnel to its last letters — the end of the road, not past it).
  */
 const TURNED_Y = 7
 const DROP_TO_MOUTH = 8
-const DROP_THROUGH = 32
+const DROP_THROUGH = 19
 
 /**
  * The journey's beats, as `[from, span]` of `p`. They overlap on purpose, so
  * one move is still finishing as the next starts and the camera never stops.
  */
-const TURN = [0, 0.3] as const
-const OPEN = [0.04, 0.44] as const
-const CLOUDS_OUT = [0.34, 0.14] as const
-const WIDEN = [0.15, 0.35] as const
+const TURN = [0, 0.28] as const
+const OPEN = [0.04, 0.42] as const
+const CLOUDS_OUT = [0.3, 0.14] as const
+const WIDEN = [0.12, 0.3] as const
 /**
  * The two drops overlap a little, so the camera slows at the tunnel's mouth —
- * where all three statements are in view at once — without stopping.
+ * as the statements rise into place — without stopping.
  */
-const DROP_A = [0.18, 0.34] as const
-const DROP_B = [0.46, 0.5] as const
+const DROP_A = [0.15, 0.3] as const
+const DROP_B = [0.52, 0.4] as const
+/**
+ * The statements do not exist until the camera is inside the ring; then each
+ * rises out of the depth into its place, one wall after another.
+ */
+const REVEAL = [0.36, 0.14] as const
+const REVEAL_STAGGER = 0.05
 const TWIST = [0.5, 0.45] as const
 
-/**
- * The spring `p` follows the scroll on, rad/s: ~0.25s of lag, enough to turn
- * a wheel's notches into one flight. It takes its own step so a long frame
- * cannot destabilise it.
- */
-const OMEGA = 8
-const MAX_STEP = 1 / 60
+/** drei `ScrollControls` on mohitvirli.github.io: `damping={0.4} maxSpeed={1}`, default eps. */
+const SCROLL_DAMPING = 0.4
+const SCROLL_MAX_SPEED = 1
+const SCROLL_EPS = 0.00001
+/** That site's camera damping (`THREE.MathUtils.damp` λ): position, and the turn. */
+const MOVE_LAMBDA = 7
+const TURN_LAMBDA = 5
 
 /** How far the pointer turns the view at the screen's edges, radians. */
 const LOOK = Math.PI / 90
@@ -99,6 +110,10 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
   const downTurn = orientation(new Vector3(), new Vector3(0, -1, 0), new Vector3(0, 0, -1))
   const look = new Quaternion()
   const lookAxis = new Vector3()
+  const goal = new Vector3().copy(HERO_POS)
+  const goalTurn = new Quaternion().copy(heroTurn)
+  const facing = new Quaternion().copy(heroTurn)
+  camera.position.copy(HERO_POS)
 
   const sky = createSky(camera)
   sky.setScale(ringScale(camera.aspect))
@@ -106,8 +121,8 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
   sky.scene.add(tunnel.group)
 
   let prevTime = performance.now()
-  let p = 0
-  let vel = 0
+  const scroll = { value: 0, velocity: 0 }
+  const reveal = [0, 0, 0]
   let yaw = 0
   let pitch = 0
 
@@ -115,28 +130,29 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
     const delta = Math.min((time - prevTime) / 1000, 0.1) // clamp big tab-switch gaps
     prevTime = time
 
-    if (REDUCED_MOTION.matches) {
-      p = state.scroll
-      vel = 0
+    const still = REDUCED_MOTION.matches || delta <= 0
+    if (still) {
+      scroll.value = state.scroll
+      scroll.velocity = 0
     } else {
-      for (let left = delta; left > 0; left -= MAX_STEP) {
-        const h = left < MAX_STEP ? left : MAX_STEP
-        vel += (OMEGA * OMEGA * (state.scroll - p) - 2 * OMEGA * vel) * h
-        p += vel * h
-      }
-      p = clamp(p, 0, 1)
+      damp(scroll, state.scroll, SCROLL_DAMPING, delta, SCROLL_MAX_SPEED, SCROLL_EPS)
     }
+    const p = scroll.value
 
-    // --- The camera: turn to look down, then dive ---
+    // --- The camera: turn to look down, then dive. Targets off `p`, chased. ---
     const turn = smoother(range(p, ...TURN))
     const drop =
       DROP_TO_MOUTH * smoother(range(p, ...DROP_A)) + DROP_THROUGH * smoother(range(p, ...DROP_B))
-    camera.position.set(
-      0,
-      HERO_POS.y + (TURNED_Y - HERO_POS.y) * turn - drop,
-      HERO_POS.z * (1 - turn),
-    )
-    camera.quaternion.slerpQuaternions(heroTurn, downTurn, turn)
+    goal.set(0, HERO_POS.y + (TURNED_Y - HERO_POS.y) * turn - drop, HERO_POS.z * (1 - turn))
+    goalTurn.slerpQuaternions(heroTurn, downTurn, turn)
+    if (still) {
+      camera.position.copy(goal)
+      facing.copy(goalTurn)
+    } else {
+      camera.position.lerp(goal, 1 - Math.exp(-MOVE_LAMBDA * delta))
+      facing.slerp(goalTurn, 1 - Math.exp(-TURN_LAMBDA * delta))
+    }
+    camera.quaternion.copy(facing)
 
     // A few degrees toward the pointer, on top of the flight. Not in the hero:
     // it comes in with the turn, so the opening frame stays exactly as it was.
@@ -151,7 +167,10 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
       camera.updateProjectionMatrix()
     }
 
-    tunnel.update(smoother(range(p, ...TWIST)))
+    for (let k = 0; k < reveal.length; k++) {
+      reveal[k] = smoother(range(p, REVEAL[0] + k * REVEAL_STAGGER, REVEAL[1]))
+    }
+    tunnel.update(reveal, smoother(range(p, ...TWIST)))
     sky.update(
       delta,
       !REDUCED_MOTION.matches,

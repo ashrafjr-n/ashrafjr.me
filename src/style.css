@@ -149,7 +149,9 @@ body {
    scroll away together from there, with the first card `100 - --list-rise`
    below the top. */
 .journey {
-  height: 640svh;
+  /* Three screens of scroll, like ScrollControls' pages={4} on the
+     reference: the journey plays over this height less the stuck stage. */
+  height: 400svh;
 }
 
 .journey-stage {

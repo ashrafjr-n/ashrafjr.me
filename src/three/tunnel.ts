@@ -2,10 +2,12 @@
  * The statements' tunnel: a triangular shaft under the cloud ring, with one
  * statement running down each of its three walls, into the depth.
  *
- * There are no walls, only the type. The camera dives down the shaft's axis
- * (`three/scene.ts`), so each statement starts huge at the edge of the frame
- * and runs away to the vanishing point in the middle, and the shaft turns a
- * quarter as the camera goes through it.
+ * There are no walls, only the type. Nothing of it shows from the hero: once
+ * the camera is inside the ring, each statement **rises out of the depth**
+ * along its wall into place, fading up as it comes, one wall after another.
+ * Then the camera travels down the shaft's axis (`three/scene.ts`), so each
+ * statement runs from huge at the edge of the frame to the vanishing point in
+ * the middle, and the shaft turns a quarter as the camera goes.
  *
  * Set in DM Serif Display (`public/fonts/`, OFL) with troika's SDF text, which
  * stays sharp however close a letter comes.
@@ -23,11 +25,13 @@ const FONT_SIZE = 2.1
 const STAGGER = [0.4, 2.2, 1.2]
 /** The turn the shaft makes as the camera goes through, radians. */
 const TWIST = Math.PI / 2
+/** How far down its wall a statement starts its rise, world units. */
+const RISE = 16
 
 export interface Tunnel {
   group: Group
-  /** `twist` is 0..1 of the turn. */
-  update(twist: number): void
+  /** `reveal` is each statement's rise, 0..1; `twist` is 0..1 of the turn. */
+  update(reveal: readonly number[], twist: number): void
 }
 
 export function createTunnel(): Tunnel {
@@ -36,6 +40,8 @@ export function createTunnel(): Tunnel {
   const inward = new Vector3()
   const across = new Vector3()
   const basis = new Matrix4()
+  const texts: Text[] = []
+  const homes: number[] = []
 
   STATEMENTS.forEach((statement, k) => {
     // One wall at the bottom of the screen, the other two up to either side:
@@ -57,12 +63,21 @@ export function createTunnel(): Tunnel {
     basis.makeBasis(down, across, inward)
     text.quaternion.setFromRotationMatrix(basis)
     text.position.set(-inward.x * APOTHEM, TOP - STAGGER[k], -inward.z * APOTHEM)
+    text.visible = false
     text.sync()
     group.add(text)
+    texts.push(text)
+    homes.push(text.position.y)
   })
 
-  function update(twist: number): void {
+  function update(reveal: readonly number[], twist: number): void {
     group.rotation.y = twist * TWIST
+    texts.forEach((text, k) => {
+      const r = reveal[k]
+      text.visible = r > 0
+      text.position.y = homes[k] - (1 - r) * RISE
+      text.fillOpacity = r
+    })
   }
 
   return { group, update }
