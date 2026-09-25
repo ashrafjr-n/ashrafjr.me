@@ -23,21 +23,19 @@
   /* The tunnel's statements and the PROJECTS heading (public/fonts, OFL). */
   --font-serif: "DM Serif Display", serif;
 
-  /* Pure black — the same value the model's own material renders, so the model
-     reads as one continuous surface with the page. Must stay #000000. */
-  --bg: #000000;
+  /* The sky's colour (three/sky.ts), per theme — what the page shows past the
+     canvas, and the scrollbar's track. */
+  --bg: #4f99d2;
   --text-dim: rgba(255, 255, 255, 0.5);
   --accent: #e8e8ec;
 
-  /* The browser's own scrollbar. Grayscale like everything else: the track is
-     the page's black so the bar reads as part of the composition rather than
-     as a strip of chrome beside it, and the thumb is the same dim white the
-     body text uses. */
-  --scroll-thumb: rgba(255, 255, 255, 0.35);
-  --scroll-thumb-hover: rgba(255, 255, 255, 0.7);
+  /* The browser's own scrollbar: the track is the sky, so the bar reads as
+     part of the composition rather than as a strip of chrome beside it. */
+  --scroll-thumb: rgba(255, 255, 255, 0.45);
+  --scroll-thumb-hover: rgba(255, 255, 255, 0.8);
 
-  /* The "View <name>" pointer's diameter — well over the inverting disc's
-     34px, and wide enough for the longest name on one line. */
+  /* The "View <name>" pointer's diameter — wide enough for the longest name
+     on one line. */
   --view-size: 148px;
   /* The "in progress" pill's colour — the site's one deliberate accent, asked
      for so unfinished work reads at a glance. */
@@ -49,12 +47,16 @@
 
 }
 
+:root[data-theme="dark"] {
+  --bg: #111111;
+}
+
 /* ===========================================================
    Base
    =========================================================== */
 /* No tap flash. Mobile WebKit and Chrome paint a translucent grey/blue box over
    a link or button the instant it is touched — outside the palette, and a
-   flicker on the badges, EXPLORE and the project cards. Keyboard focus keeps
+   flicker on the badges, the theme switch and the project cards. Keyboard focus keeps
    its own outlines. */
 a,
 button {
@@ -67,9 +69,7 @@ html {
      up, which resizes the visible screen under a composition that is solved
      against it. Scrolling an element inside the page instead keeps the
      toolbar shown for good — so `html` is exactly one screen tall and clips,
-     and every scroll on the site happens in `body` below. `overflow: hidden`
-     here is also what `overflow-x: hidden` on the root used to be: it keeps
-     the identity rows parked off-screen from opening a horizontal scroll. */
+     and every scroll on the site happens in `body` below. */
   height: 100%;
   overflow: hidden;
   /* Nothing to bounce on either element — see body. */
@@ -104,18 +104,18 @@ html {
 }
 
 body {
-  /* Flat, ungraded black — shows through the transparent canvas and must stay
-     pixel-identical to the model's black, so no gradient here. */
+  /* The sky's colour, following the theme with the canvas (1s, like the sky). */
   background: var(--bg);
+  transition: background-color 1s ease;
   /* The page's scroller (see html). One screen tall, scrolling its own
      content, which is #app below. */
   height: 100%;
   overflow-x: hidden;
   overflow-y: auto;
-  /* No rubber-band or pull-to-refresh at the two ends of a 1060svh page.
-     Everything on screen is `position: fixed`, so an overscroll bounce drags
-     the viewport away from a composition that cannot follow it, and on a phone
-     an overscroll at the top of Scene 1 is a refresh rather than a scroll. */
+  /* No rubber-band or pull-to-refresh at the two ends of the page. The canvas
+     is `position: fixed`, so an overscroll bounce drags the viewport away from
+     a composition that cannot follow it, and on a phone an overscroll at the
+     top of the hero is a refresh rather than a scroll. */
   overscroll-behavior: none;
   /* The scrollbar, in the site's palette. It is body's now, since body is what
      scrolls. This is the standard property (Firefox, and Chrome 121+); the
@@ -123,11 +123,9 @@ body {
      applies the browser ignores those, so the two do not fight. Keep both —
      Safari still needs the second.
 
-     Width is stated once and never changes, which is what keeps it clear of
-     the thing lib/scroll-lock.ts exists to avoid: a scrollbar that appears or
+     Width is stated once and never changes: a scrollbar that appears or
      changes width mid-session moves the box every fixed layer is sized
-     against, and every fixed layer would jump sideways. A constant width is
-     free. */
+     against, and every fixed layer would jump sideways. */
   scrollbar-width: thin;
   scrollbar-color: var(--scroll-thumb) var(--bg);
   color: var(--text-dim);
@@ -186,10 +184,8 @@ body {
 }
 
 /* ===========================================================
-   Three.js background canvas
-
-   Stars to the right of the rope and the day sky with its cloud ring to the
-   left, split at the rope's x (ui/split.ts) — see three/scene.ts `drawSplit`.
+   Three.js background canvas: the sky, the cloud ring and the tunnel
+   (three/scene.ts)
    =========================================================== */
 #scene {
   position: fixed;
@@ -248,6 +244,49 @@ body {
      the scroll, on top of whatever `top` is set here. */
   .intro {
     top: 15svh;
+  }
+}
+
+/* ===========================================================
+   The theme switch (ui/theme.ts), top-right, level with the badges.
+   Fades in once the loader has gone.
+   =========================================================== */
+.theme-switch {
+  position: fixed;
+  top: 2rem;
+  right: 2rem;
+  z-index: 90;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: #ffffff;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 1s ease 1s, transform 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.theme-switch.is-shown {
+  opacity: 1;
+}
+
+.theme-switch svg {
+  width: 100%;
+  height: 100%;
+}
+
+.theme-switch:focus-visible {
+  outline: 2px solid #ffffff;
+  outline-offset: 6px;
+  transform: rotate(-20deg);
+}
+
+@media (hover: hover) {
+  .theme-switch:hover {
+    transform: rotate(-20deg);
   }
 }
 
