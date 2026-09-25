@@ -28,8 +28,22 @@ const CLOUDS = [
   { url: '/assets/hero/clouds/cloud-wide.png', weight: 2 },
   { url: '/assets/hero/clouds/cloud-wisp.png', weight: 1 },
   { url: '/assets/hero/clouds/cloud-puff.png', weight: 2 },
+  // The shreds: torn remnants, only ever used along the ring's two edges.
+  { url: '/assets/hero/clouds/cloud-shred-a.png', weight: 0 },
+  { url: '/assets/hero/clouds/cloud-shred-b.png', weight: 0 },
+  { url: '/assets/hero/clouds/cloud-shred-c.png', weight: 0 },
+  { url: '/assets/hero/clouds/cloud-shred-d.png', weight: 0 },
 ]
+const FIRST_SHRED = 4
 const CLOUD_COUNT = 30
+/**
+ * Remnants scattered just inside and just outside the ring, smaller and fainter
+ * than the clouds, drawn behind them — what keeps the band's edges from reading
+ * as cut out.
+ */
+const SHRED_COUNT = 26
+const SHRED_INNER = [2.05, 2.3]
+const SHRED_OUTER = [2.8, 2.95]
 /**
  * A little inside the star band (2.71..2.92): a cloud is thick, so its middle
  * sits inward for its outer edge to meet the stars. Kept low (`y`) as well —
@@ -79,6 +93,8 @@ interface Cloud {
   width: number
   /** A small turn of its own on top of facing the centre, so no two align. */
   tilt: number
+  /** Its opacity once faded in. */
+  alpha: number
 }
 
 export interface Sky {
@@ -137,6 +153,24 @@ export function createSky(camera: PerspectiveCamera): Sky {
       y: rand(0, 0.3),
       width: rand(SIZE_MIN, SIZE_MAX),
       tilt: rand(-0.18, 0.18),
+      alpha: 1,
+    })
+    scene.add(sprite)
+  }
+  for (let i = 0; i < SHRED_COUNT; i++) {
+    const sprite = new Sprite(new SpriteMaterial({ transparent: true, depthWrite: false, opacity: 0 }))
+    // Drawn before every cloud, so a shred only ever shows past a cloud's edge.
+    sprite.renderOrder = -0.5
+    const [lo, hi] = i % 2 ? SHRED_OUTER : SHRED_INNER
+    clouds.push({
+      sprite,
+      kind: FIRST_SHRED + (i % 4),
+      angle: ((i + rand(-0.4, 0.4)) / SHRED_COUNT) * Math.PI * 2,
+      radius: rand(lo, hi),
+      y: rand(0, 0.25),
+      width: rand(0.8, 1.3),
+      tilt: rand(-0.6, 0.6),
+      alpha: rand(0.6, 0.85),
     })
     scene.add(sprite)
   }
@@ -162,7 +196,7 @@ export function createSky(camera: PerspectiveCamera): Sky {
       const w = cloud.width * scale
       cloud.sprite.scale.set(w, w * ratios[cloud.kind], 1)
       const m = cloud.sprite.material
-      m.opacity = eased
+      m.opacity = eased * cloud.alpha
 
       // Top of the image toward the ring's centre, as seen on screen.
       p.copy(cloud.sprite.position).project(camera)
