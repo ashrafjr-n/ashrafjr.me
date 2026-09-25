@@ -11,15 +11,12 @@ import { createLoader } from './ui/loader'
 import { createProjects } from './ui/projects'
 import { createTitle } from './ui/title'
 import { createThemeSwitch } from './ui/theme'
-import { createExplore } from './ui/explore'
+import { lockScroll, unlockScroll } from './lib/scroll-lock'
 
 /** How far the line drifts upward as it goes, in px. */
 const INTRO_DRIFT = 70
 /** The share of the journey the intro line takes to leave. */
 const INTRO_OUT = 0.1
-/** Where EXPLORE leaves the heading once pressed, in screen heights from the top. */
-const OPEN_TO = 0.1
-const REDUCED_MOTION = window.matchMedia('(prefers-reduced-motion: reduce)')
 
 /** Scene 1 intro line, centred near the top of the viewport. */
 function buildIntro(): HTMLParagraphElement {
@@ -43,31 +40,35 @@ canvas.id = 'scene'
 const intro = buildIntro()
 /**
  * The journey's scroll range. Its one child is a screen-high stage that sticks
- * to the top while the journey plays, holding PROJECTS and EXPLORE. The list
- * follows it, left out of the page until EXPLORE is pressed.
+ * to the top for the whole journey, holding PROJECTS and the tile that opens
+ * the projects.
  */
 const journey = document.createElement('div')
 journey.className = 'journey'
 const stage = document.createElement('div')
 stage.className = 'journey-stage'
 const title = createTitle()
-const projects = createProjects()
-projects.hidden = true
-/** Open the list, then glide the heading up so the first card comes in under it. */
-function openProjects(): void {
-  projects.hidden = false
-  const top = title.el.getBoundingClientRect().top - window.innerHeight * OPEN_TO
-  scroller.scrollBy({ top, behavior: REDUCED_MOTION.matches ? 'instant' : 'smooth' })
-}
-const explore = createExplore(openProjects)
-stage.append(title.el, explore.el)
 journey.append(stage)
-app.append(canvas, intro, journey, projects)
+app.append(canvas, intro, journey)
 
 const scene = initScene(canvas)
 
 const theme = createThemeSwitch()
-app.append(buildSocialBadges(), theme.el)
+const socialBadges = buildSocialBadges()
+app.append(socialBadges, theme.el)
+
+/**
+ * While the projects are open the page behind holds still: only their own
+ * list scrolls, and the theme switch steps aside, as on the reference.
+ */
+function setPageTakenOver(open: boolean): void {
+  theme.el.classList.toggle('is-away', open)
+  if (open) lockScroll(projects.scroller)
+  else unlockScroll()
+}
+// Over everything but the social badges, which stay live over it.
+const projects = createProjects(app, setPageTakenOver, [socialBadges])
+stage.append(title.el, projects.tile)
 
 window.addEventListener('resize', () => scene.resize())
 
@@ -101,7 +102,7 @@ function raf(time: number) {
   const p = scene.update(time, state, theme.update(delta))
   updateIntro(range(p, 0, INTRO_OUT))
   title.update(p, delta)
-  explore.update(p)
+  projects.update(p)
   requestAnimationFrame(raf)
 }
 

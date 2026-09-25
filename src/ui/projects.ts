@@ -1,7 +1,15 @@
 /**
- * The projects list at the end of the journey, under the PROJECTS heading:
- * one column that alternates sides — first on the right, second on the left,
- * and so on — in the page's ordinary scroll, straight on the sky.
+ * The projects, behind a portal — after mohitvirli.github.io's GridTile.
+ *
+ * At the end of the journey one large tile sits under PROJECTS: a black face
+ * (the world it opens onto) with the screenshots floating in it. On hover the
+ * face lifts, a grey box with white edges comes out behind it and the tile's
+ * title fades in. Pressed, the black **opens out of the tile to fill the
+ * screen** (0.5s, as the portal's blend there), a close cross turns in over a
+ * second from -180°, and the projects are inside: one column that alternates
+ * sides — first on the right, second on the left, and so on — under an
+ * ordinary scroll of its own. The cross or Escape folds it back into the tile
+ * (1s).
  *
  * Each row slides in from its own side as it scrolls into view. On hover the
  * card's stack unfolds under its name, pill by pill, and a short note on the
@@ -15,6 +23,8 @@
  * Over a card the pointer becomes a translucent silver disc reading
  * "View <name>", grown out of a point. Fine pointers only.
  */
+
+import { range } from '../lib/math'
 
 interface Project {
   name: string
@@ -213,15 +223,65 @@ function bindTilt(card: HTMLElement): void {
   })
 }
 
-/** Build the list, ready to be placed after the journey. */
-export function createProjects(): HTMLElement {
+const CLOSE_LABEL = 'Close projects'
+/** The tile's own title, shown on hover — two lines, like the reference's. */
+const TILE_TITLE = 'SELECTED WORK'
+/** The tile comes in over this `[from, span]` of the journey. */
+const TILE_IN = [0.85, 0.15] as const
+
+export interface Projects {
+  /** The tile, for the journey's stage. */
+  tile: HTMLButtonElement
+  /** Fade the tile in off the journey. */
+  update(p: number): void
+  /** The one element the page's scroll lock has to leave scrollable. */
+  scroller: HTMLElement
+}
+
+/**
+ * Mount the section into `parent` and build the tile. `onOpenChange` is told
+ * at the start of every open and close — `main.ts` freezes the page behind it
+ * on that.
+ */
+export function createProjects(
+  parent: HTMLElement,
+  onOpenChange: (open: boolean) => void,
+  /** Siblings that stay live over the section — the social badges. */
+  keepLive: Element[] = [],
+): Projects {
+  // --- The tile ---
+  const tile = document.createElement('button')
+  tile.type = 'button'
+  tile.className = 'tile'
+  tile.setAttribute('aria-label', 'Open projects')
+  const preview = PROJECTS.map((p) => `<img src="${p.image}" alt="" decoding="async" loading="lazy">`).join('')
+  tile.innerHTML =
+    '<span class="tile-box" aria-hidden="true"></span>' +
+    `<span class="tile-face" aria-hidden="true"><span class="tile-preview">${preview}</span></span>` +
+    `<span class="tile-title" aria-hidden="true">${TILE_TITLE}</span>`
+  const face = tile.querySelector<HTMLElement>('.tile-preview')!
+
+  // --- The section ---
   const root = document.createElement('section')
   root.className = 'projects'
+  root.setAttribute('role', 'dialog')
+  root.setAttribute('aria-modal', 'true')
   root.setAttribute('aria-label', 'Projects')
 
+  const close = document.createElement('button')
+  close.type = 'button'
+  close.className = 'projects-close'
+  close.setAttribute('aria-label', CLOSE_LABEL)
+
+  // The scroller is separate from the section so the cross can sit still over
+  // it while the list scrolls.
+  const scroller = document.createElement('div')
+  scroller.className = 'projects-scroller'
+  scroller.tabIndex = -1
   const list = document.createElement('ol')
   list.className = 'projects-list'
   list.append(...PROJECTS.map(buildProject))
+  scroller.append(list)
   // The pointer over a card: a silver disc that grows out of a point and
   // reads "View <name>". It replaces the system cursor on the cards only.
   const view = document.createElement('div')
@@ -230,7 +290,9 @@ export function createProjects(): HTMLElement {
   const viewName = document.createElement('strong')
   view.innerHTML = '<span>View</span>'
   view.append(viewName)
-  root.append(list, view)
+
+  root.append(scroller, close, view)
+  parent.append(root)
 
   const cards = [...list.querySelectorAll<HTMLElement>('.project-card')]
   const finePointer = window.matchMedia('(hover: hover) and (pointer: fine)').matches
@@ -255,10 +317,21 @@ export function createProjects(): HTMLElement {
     }
     if (!REDUCED_MOTION.matches) {
       for (const card of cards) bindTilt(card)
+      // The tile's face is a window: what is inside it drifts against the
+      // pointer, a little, so it reads as depth behind the frame.
+      tile.addEventListener('pointermove', (e) => {
+        const r = tile.getBoundingClientRect()
+        const nx = ((e.clientX - r.left) / r.width) * 2 - 1
+        const ny = ((e.clientY - r.top) / r.height) * 2 - 1
+        face.style.translate = `${(-nx * 3).toFixed(2)}% ${(-ny * 3).toFixed(2)}%`
+      })
+      tile.addEventListener('pointerleave', () => face.style.removeProperty('translate'))
     }
   }
 
-  // Each row slides in from its own side the first time it scrolls into view.
+  // Each row slides in from its own side the first time it scrolls into view,
+  // and again on every open.
+  const items = [...list.children] as HTMLElement[]
   const reveal = new IntersectionObserver(
     (entries) => {
       for (const entry of entries) {
@@ -267,9 +340,92 @@ export function createProjects(): HTMLElement {
         reveal.unobserve(entry.target)
       }
     },
-    { rootMargin: '0px 0px -12% 0px' },
+    { root: scroller, rootMargin: '0px 0px -12% 0px' },
   )
-  for (const item of list.children) reveal.observe(item)
 
-  return root
+  let isOpen = false
+
+  /** Everything else in `parent` is taken out of reach while it is open. */
+  function setOthersInert(inert: boolean): void {
+    for (const el of parent.children) {
+      if (el !== root && !keepLive.includes(el)) (el as HTMLElement).inert = inert
+    }
+  }
+
+  /** The tile's box as a clip on the full-screen section. */
+  function tileClip(): string {
+    const r = tile.getBoundingClientRect()
+    return `inset(${r.top}px ${window.innerWidth - r.right}px ${window.innerHeight - r.bottom}px ${r.left}px)`
+  }
+
+  function open(): void {
+    if (isOpen) return
+    isOpen = true
+    scroller.scrollTop = 0
+    // Every row back to its hidden start **instantly**, so none is seen
+    // sliding away from the last visit while the portal opens.
+    for (const item of items) {
+      item.style.transition = 'none'
+      item.classList.remove('is-in')
+      reveal.unobserve(item)
+    }
+    // The section starts exactly on the tile, then opens out of it.
+    root.style.transition = 'none'
+    root.style.clipPath = tileClip()
+    void root.offsetWidth // commit both before the transitions come back
+    for (const item of items) item.style.transition = ''
+    root.style.transition = ''
+    root.style.clipPath = ''
+    root.classList.add('is-open')
+    // The rows start watching once the portal is fully open.
+    if (REDUCED_MOTION.matches) watchRows()
+    else root.addEventListener('transitionend', onOpened)
+    setOthersInert(true)
+    onOpenChange(true)
+    // So the keys scroll the list, not the page behind it.
+    scroller.focus({ preventScroll: true })
+  }
+
+  function watchRows(): void {
+    if (isOpen) for (const item of items) reveal.observe(item)
+  }
+
+  function onOpened(e: TransitionEvent): void {
+    if (e.target !== root || e.propertyName !== 'clip-path') return
+    root.removeEventListener('transitionend', onOpened)
+    watchRows()
+  }
+
+  function shut(): void {
+    if (!isOpen) return
+    isOpen = false
+    root.removeEventListener('transitionend', onOpened)
+    // Folds back into the tile, then stops being painted (the stylesheet).
+    root.style.clipPath = tileClip()
+    root.classList.remove('is-open')
+    view.classList.remove('is-on')
+    setOthersInert(false)
+    onOpenChange(false)
+    tile.focus({ preventScroll: true })
+  }
+
+  tile.addEventListener('click', open)
+  close.addEventListener('click', shut)
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') shut()
+  })
+
+  let drawn = -1
+  function update(p: number): void {
+    const t = range(p, ...TILE_IN)
+    if (t === drawn) return
+    drawn = t
+    tile.style.opacity = String(t)
+    tile.style.scale = String(0.94 + 0.06 * t)
+    // Out of reach, keyboard included, until it is really there.
+    tile.style.visibility = t > 0 ? 'visible' : 'hidden'
+    tile.style.pointerEvents = t > 0.6 ? 'auto' : 'none'
+  }
+
+  return { tile, update, scroller }
 }
