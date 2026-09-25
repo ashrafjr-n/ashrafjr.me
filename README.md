@@ -1,43 +1,44 @@
 # ashraf
 
-My personal portfolio. It opens on a ring of clouds in a blue sky; scrolling
-dives through the ring and down a tunnel of three statements to my projects,
-behind a tile that opens them. There is a dark mode, and each visit opens on a
-short 0–99 count. The scroll, the PROJECTS heading, the tile and the dark mode
-follow [mohitvirli.github.io](https://github.com/mohitvirli/mohitvirli.github.io),
-with its author's permission.
+My personal portfolio, in 3D. It opens on a sky of clouds; scrolling drops
+through a window into my work, education and projects. There is a dark mode.
+
+It is built on [mohitvirli.github.io](https://github.com/mohitvirli/mohitvirli.github.io)
+by Mohit Virli, with his permission.
 
 ## Built with
 
-- **[Three.js](https://threejs.org)**: the sky, the ring of clouds, the
-  scroll-driven camera and the dark mode's stars
-- **[troika-three-text](https://github.com/protectwise/troika/tree/main/packages/troika-three-text)**:
-  the tunnel's 3D type
-- **TypeScript**: vanilla and `strict`, with no UI framework
-- **[Vite](https://vite.dev)**: dev server and build
-- **Plain CSS**: design tokens, layout and every transition, with no CSS
-  framework
-- **Space Grotesk** and **JetBrains Mono**, from Google Fonts, and
-  **DM Serif Display** (OFL), self-hosted
-- **Lucide** and **Simple Icons**: the icon paths are embedded inline, so there
-  is no icon package
-
-No animation library either: one `requestAnimationFrame` loop and CSS
-transitions.
+- **Next.js** (static export) and **React**
+- **React Three Fiber** and **drei**
+- **GSAP**
+- **Zustand**
+- **Tailwind CSS**
 
 ## Running it
 
 ```sh
 npm install
-npm run dev      # dev server
-npm run build    # typecheck, then a production build
+npm run dev      # dev server on http://localhost:3000
+npm run build    # static export to out/
 ```
 
-## Projects
+Pushing to `master` deploys to GitHub Pages (`.github/workflows/nextjs.yml`).
+For a custom domain, set the `GH_PAGES_CUSTOM_DOMAIN` secret and the build
+writes `public/CNAME`. Set `NEXT_PUBLIC_GA_ID` to turn on Google Analytics.
 
-The projects list reads a single array, `PROJECTS` in `src/ui/projects.ts`,
-which holds each project's name, link, screenshot, short note and stack. The
-screenshots live in `public/assets/projects/`.
+## Content
 
-`prefers-reduced-motion` is honoured: the ring holds still and the journey
-follows the scroll exactly, with no easing after it.
+- Projects: `app/constants/projects.ts`
+- Work and education: `app/constants/work.ts`
+- Footer links: `app/constants/footer.ts`
+
+## Credits
+
+3D models from Sketchfab:
+
+- [Residential Window](https://sketchfab.com/3d-models/residential-window-ae11104237314463a61251fd46ded4b4)
+  by AleixoAlonso, [CC BY 4.0](http://creativecommons.org/licenses/by/4.0/)
+- [Dali, The Persistence of Memory](https://sketchfab.com/3d-models/dalithe-persistence-of-memory-ab3e99facbdb4d9d8661d3f07815638e)
+  by arloopa, [CC BY 4.0](http://creativecommons.org/licenses/by/4.0/)
+- [Wanderer above the sea of fog](https://sketchfab.com/3d-models/wanderer-above-the-sea-of-fog-518e605e9b734c86aab5bc22f9797f77)
+  by betocarrillo, [CC BY-SA 4.0](http://creativecommons.org/licenses/by-sa/4.0/)
