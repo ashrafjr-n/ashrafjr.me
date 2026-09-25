@@ -21,7 +21,6 @@ import {
 } from 'three'
 import type { PerspectiveCamera, Texture } from 'three'
 import { rand } from '../lib/math'
-import { MODEL_SPIN_RATE } from './world'
 
 const CLOUDS = [
   { url: '/assets/hero/clouds/cloud-crescent.png', weight: 3 },
@@ -54,8 +53,8 @@ const RING_JITTER = 0.1
 /** World width of one cloud; the camera's perspective makes the near ones larger. */
 const SIZE_MIN = 1.55
 const SIZE_MAX = 2.1
-/** Clockwise, at the band's typical pace. */
-const RING_RATE = 1.1 * MODEL_SPIN_RATE
+/** Clockwise, rad/s: a slow, calm turn. */
+const RING_RATE = 0.1
 /** Seconds the clouds take to fade in once every texture has arrived. */
 const FADE_IN = 1.2
 

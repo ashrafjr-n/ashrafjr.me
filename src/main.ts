@@ -55,7 +55,7 @@ function updateIntro(t: number): void {
 // --- Single RAF loop: the only one in the app; hook new per-frame work in here
 function raf(time: number) {
   if (!loaderGone) loaderGone = loader.update(time)
-  scene.update(time, state, window.innerWidth)
+  scene.update(time, state)
   updateIntro(0)
   requestAnimationFrame(raf)
 }
