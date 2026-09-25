@@ -2,12 +2,13 @@
  * The statements' tunnel: a triangular shaft under the cloud ring, with one
  * statement running down each of its three walls, into the depth.
  *
- * There are no walls, only the type. Nothing of it shows from the hero: once
- * the camera is inside the ring, all three **rise out of the depth** along
- * their walls into place together, fading up as they come.
- * Then the camera travels down the shaft's axis (`three/scene.ts`), so each
- * statement runs from huge at the edge of the frame to the vanishing point in
- * the middle, and the shaft turns a quarter as the camera goes.
+ * There are no walls, only the type. The shaft sits **far below the ring**,
+ * like mohitvirli.github.io's window: out of frame from the hero, it comes
+ * into view as a small shape in the middle of the screen the moment the
+ * camera looks down, and grows as the camera falls toward it
+ * (`three/scene.ts`). Inside, each statement runs from huge at the edge of
+ * the frame to the vanishing point in the middle, and the shaft turns a
+ * quarter as the camera goes through.
  *
  * Set in DM Serif Display (`public/fonts/`, OFL) with troika's SDF text, which
  * stays sharp however close a letter comes.
@@ -17,21 +18,19 @@ import { Text } from 'troika-three-text'
 
 const STATEMENTS = ['COMPUTER SCIENCE', 'FULL-STACK DEVELOPER', 'BUILDING TOWARD AI']
 export const TUNNEL_FONT = '/fonts/DMSerifDisplay-Regular.ttf'
-/** Where the shaft opens, just under the ring, and how far off the axis each wall is. */
-const TOP = -2
+/** Where the shaft opens, far under the ring, and how far off the axis each wall is. */
+const TOP = -78.7
 const APOTHEM = 1.15
 const FONT_SIZE = 2.1
 /** How far down its wall each statement starts, so the three are not level. */
 const STAGGER = [0.4, 2.2, 1.2]
 /** The turn the shaft makes as the camera goes through, radians. */
 const TWIST = Math.PI / 2
-/** How far down its wall a statement starts its rise, world units. */
-const RISE = 16
 
 export interface Tunnel {
   group: Group
-  /** `reveal` is the statements' rise, 0..1; `twist` is 0..1 of the turn. */
-  update(reveal: number, twist: number): void
+  /** `twist` is 0..1 of the turn. */
+  update(twist: number): void
 }
 
 export function createTunnel(): Tunnel {
@@ -40,8 +39,6 @@ export function createTunnel(): Tunnel {
   const inward = new Vector3()
   const across = new Vector3()
   const basis = new Matrix4()
-  const texts: Text[] = []
-  const homes: number[] = []
 
   STATEMENTS.forEach((statement, k) => {
     // One wall at the bottom of the screen, the other two up to either side:
@@ -63,20 +60,12 @@ export function createTunnel(): Tunnel {
     basis.makeBasis(down, across, inward)
     text.quaternion.setFromRotationMatrix(basis)
     text.position.set(-inward.x * APOTHEM, TOP - STAGGER[k], -inward.z * APOTHEM)
-    text.visible = false
     text.sync()
     group.add(text)
-    texts.push(text)
-    homes.push(text.position.y)
   })
 
-  function update(reveal: number, twist: number): void {
+  function update(twist: number): void {
     group.rotation.y = twist * TWIST
-    texts.forEach((text, k) => {
-      text.visible = reveal > 0
-      text.position.y = homes[k] - (1 - reveal) * RISE
-      text.fillOpacity = reveal
-    })
   }
 
   return { group, update }

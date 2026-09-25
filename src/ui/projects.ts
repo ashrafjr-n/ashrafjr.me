@@ -24,7 +24,7 @@
  * "View <name>", grown out of a point. Fine pointers only.
  */
 
-import { range, smoother } from '../lib/math'
+import { range } from '../lib/math'
 
 interface Project {
   name: string
@@ -227,14 +227,13 @@ const CLOSE_LABEL = 'Close projects'
 /** The tile's own title, shown on hover — two lines, like the reference's. */
 const TILE_TITLE = 'SELECTED WORK'
 /**
- * The tile's entrance, as the reference's: there the camera pulls back as the
- * tiles come in (z 5 → 15 over the last stretch, damped λ 7), so a tile
- * arrives from right up against the lens and settles into place. Here it
- * starts `PULL` times its size and recedes, over `TILE_IN` of the journey,
- * chased at that same λ.
+ * The tile's entrance, as the reference's tiles, measured off the live site:
+ * the camera pulls back over `range(0.85, 0.18)` (damped λ 7) and the tiles
+ * **rise into view from under the bottom edge** to their place. Here the tile
+ * rises `RISE` screen heights over `TILE_IN`, chased at that same λ.
  */
-const TILE_IN = [0.84, 0.16] as const
-const PULL = 1.6
+const TILE_IN = [0.85, 0.15] as const
+const RISE = 1.1
 const LAMBDA = 7
 
 export interface Projects {
@@ -426,14 +425,14 @@ export function createProjects(
   let shown = 0
   let drawn = -1
   function update(p: number, delta: number): void {
-    const target = smoother(range(p, ...TILE_IN))
+    const target = range(p, ...TILE_IN)
     const chase = REDUCED_MOTION.matches ? 1 : 1 - Math.exp(-LAMBDA * delta)
     shown = Math.abs(target - shown) < 1e-4 ? target : shown + (target - shown) * chase
     const t = shown
     if (t === drawn) return
     drawn = t
-    tile.style.opacity = String(Math.min(1, t * 2))
-    tile.style.scale = String(1 + PULL * (1 - t))
+    tile.style.opacity = '1'
+    tile.style.translate = `-50% ${((1 - t) * RISE * window.innerHeight).toFixed(1)}px`
     // Out of reach, keyboard included, until it is really there.
     tile.style.visibility = t > 0 ? 'visible' : 'hidden'
     tile.style.pointerEvents = t > 0.6 ? 'auto' : 'none'

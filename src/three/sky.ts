@@ -66,9 +66,12 @@ const SIZE_MAX = 2.1
 const RING_RATE = 0.099
 /** Seconds the clouds take to fade in once every texture has arrived. */
 const FADE_IN = 1.2
-/** Fully open, the ring is this many times its radius, and each cloud this many times its size. */
-const OPEN_RADIUS = 4
-const OPEN_SIZE = 1.8
+/**
+ * Fully open, the ring is this many times its radius, and each cloud this many
+ * times its size — a little, since the camera's fall does the rest.
+ */
+const OPEN_RADIUS = 1.3
+const OPEN_SIZE = 1.2
 
 /**
  * The dark theme's stars: a thin shell far out around everything, so the
@@ -125,9 +128,17 @@ export interface Sky {
   /**
    * `turning` is false under reduced motion: the ring holds still. `open` is
    * how far the ring has opened, 0..1, `fade` how much of it is left, and
-   * `dark` how far into the dark theme the sky is.
+   * `dark` how far into the dark theme the sky is, and `sink` how far the
+   * ring has come down with the camera, in world units.
    */
-  update(delta: number, turning: boolean, open: number, fade: number, dark: number): void
+  update(
+    delta: number,
+    turning: boolean,
+    open: number,
+    fade: number,
+    dark: number,
+    sink: number,
+  ): void
   /** The ring is scaled down to fit a narrow screen. */
   setScale(k: number): void
 }
@@ -242,7 +253,14 @@ export function createSky(camera: PerspectiveCamera): Sky {
   const p = new Vector3()
   const c = new Vector3()
 
-  function update(delta: number, turning: boolean, open: number, left: number, dark: number): void {
+  function update(
+    delta: number,
+    turning: boolean,
+    open: number,
+    left: number,
+    dark: number,
+    sink: number,
+  ): void {
     if (turning) spin += RING_RATE * delta
     skyMaterial.uniforms.uDark.value = dark
     starMaterial.opacity = dark
@@ -259,7 +277,7 @@ export function createSky(camera: PerspectiveCamera): Sky {
       if (!cloud.sprite.visible) continue
       const a = cloud.angle + spin
       const r = cloud.radius * spread
-      const y = cloud.y * scale
+      const y = cloud.y * scale - sink
       cloud.sprite.position.set(Math.cos(a) * r, y, Math.sin(a) * r)
 
       const w = cloud.width * grow

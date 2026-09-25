@@ -5,10 +5,10 @@
  * **The journey** is one value, `p` (0..1), and every target below is a pure
  * function of it, so scrolling back up rewinds all of it. The camera starts
  * over the ring at the hero's ~63° angle, turns to look straight down while
- * the ring opens around it, drops through the middle — where the statements
- * rise into the tunnel under it (`three/tunnel.ts`) — and travels down the
- * tunnel to the end of it, where PROJECTS comes in (`ui/title.ts`) and then
- * the card that opens the projects (`ui/projects.ts`).
+ * the ring opens around it, and falls through the middle toward the
+ * statements' tunnel far below (`three/tunnel.ts`), through it and out past
+ * its end, where PROJECTS comes in (`ui/title.ts`) and then the tile that
+ * opens the projects (`ui/projects.ts`).
  *
  * **The scroll feels like mohitvirli.github.io's, by construction**: `p` is
  * the scroll run through maath's `damp` with drei `ScrollControls`' settings
@@ -28,36 +28,39 @@ const HERO_FOV = 35
 /** Straight down at the end of the turn, with the old "into the screen" as screen-up. */
 const DIVE_FOV = 62
 /**
- * Where the camera is once it has turned, how far the first drop takes it (to
- * the tunnel's mouth, through the ring) and how far the second: down the
- * tunnel and out past its end, so the statements leave the screen and the
- * camera arrives over PROJECTS (`ui/title.ts`).
+ * Where the camera is once it has turned, and how far it then drops: one
+ * straight fall down to the statements' tunnel far below (`three/tunnel.ts`,
+ * its mouth at y −78.7), through it and out past its end. Solved against the
+ * live reference so the camera enters the tunnel at p ≈ 0.66 and leaves it at
+ * ≈ 0.79, as it enters and leaves that site's text.
  */
 const TURNED_Y = 7
-const DROP_TO_MOUTH = 8
-const DROP_THROUGH = 37
+const DROP_DEPTH = 119
+/**
+ * The cloud ring comes down with the camera, a little slower, so — like the
+ * clouds all the way down on the reference — it stays around the far-off
+ * tunnel as the camera falls, and the camera passes through it right at the
+ * tunnel's mouth (`7 / (1 - SINK)` of the drop, ≈ 86 units).
+ */
+const SINK = 0.918
 
 /**
- * The journey's beats, as `[from, span]` of `p`, in mohitvirli.github.io's
- * order: the turn over 0..0.3, then a quick plunge, then the long stretch —
- * all **linear**, the camera's damping is what smooths them, so there is no
- * stop where one hands over to the next. PROJECTS comes into view in the
- * road's last tenth (`ui/title.ts`); only once the camera has arrived do its
- * letters move and the tile come in.
+ * The journey's beats, as `[from, span]` of `p` — drei's `range(from,
+ * distance)` — on mohitvirli.github.io's own schedule, measured off the live
+ * site: the turn over `range(0, 0.3)`, the fall over `range(0.3, 0.5)` (0.3 to
+ * **0.8**), both linear and smoothed only by the camera's damping. The tunnel
+ * is in view from the moment the camera looks down — small, far off in the
+ * middle of the screen, as that site's window is — and grows as the camera
+ * comes to it; the camera is inside it by ~0.6 and past it by ~0.78, the
+ * tunnel turning a quarter meanwhile (`range(0.65, 0.15)` there). PROJECTS
+ * follows (`ui/title.ts`).
  */
 const TURN = [0, 0.3] as const
-const DROP_A = [0.3, 0.12] as const
-const DROP_B = [0.42, 0.3] as const
-const OPEN = [0.05, 0.33] as const
-const CLOUDS_OUT = [0.3, 0.12] as const
+const DROP = [0.3, 0.5] as const
+const OPEN = [0.05, 0.3] as const
+const CLOUDS_OUT = [0.62, 0.05] as const
 const WIDEN = [0.15, 0.25] as const
-/**
- * The statements do not exist until the camera is inside the ring; then all
- * three rise out of the depth into place **together**, as it comes down to
- * the tunnel's mouth.
- */
-const REVEAL = [0.36, 0.1] as const
-const TWIST = [0.42, 0.3] as const
+const TWIST = [0.62, 0.18] as const
 
 /** drei `ScrollControls` on mohitvirli.github.io: `damping={0.4} maxSpeed={1}`, default eps. */
 const SCROLL_DAMPING = 0.4
@@ -142,7 +145,7 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
 
     // --- The camera: turn to look down, then dive. Targets off `p`, chased. ---
     const turn = range(p, ...TURN)
-    const drop = DROP_TO_MOUTH * range(p, ...DROP_A) + DROP_THROUGH * range(p, ...DROP_B)
+    const drop = DROP_DEPTH * range(p, ...DROP)
     goal.set(0, HERO_POS.y + (TURNED_Y - HERO_POS.y) * turn - drop, HERO_POS.z * (1 - turn))
     goalTurn.slerpQuaternions(heroTurn, downTurn, turn)
     if (still) {
@@ -167,13 +170,14 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
       camera.updateProjectionMatrix()
     }
 
-    tunnel.update(smoother(range(p, ...REVEAL)), smoother(range(p, ...TWIST)))
+    tunnel.update(smoother(range(p, ...TWIST)))
     sky.update(
       delta,
       !REDUCED_MOTION.matches,
       smoother(range(p, ...OPEN)),
       1 - smoother(range(p, ...CLOUDS_OUT)),
       dark,
+      drop * SINK,
     )
     renderer.render(sky.scene, camera)
     return p
