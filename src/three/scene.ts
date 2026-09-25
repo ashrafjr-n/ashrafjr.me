@@ -6,12 +6,14 @@
  * and every move below is a pure function of it — so scrolling back up
  * rewinds all of it exactly. The camera starts over the ring at the hero's
  * ~63° angle, turns to look straight down while the ring opens around it,
- * and dives through the middle.
+ * dives through the middle and on down the statements' tunnel
+ * (`three/tunnel.ts`), out past its end.
  */
 import { Matrix4, PerspectiveCamera, Quaternion, Vector3, WebGLRenderer } from 'three'
 import { clamp, range, smoother } from '../lib/math'
 import type { InputState } from '../lib/state'
 import { createSky } from './sky'
+import { createTunnel } from './tunnel'
 
 /** The hero's vantage: above the ring, looking down at it at ~63°. */
 const HERO_POS = new Vector3(0, 9.3, 4.6)
@@ -19,19 +21,30 @@ const HERO_TARGET = new Vector3(0, 0.25, 0)
 const HERO_FOV = 35
 /** Straight down at the end of the turn, with the old "into the screen" as screen-up. */
 const DIVE_FOV = 62
-/** Where the camera is once it has turned, and how far down the dive takes it. */
+/**
+ * Where the camera is once it has turned, how far the first drop takes it (to
+ * the tunnel's mouth, through the ring) and how far the second (down the
+ * tunnel and out past its end).
+ */
 const TURNED_Y = 7
-const DIVE_DEPTH = 40
+const DROP_TO_MOUTH = 8
+const DROP_THROUGH = 32
 
 /**
  * The journey's beats, as `[from, span]` of `p`. They overlap on purpose, so
  * one move is still finishing as the next starts and the camera never stops.
  */
 const TURN = [0, 0.3] as const
-const OPEN = [0.04, 0.4] as const
-const CLOUDS_OUT = [0.3, 0.14] as const
+const OPEN = [0.04, 0.44] as const
+const CLOUDS_OUT = [0.34, 0.14] as const
 const WIDEN = [0.15, 0.35] as const
-const DIVE = [0.2, 0.8] as const
+/**
+ * The two drops overlap a little, so the camera slows at the tunnel's mouth —
+ * where all three statements are in view at once — without stopping.
+ */
+const DROP_A = [0.18, 0.34] as const
+const DROP_B = [0.46, 0.5] as const
+const TWIST = [0.5, 0.45] as const
 
 /**
  * The spring `p` follows the scroll on, rad/s: ~0.25s of lag, enough to turn
@@ -86,6 +99,8 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
 
   const sky = createSky(camera)
   sky.setScale(ringScale(camera.aspect))
+  const tunnel = createTunnel()
+  sky.scene.add(tunnel.group)
 
   let prevTime = performance.now()
   let p = 0
@@ -111,10 +126,11 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
 
     // --- The camera: turn to look down, then dive ---
     const turn = smoother(range(p, ...TURN))
-    const dive = smoother(range(p, ...DIVE))
+    const drop =
+      DROP_TO_MOUTH * smoother(range(p, ...DROP_A)) + DROP_THROUGH * smoother(range(p, ...DROP_B))
     camera.position.set(
       0,
-      HERO_POS.y + (TURNED_Y - HERO_POS.y) * turn - DIVE_DEPTH * dive,
+      HERO_POS.y + (TURNED_Y - HERO_POS.y) * turn - drop,
       HERO_POS.z * (1 - turn),
     )
     camera.quaternion.slerpQuaternions(heroTurn, downTurn, turn)
@@ -132,6 +148,7 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
       camera.updateProjectionMatrix()
     }
 
+    tunnel.update(smoother(range(p, ...TWIST)))
     sky.update(
       delta,
       !REDUCED_MOTION.matches,

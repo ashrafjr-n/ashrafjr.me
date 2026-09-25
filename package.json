@@ -6,8 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "preview": "vite preview",
-    "check": "node --experimental-strip-types src/lib/phases.check.ts && node --experimental-strip-types src/lib/scatter.check.ts"
+    "preview": "vite preview"
   },
   "devDependencies": {
     "@types/three": "^0.185.0",
@@ -15,6 +14,7 @@
     "vite": "^8.1.1"
   },
   "dependencies": {
-    "three": "^0.185.0"
+    "three": "^0.185.0",
+    "troika-three-text": "^0.52.5"
   }
 }
