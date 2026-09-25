@@ -107,7 +107,8 @@ const Footer = () => {
 
   return (
     <group position={[0, -44, 18]} rotation={[-Math.PI / 2, 0, 0]} ref={groupRef}>
-      <group position={[isMobile ? -2.5 : -4, 0, 0]}>
+      {/* Centred on the reference's row of five, whatever the count. */}
+      <group position={[(isMobile ? -0.3 : 0) - (FOOTER_LINKS.length - 1) * (isMobile ? 1.1 : 2) / 2, 0, 0]}>
         { getLinks() }
       </group>
     </group>
