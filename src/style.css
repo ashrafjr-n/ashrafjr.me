@@ -245,7 +245,7 @@ body {
   -webkit-text-stroke: 1px rgba(255, 255, 255, 0.5);
   /* The statements sit over the day world's white clouds; a navy halo is what
      keeps white type legible where it crosses them. */
-  text-shadow: 0 0 34px rgba(8, 36, 90, 0.45), 0 2px 8px rgba(8, 36, 90, 0.3);
+  text-shadow: 0 0 26px rgba(8, 36, 90, 0.26), 0 2px 6px rgba(8, 36, 90, 0.2);
   will-change: clip-path;
 }
 
@@ -547,13 +547,30 @@ html.has-cursor button {
 }
 
 /* The rope's centre is 51.5% across its PNG, the figure's standing foot 51.1%
-   across its own: those percentages put both exactly on the layer's x. */
+   across its own: those percentages put both exactly on the layer's x.
+
+   Two pieces of the same rope, one above the head and one below the foot, so
+   nothing of it shows through the figure. Each keeps the scale a full-height
+   rope has (width off 100svh) and is cropped, never stretched, by
+   `object-fit: cover`. Both tuck a little behind the figure. */
 .rope {
   position: absolute;
-  top: 0;
   left: 0;
-  height: 100svh;
+  width: calc(100svh * 289 / 864);
+  object-fit: cover;
   translate: -51.5% 0;
+}
+
+.rope--top {
+  top: 0;
+  height: 28svh;
+  object-position: 50% 0;
+}
+
+.rope--bottom {
+  top: 76svh;
+  height: 24svh;
+  object-position: 50% 100%;
 }
 
 .figure {
