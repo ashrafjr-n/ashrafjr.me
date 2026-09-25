@@ -40,8 +40,9 @@
   /* The "in progress" pill's colour — the site's one deliberate accent, asked
      for so unfinished work reads at a glance. */
   --status-live: #4d8dff;
-  /* How much of the journey's end the projects list overlaps (see .journey). */
-  --list-rise: 72svh;
+  /* How much of the journey's end the projects list overlaps (see .journey):
+     its first row lands where EXPLORE was. */
+  --list-rise: 26svh;
   /* The stack's unfold under a project's name. */
   --projects-ease: cubic-bezier(0.76, 0, 0.24, 1);
 
@@ -140,14 +141,13 @@ body {
 }
 
 /* The journey's scroll range (three/scene.ts). The canvas it drives is fixed;
-   the stage sticks to the top for as long as the journey is on screen, and
-   holds the PROJECTS heading (ui/title.ts).
+   the stage sticks to the top for the whole journey — which ends as it lets
+   go — and holds PROJECTS (ui/title.ts) and EXPLORE (ui/explore.ts).
 
-   The list overlaps the journey's last `--list-rise` (see .projects): the
-   journey ends as the list's top reaches the bottom of the screen, the list
-   then rises under the heading while the stage is still stuck, and the two
-   scroll away together from there, with the first card `100 - --list-rise`
-   below the top. */
+   The list is not in the page until EXPLORE is pressed. Opened, it overlaps
+   the journey's last `--list-rise` (see .projects), so its first row sits
+   just under EXPLORE's place; main.ts then glides the heading to the top and
+   the row slides in under it. */
 .journey {
   /* Three screens of scroll, like ScrollControls' pages={4} on the
      reference: the journey plays over this height less the stuck stage. */
@@ -163,26 +163,126 @@ body {
   pointer-events: none;
 }
 
-/* The heading's resting line; ui/title.ts offsets each letter from its place
-   in it onto the diagonal, and lets go at the end. */
+/* PROJECTS, after mohitvirli.github.io's EXPERIENCE: small, one wide fixed
+   pitch per letter. This is the line the letters land on; ui/title.ts lifts
+   each one off it into the diagonal. Its size never changes. */
 .projects-title {
   position: absolute;
-  top: 8svh;
+  top: 62svh;
   left: 0;
   width: 100%;
   display: flex;
   justify-content: center;
-  gap: 0.04em;
   font-family: var(--font-serif);
   font-weight: 400;
-  font-size: clamp(44px, 5.4vw, 104px);
+  font-size: clamp(18px, 1.9vw, 34px);
   line-height: 1;
   color: #ffffff;
+  visibility: hidden;
 }
 
 .projects-title span {
+  width: clamp(34px, 4.2vw, 76px);
+  text-align: center;
   opacity: 0;
-  will-change: translate, scale, opacity;
+  will-change: translate, opacity;
+}
+
+/* EXPLORE (ui/explore.ts), the pill it has always been — white, black label,
+   black arrow disc — under PROJECTS. Opacity, rise and visibility are written
+   per frame off the journey. */
+.explore {
+  position: absolute;
+  top: 74svh;
+  left: 50%;
+  translate: -50% 16px;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 8px 8px 8px 30px;
+  border: 0;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #000000;
+  font-family: var(--font-code);
+  font-weight: 700;
+  font-size: 15px;
+  letter-spacing: 0.28em;
+  cursor: pointer;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+/* Pressed: it goes, over a beat rather than at once. */
+.explore.is-used {
+  transition: opacity 400ms ease, visibility 0s linear 400ms;
+}
+
+.explore-icon {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: #000000;
+  color: #ffffff;
+  transition: transform 420ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.explore-icon svg {
+  width: 22px;
+  height: 22px;
+  transition: transform 420ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* The arrow turns from up-right to straight right. */
+.explore:focus-visible .explore-icon {
+  transform: scale(1.08);
+}
+
+.explore:focus-visible .explore-icon svg {
+  transform: rotate(45deg);
+}
+
+@media (hover: hover) {
+  .explore:hover .explore-icon {
+    transform: scale(1.08);
+  }
+
+  .explore:hover .explore-icon svg {
+    transform: rotate(45deg);
+  }
+}
+
+.explore:focus-visible {
+  outline: 2px solid #ffffff;
+  outline-offset: 4px;
+}
+
+@media (max-width: 767.98px) {
+  .explore {
+    gap: 12px;
+    padding: 6px 6px 6px 20px;
+    font-size: 12px;
+  }
+
+  .explore-icon {
+    width: 38px;
+    height: 38px;
+  }
+
+  .explore-icon svg {
+    width: 18px;
+    height: 18px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .explore-icon,
+  .explore-icon svg {
+    transition: none;
+  }
 }
 
 /* ===========================================================

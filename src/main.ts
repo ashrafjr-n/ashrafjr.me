@@ -11,11 +11,15 @@ import { createLoader } from './ui/loader'
 import { createProjects } from './ui/projects'
 import { createTitle } from './ui/title'
 import { createThemeSwitch } from './ui/theme'
+import { createExplore } from './ui/explore'
 
 /** How far the line drifts upward as it goes, in px. */
 const INTRO_DRIFT = 70
 /** The share of the journey the intro line takes to leave. */
 const INTRO_OUT = 0.1
+/** Where EXPLORE leaves the heading once pressed, in screen heights from the top. */
+const OPEN_TO = 0.1
+const REDUCED_MOTION = window.matchMedia('(prefers-reduced-motion: reduce)')
 
 /** Scene 1 intro line, centred near the top of the viewport. */
 function buildIntro(): HTMLParagraphElement {
@@ -39,17 +43,25 @@ canvas.id = 'scene'
 const intro = buildIntro()
 /**
  * The journey's scroll range. Its one child is a screen-high stage that sticks
- * to the top while the journey plays, holding the PROJECTS heading; the list
- * follows it and rises under the heading once the journey is over.
+ * to the top while the journey plays, holding PROJECTS and EXPLORE. The list
+ * follows it, left out of the page until EXPLORE is pressed.
  */
 const journey = document.createElement('div')
 journey.className = 'journey'
 const stage = document.createElement('div')
 stage.className = 'journey-stage'
 const title = createTitle()
-stage.append(title.el)
-journey.append(stage)
 const projects = createProjects()
+projects.hidden = true
+/** Open the list, then glide the heading up so the first card comes in under it. */
+function openProjects(): void {
+  projects.hidden = false
+  const top = title.el.getBoundingClientRect().top - window.innerHeight * OPEN_TO
+  scroller.scrollBy({ top, behavior: REDUCED_MOTION.matches ? 'instant' : 'smooth' })
+}
+const explore = createExplore(openProjects)
+stage.append(title.el, explore.el)
+journey.append(stage)
 app.append(canvas, intro, journey, projects)
 
 const scene = initScene(canvas)
@@ -64,8 +76,8 @@ initPointer()
 // (see `html` in style.css); focused, the body takes them.
 scroller.tabIndex = -1
 scroller.focus({ preventScroll: true })
-// The journey is over when the list's top reaches the bottom of the screen.
-initScroll(() => projects.offsetTop - scroller.clientHeight)
+// The journey is the stage's whole stuck stretch: over as it lets go.
+initScroll(() => journey.offsetHeight - scroller.clientHeight)
 
 let introShown = -1
 let prevTime = performance.now()
@@ -89,6 +101,7 @@ function raf(time: number) {
   const p = scene.update(time, state, theme.update(delta))
   updateIntro(range(p, 0, INTRO_OUT))
   title.update(p)
+  explore.update(p)
   requestAnimationFrame(raf)
 }
 
