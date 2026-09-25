@@ -1,15 +1,8 @@
 /**
- * Scene 3's EXPLORE button: a black pill, bottom-right, carried up **with the
- * white half** rather than appearing on its own.
- *
- * It rides the panel's own rise (`panelRiseAt`), translated by the same
- * `(1 - up) * 50svh` the panel is, so the two arrive as one piece and scrolling
- * back up lowers them together. It sits *above* the panel (z-index 35) so it
- * paints itself rather than being negated.
- *
- * Nothing is bound to it yet — it is the button, not the destination.
+ * The night world's EXPLORE button: a black pill in the gap between the two
+ * hands, centred on the screen. It fades in once the hands have arrived and
+ * opens the projects page (wired in main.ts).
  */
-import { panelRiseAt } from './invert'
 
 // Lucide `arrow-up-right` (ISC), stroked in currentColor.
 const ARROW_SVG =
@@ -19,8 +12,7 @@ const ARROW_SVG =
 
 export interface Explore {
   el: HTMLButtonElement
-  /** `page` is the smoothed 0..1 page scroll. */
-  update(page: number): void
+  show(on: boolean): void
 }
 
 export function createExplore(): Explore {
@@ -29,16 +21,5 @@ export function createExplore(): Explore {
   el.className = 'explore'
   el.innerHTML = `<span class="explore-label">EXPLORE</span><span class="explore-icon">${ARROW_SVG}</span>`
 
-  let shown = -1
-
-  function update(page: number): void {
-    const up = panelRiseAt(page)
-    if (Math.abs(up - shown) <= 0.001) return
-    shown = up
-    el.style.transform = `translateY(${((1 - up) * 50).toFixed(2)}svh)`
-    // Hidden while parked, so it is neither painted nor tabbable off-screen.
-    el.style.visibility = up <= 0 ? 'hidden' : 'visible'
-  }
-
-  return { el, update }
+  return { el, show: (on) => el.classList.toggle('is-shown', on) }
 }

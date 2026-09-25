@@ -112,6 +112,9 @@ const FILL_OMEGA = 6
 const FILL_MAX_STEP = 1 / 60
 const REDUCED_MOTION = window.matchMedia('(prefers-reduced-motion: reduce)')
 
+/** Where in the scene CONTACT fades in: as the last statement's sweep lands. */
+const CONTACT_AT = 0.8
+
 /**
  * The size everything is measured at before being scaled to fit. Arbitrary,
  * but large enough that the measurement is not dominated by rounding.
@@ -162,6 +165,16 @@ export function createIdentity(): Identity {
     // one can be skipped — see `update`.
     return { row, outline, fill, filledAt: -1 }
   })
+
+  // Lucide `arrow-up-right` (ISC). Goes nowhere yet — its destination is undecided.
+  const contact = document.createElement('button')
+  contact.type = 'button'
+  contact.className = 'contact'
+  contact.innerHTML =
+    '<span class="contact-label">CONTACT</span><span class="contact-icon"><svg viewBox="0 0 24 24" ' +
+    'fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" ' +
+    'stroke-linejoin="round" aria-hidden="true"><path d="M7 7h10v10"/><path d="M7 17 17 7"/></svg></span>'
+  block.append(contact)
 
   /**
    * Set each statement's own size so all three are flush to both margins.
@@ -259,6 +272,8 @@ export function createIdentity(): Identity {
         lines[i].row.style.translate = `${(SLIDE_SIDE[i] * travel).toFixed(1)}px 0`
       }
     }
+
+    contact.classList.toggle('is-in', tt > CONTACT_AT)
 
     for (let i = 0; i < lines.length; i++) {
       const filled = smooth((fillT - (FILL_FROM + i * FILL_STEP)) / FILL_SPAN)

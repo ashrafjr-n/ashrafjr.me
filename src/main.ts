@@ -2,34 +2,30 @@
  * App entry: mounts the page's elements, starts the scenes and runs the single
  * RAF loop.
  *
- * The loop reads one number — the smoothed page scroll the 3D scene returns —
- * splits it into scenes with `lib/phases.ts`, and drives the DOM side (intro,
- * identity) off exactly that value, so nothing here can drift out of sync
- * with the spin or the stars. Never read `state.scroll` directly for animation.
+ * The page is driven by `ui/split.ts`: the rope's x is read once a frame and
+ * handed to the 3D scene as its stars/sky seam, and how far each world is open
+ * drives the DOM side (intro, hands, EXPLORE, identity) off that same state.
  */
 import './style.css'
-import { HOLD, toIdentity, toTransition } from './lib/phases'
-import { SCATTER_END, SETTLE_TO } from './lib/scatter'
 import { initScene } from './three/scene'
 import { SCROLL_KEYS, lockScroll, unlockScroll } from './lib/scroll-lock'
 import { state, scroller, initPointer, initScroll } from './lib/state'
 import { buildSocialBadges } from './ui/social'
 import { createCursor } from './ui/cursor'
 import { createIdentity } from './ui/identity'
-import { createInvert } from './ui/invert'
 import { createExplore } from './ui/explore'
+import { createSplit } from './ui/split'
+import { createHands } from './ui/hands'
 import { createProjects } from './ui/projects'
 import { createLoader } from './ui/loader'
 
 /**
- * Scroll progress at which the intro line has fully gone.
- *
- * **Derived rather than picked**, so it cannot drift out of step with the
- * scene it belongs to: it lands where the field finishes settling. The scatter
- * now stops at `SCATTER_END` of Scene 1 rather than running its full stretch,
- * so that share is part of the expression. It was a hand-set 0.28.
+ * The statements' scene value runs up over this many seconds once the day
+ * world is open, and back down over the shorter one on the way out. Linear:
+ * `ui/identity.ts` eases every beat of its own.
  */
-const INTRO_FADE_END = HOLD * SCATTER_END * SETTLE_TO
+const DAY_IN = 3.4
+const DAY_OUT = 0.9
 /** How far the line drifts upward as it goes, in px. */
 const INTRO_DRIFT = 70
 
@@ -53,12 +49,11 @@ const canvas = document.createElement('canvas')
 canvas.id = 'scene'
 
 const intro = buildIntro()
+const split = createSplit()
+const hands = createHands()
 const identity = createIdentity()
-const invert = createInvert()
 const explore = createExplore()
-// The inversion panel is appended last of the page's own layers: it blends with
-// everything painted before it, so document order is part of what it does.
-app.append(canvas, intro, identity.el, invert.el, explore.el)
+app.append(canvas, split.el, hands.el, intro, identity.el, explore.el, split.controls)
 
 // --- Starfield + model, and the input they read ---
 const scene = initScene(canvas)
@@ -112,6 +107,15 @@ explore.el.addEventListener('click', projects.open)
 const cursor = createCursor(app, explore.el)
 
 window.addEventListener('resize', () => scene.resize())
+// Escape leaves a world. Capture phase, so it runs before the projects page's
+// own Escape closes it — `isPaused` is still true then and this stands aside.
+window.addEventListener(
+  'keydown',
+  (e) => {
+    if (e.key === 'Escape' && !isPaused && split.target() !== 'split') split.go('split')
+  },
+  { capture: true },
+)
 
 initPointer()
 initScroll()
@@ -160,9 +164,8 @@ window.addEventListener(
 
 let introShown = -1
 
-/** Fade and lift the intro line, driven by the same progress as the scene. */
-function updateIntro(progress: number): void {
-  const t = Math.min(progress / INTRO_FADE_END, 1)
+/** Fade and lift the intro line as a world opens. */
+function updateIntro(t: number): void {
   if (Math.abs(t - introShown) < 0.002) return // skip redundant style writes
   introShown = t
   intro.style.opacity = String(1 - t)
@@ -175,15 +178,27 @@ function updateIntro(progress: number): void {
 // to the covered site is skipped. The scroll is frozen while that is true, so
 // `progress` could not have moved anyway; skipping it is what also stops the
 // stars' drift from running unseen.
+let dayT = 0
+let prevTime = -1
+
 function raf(time: number) {
   if (!loaderGone) loaderGone = loader.update(time)
+  const delta = prevTime < 0 ? 0 : Math.min((time - prevTime) / 1000, 0.1)
+  prevTime = time
   if (!isPaused) {
-    const page = scene.update(time, state)
-    const progress = toTransition(page)
-    updateIntro(progress)
-    identity.update(toIdentity(page), time)
-    invert.update(page)
-    explore.update(page)
+    const ropeX = split.update(time)
+    scene.update(time, state, ropeX)
+    const goal = split.target()
+    const night = split.night()
+    const day = split.day()
+    updateIntro(Math.max(night, day))
+    // The hands and EXPLORE wait until the rope is most of the way out.
+    const nightIn = goal === 'night' && night > 0.8
+    hands.show(nightIn)
+    explore.show(nightIn)
+    const dayIn = goal === 'day' && day > 0.85
+    dayT = dayIn ? Math.min(1, dayT + delta / DAY_IN) : Math.max(0, dayT - delta / DAY_OUT)
+    identity.update(dayT, time)
   }
   requestAnimationFrame(raf)
 }

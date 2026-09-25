@@ -135,19 +135,14 @@ body {
   text-rendering: optimizeLegibility;
 }
 
-/* The scroll range for all three scenes, and the only content body scrolls.
-   Everything on screen is position:fixed, so the page has nothing of its own
-   to scroll — this is what creates the range that drives `state.scroll`.
-   1060svh leaves 9.6 screen heights of travel; lib/phases.ts splits them
-   600 / 205 / 155 and has to change with this. Scene 1 holds most of it
-   because the scatter's pace is that split and nothing else — see
-   IDENTITY_FROM there.
+/* One screen: the page is driven by its buttons (ui/split.ts), not by scroll,
+   so there is no scroll range. Everything on screen is position:fixed.
 
    **Height is the only thing this rule may set.** Anything that makes #app a
    stacking context (opacity, transform, filter, isolation, will-change) cuts
    the inverting pointer off from the page behind it — see ui/cursor.ts. */
 #app {
-  min-height: 1060svh;
+  min-height: 100svh;
 }
 
 /* ===========================================================
@@ -430,59 +425,16 @@ html.has-cursor button {
 }
 
 /* ===========================================================
-   Scene 3's inversion panel (ui/invert.ts)
-   A white half that rises from the bottom and negates everything under it.
-   =========================================================== */
-.invert {
-  position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  /* `svh`, not `vh`, like every viewport height on the site: the phone's
-     toolbar is always shown (the page scrolls inside `body`), and `vh` is
-     measured as if it were hidden, so 50vh would be taller than half the
-     visible screen — and off the `innerHeight` the starfield's scissor
-     split (`panelTopEdgeAt`) computes this edge from. */
-  height: 50svh;
-  /* Above the canvas (0) and the statements (15), below the EXPLORE
-     button (35), the projects page (80) and the social badges (90), which stay
-     themselves. */
-  z-index: 30;
-  /* Pure white is what makes `difference` a clean negation: the result is
-     `1 - backdrop`, so the panel contributes no colour of its own. Any other
-     value would tint the half instead of inverting it.
-
-     **What it negates is the canvas as well as the type**, and that is now
-     load-bearing rather than incidental: the press leaves the whole star field
-     on screen for the rest of the page, so the half rises over a field of
-     white points on black and turns it into black points on white. No second
-     copy of anything, and nothing to keep in sync.
-
-     It is also why `three/scene.ts` skips only its position pass when the
-     field has stopped moving and never the render itself: the renderer is
-     `preserveDrawingBuffer: false`, so a frame that is not drawn has undefined
-     contents, and this panel does not paint a white half — it inverts whatever
-     the canvas is showing beneath it. A dropped frame here empties the white
-     half of its stars. */
-  background: #ffffff;
-  mix-blend-mode: difference;
-  pointer-events: none;
-  visibility: hidden;
-  transform: translateY(100%);
-  will-change: transform;
-}
-
-/* ===========================================================
-   Scene 3's EXPLORE button (ui/explore.ts)
-   A black pill riding up with the white half, bottom-right. JS writes its
-   translateY off the panel's own rise, so the two move as one.
+   The night world's EXPLORE button (ui/explore.ts)
+   A black pill centred in the gap between the hands. It fades in after them.
    =========================================================== */
 .explore {
   position: fixed;
-  right: clamp(16px, 4vw, 56px);
-  bottom: clamp(16px, 5svh, 56px);
-  /* Above the inversion panel (30) so it paints itself instead of being
-     negated; below the projects page (80), the social badges (90) and the pointer (100). */
+  left: 50%;
+  top: 50%;
+  translate: -50% -50%;
+  /* Over the hands (12); below the projects page (80), the social badges (90)
+     and the pointer (100). */
   z-index: 35;
   display: flex;
   align-items: center;
@@ -497,9 +449,18 @@ html.has-cursor button {
   font-size: 15px;
   letter-spacing: 0.28em;
   cursor: pointer;
+  opacity: 0;
+  scale: 0.94;
   visibility: hidden;
-  transform: translateY(50svh);
-  will-change: transform;
+  transition: opacity 350ms ease, scale 350ms ease, visibility 0s linear 350ms;
+}
+
+.explore.is-shown {
+  opacity: 1;
+  scale: 1;
+  visibility: visible;
+  transition: opacity 1100ms ease 1700ms, scale 1400ms cubic-bezier(0.22, 1, 0.36, 1) 1700ms,
+    visibility 0s linear 1700ms;
 }
 
 .explore-icon {
@@ -562,25 +523,275 @@ html.has-cursor button {
   }
 }
 
-/* Phones and iPads: centred in the white half rather than bottom-right, on
-   request. The half is the bottom 50svh, so its middle is 25svh up; the
-   `translate` (-50% across, +50% down) centres the pill on that point and
-   composes with the `transform` ui/explore.ts writes for the rise. Below the
-   desktop bound, plus any touch-first screen — an iPad in landscape is over
-   900px wide and would otherwise keep the desktop corner. */
-@media (max-width: 899.98px), (pointer: coarse) {
-  .explore {
-    right: auto;
-    left: 50%;
-    bottom: 25svh;
-    translate: -50% 50%;
-  }
-}
-
 @media (prefers-reduced-motion: reduce) {
   .explore-icon,
   .explore-icon svg {
     transition: none;
+  }
+}
+
+/* ===========================================================
+   The opening split (ui/split.ts)
+   The rope down the middle with the figure on it, night to the right and
+   day to the left. ui/split.ts writes the layer's `translate`; its x is the
+   rope's centre line, which is also where the canvas splits stars from sky.
+   =========================================================== */
+.rope-layer {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 100svh;
+  z-index: 10;
+  pointer-events: none;
+  will-change: translate;
+}
+
+/* The rope's centre is 51.5% across its PNG, the figure's standing foot 51.1%
+   across its own: those percentages put both exactly on the layer's x. */
+.rope {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100svh;
+  translate: -51.5% 0;
+}
+
+.figure {
+  position: absolute;
+  top: 22svh;
+  left: 0;
+  height: 60svh;
+  translate: -51.1% 0;
+  filter: drop-shadow(0 22px 34px rgba(0, 0, 0, 0.5));
+}
+
+/* The two worlds' buttons, and BACK, which takes the slot of whichever edge
+   the rope left by. */
+.side {
+  position: fixed;
+  top: 50%;
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  border: 0;
+  background: none;
+  color: #ffffff;
+  font-family: var(--font-code);
+  font-size: 11px;
+  line-height: 1.9;
+  letter-spacing: 0.34em;
+  text-align: center;
+  text-shadow: 0 1px 10px rgba(0, 0, 0, 0.35);
+  cursor: pointer;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 400ms ease, translate 600ms cubic-bezier(0.22, 1, 0.36, 1),
+    visibility 0s linear 600ms;
+}
+
+.side--left {
+  left: clamp(20px, 3.4vw, 64px);
+  translate: -14px -50%;
+}
+
+.side--right {
+  right: clamp(20px, 3.4vw, 64px);
+  translate: 14px -50%;
+}
+
+.side.is-shown {
+  opacity: 1;
+  visibility: visible;
+  translate: 0 -50%;
+  transition: opacity 900ms ease 200ms, translate 1100ms cubic-bezier(0.22, 1, 0.36, 1) 200ms,
+    visibility 0s;
+}
+
+.side-ring {
+  display: grid;
+  place-items: center;
+  width: 78px;
+  height: 78px;
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  border-radius: 50%;
+  box-shadow: 0 0 26px rgba(255, 255, 255, 0.14), inset 0 0 18px rgba(255, 255, 255, 0.06);
+  transition: background-color 350ms ease, color 350ms ease, scale 420ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.side-ring svg {
+  width: 24px;
+  height: 24px;
+  transition: translate 420ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Letter-spacing trails every glyph, the last one too; this re-centres the
+   run under the ring. */
+.side-label {
+  padding-left: 0.34em;
+}
+
+.side:focus-visible {
+  outline: none;
+}
+
+.side:focus-visible .side-ring {
+  background: #ffffff;
+  color: #000000;
+}
+
+@media (hover: hover) {
+  .side:hover .side-ring {
+    background: #ffffff;
+    color: #000000;
+    scale: 1.06;
+  }
+
+  .side--left:hover .side-ring svg {
+    translate: -3px 0;
+  }
+
+  .side--right:hover .side-ring svg {
+    translate: 3px 0;
+  }
+
+  .side--back.side--left:hover .side-ring svg {
+    translate: 3px 0;
+  }
+
+  .side--back.side--right:hover .side-ring svg {
+    translate: -3px 0;
+  }
+}
+
+/* ===========================================================
+   The night world's hands (ui/hands.ts)
+   The glowing hand reaches down from the top-right, the human one rises
+   from below, and EXPLORE waits in the gap between them.
+   =========================================================== */
+.hands {
+  position: fixed;
+  inset: 0;
+  z-index: 12;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.hand {
+  position: absolute;
+  opacity: 0;
+  visibility: hidden;
+  filter: blur(10px);
+  transition: opacity 500ms ease, translate 700ms ease, filter 500ms ease,
+    visibility 0s linear 700ms;
+}
+
+.hand--light {
+  top: -2vw;
+  right: -3vw;
+  width: 46vw;
+  translate: 8vw -16vw;
+}
+
+.hand--human {
+  bottom: -5.6vw;
+  left: 12vw;
+  width: 42vw;
+  translate: -6vw 18vw;
+}
+
+.hands.is-in .hand {
+  opacity: 1;
+  visibility: visible;
+  translate: 0 0;
+  filter: blur(0);
+  transition: opacity 1800ms ease, translate 2600ms cubic-bezier(0.16, 1, 0.3, 1),
+    filter 1800ms ease, visibility 0s;
+}
+
+.hands.is-in .hand--human {
+  transition-delay: 350ms;
+}
+
+/* ===========================================================
+   The day world's CONTACT (ui/identity.ts)
+   The day side's counterpart to EXPLORE: white on the blue, under the
+   three statements. Goes nowhere yet.
+   =========================================================== */
+.contact {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  width: max-content;
+  margin: 7svh auto 0;
+  padding: 8px 8px 8px 30px;
+  border: 0;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #0d3a86;
+  font-family: var(--font-code);
+  font-weight: 700;
+  font-size: 15px;
+  letter-spacing: 0.28em;
+  cursor: pointer;
+  pointer-events: none;
+  opacity: 0;
+  translate: 0 14px;
+  transition: opacity 400ms ease, translate 600ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.contact.is-in {
+  pointer-events: auto;
+  opacity: 1;
+  translate: 0 0;
+  transition: opacity 900ms ease, translate 1100ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.contact-icon {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: #0d3a86;
+  color: #ffffff;
+  transition: transform 420ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.contact-icon svg {
+  width: 22px;
+  height: 22px;
+  transition: transform 420ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.contact:focus-visible {
+  outline: 2px solid #ffffff;
+  outline-offset: 4px;
+}
+
+@media (hover: hover) {
+  .contact:hover .contact-icon {
+    transform: scale(1.08);
+  }
+
+  .contact:hover .contact-icon svg {
+    transform: rotate(45deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .side,
+  .side.is-shown,
+  .hand,
+  .hands.is-in .hand,
+  .explore,
+  .explore.is-shown,
+  .contact,
+  .contact.is-in {
+    transition-duration: 1ms;
+    transition-delay: 0s;
   }
 }
 

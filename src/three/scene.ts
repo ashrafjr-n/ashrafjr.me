@@ -48,7 +48,6 @@ import {
   REST_MIN,
   TRAVEL_MAX,
   RING_SWIRL_TURNS,
-  BOLD_SIZE_GAIN,
   SCATTER_STAGGER,
   SPIRAL_MAX,
   SPIRAL_MIN,
@@ -61,14 +60,14 @@ import {
 import { toModel, toTransition } from '../lib/phases'
 import type { InputState } from '../lib/state'
 import { createCircleTexture } from './sprite'
-import { panelTopEdgeAt } from '../ui/invert'
+import { createSky } from './sky'
 import { createWorld, MODEL_SPIN_RATE } from './world'
 
 export interface SceneController {
   /** Advances and renders a frame. Returns the smoothed 0..1 page scroll so
    *  DOM-side pieces stay on the exact same driver — map it through
    *  `lib/phases.ts` the same way this does. */
-  update(time: number, state: InputState): number
+  update(time: number, state: InputState, split: number): number
   /**
    * Re-anchor the frame clock to now, after a stretch of frames was skipped.
    * Call it on the way back in, not on the way out — see the note on the
@@ -354,9 +353,6 @@ const DRIFT_RATE = 0.035
 /** A set of stars orbiting the model's vertical axis, drawn as one Points. */
 interface StarLayer {
   points: Points
-  /** The normal material, and the heavier one worn only inside the white half. */
-  base: PointsMaterial
-  bold: PointsMaterial
   count: number
   radii: Float32Array
   heights: Float32Array
@@ -600,18 +596,6 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
    * minification filter differs; it is a second 64x64 upload and nothing more.
    */
   const plainSprite = createCircleTexture({ mipmaps: false })
-  /**
-   * The heavy sprite: opaque across most of its radius, and no mipmaps.
-   *
-   * **It is worn only inside Scene 3's white half.** The site's normal star is
-   * a soft radial gradient — full white at its centre, fading to nothing at
-   * its edge — which reads perfectly well drawn *on* black but inverts to a
-   * dot that is dark only at its very middle and pale grey around it. On white
-   * that barely registers, which is why the stars in the white half could not
-   * be seen. This one holds full opacity across most of its radius, so it
-   * inverts to a solid dark point. See `BOLD_SIZE_GAIN` in `lib/scatter.ts`.
-   */
-  const boldSprite = createCircleTexture({ mipmaps: false, core: 0.68 })
 
   /**
    * Build a layer of orbiting stars. `place` supplies each star's orbit radius
@@ -751,16 +735,6 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
       opacity: look.opacity ?? STAR_OPACITY,
     })
 
-    /**
-     * The same layer, drawn heavier. **Worn only where Scene 3's white panel
-     * is over it** — see `renderStars`. Built up front and swapped by
-     * reference, never edited per frame: changing a material's `map` sets
-     * `needsUpdate`, which recompiles the program.
-     */
-    const bold = material.clone()
-    bold.size = pointSize * BOLD_SIZE_GAIN
-    bold.map = boldSprite
-
     const points = new Points(geometry, material)
     // The scroll transition moves stars far outside the bounds they were built
     // with (the band scatters out to ~29, the cloud flies up to 75 toward the
@@ -773,8 +747,6 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
 
     return {
       points,
-      base: material,
-      bold,
       count,
       radii,
       heights,
@@ -818,6 +790,9 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
   }, true) // the ring scatters; the cloud does not
   band.radiusScale = ringScale(world.camera.aspect)
 
+  const sky = createSky()
+  sky.setScale(band.radiusScale)
+
   /** Both layers, in one array so the frame loop allocates nothing per frame. */
   const layers = [cloud, band]
 
@@ -831,52 +806,26 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
   let drawnSettled = -1
 
   /**
-   * Draw the starfield, heavier wherever Scene 3's white panel is over it.
-   *
-   * **The weight is a property of the region, not of the star.** The panel
-   * inverts whatever the canvas shows under it, and a soft small point inverts
-   * to a pale smudge on white — so the stars it covers have to be drawn as
-   * something that survives being turned inside out, while the very same stars
-   * an inch higher, still on black, must not change at all.
-   *
-   * A scissor split does it with no second copy of anything and no shader: the
-   * frame is drawn twice, once above the panel's edge with each layer's normal
-   * material and once below it with the heavy one, and the two rectangles are
-   * disjoint so nothing is drawn twice. Swapping `points.material` is a
-   * reference assignment between two materials compiled up front — editing one
-   * material's `map` per frame would recompile the program instead.
-   *
-   * The edge comes from `ui/invert.ts`'s own `panelTopEdgeAt`, not from a
-   * constant repeated here, so the line the stars are split on and the line
-   * the panel paints are the same line by construction. The loop renders
-   * before it updates the panel, which is exactly why that function is pure.
+   * Draw the frame split at the rope: stars to its right, the sky to its left.
+   * `split` is the rope's x in CSS pixels — `setScissor` multiplies by the pixel
+   * ratio itself, so it is never pre-multiplied here. Scissor y runs from the
+   * bottom; both halves are full height.
    */
-  function drawStarfield(page: number): void {
-    const edge = panelTopEdgeAt(page, window.innerHeight)
-    if (edge === Infinity) {
-      renderer.render(starfield, world.camera) // same vantage -> same orbital plane
+  function drawSplit(split: number): void {
+    const width = window.innerWidth
+    const height = window.innerHeight
+    const x = clamp(Math.round(split), 0, width)
+    if (x === 0) {
+      renderer.render(starfield, world.camera)
       return
     }
-    // **`setScissor` takes CSS pixels, not drawing-buffer pixels** — Three
-    // multiplies by the renderer's pixel ratio itself. Pre-multiplying here
-    // made the heavy region exactly `devicePixelRatio` times too tall, which
-    // spilled a band of heavy stars onto the black page above the panel where
-    // nothing is inverted. Measured: with the panel's edge at 0.887 of the
-    // frame the heavy stars began at 0.76, and the bands between were 30-50x
-    // denser than with the panel parked. Scissor y runs from the **bottom**,
-    // which is where the panel is anchored, so its height is everything below
-    // the edge.
-    const width = window.innerWidth
-    const under = window.innerHeight - edge
-
     renderer.setScissorTest(true)
-    renderer.setScissor(0, under, width, edge)
-    renderer.render(starfield, world.camera)
-
-    for (const layer of layers) layer.points.material = layer.bold
-    renderer.setScissor(0, 0, width, under)
-    renderer.render(starfield, world.camera)
-    for (const layer of layers) layer.points.material = layer.base
+    if (x < width) {
+      renderer.setScissor(x, 0, width - x, height)
+      renderer.render(starfield, world.camera)
+    }
+    renderer.setScissor(0, 0, x, height)
+    renderer.render(sky.scene, world.camera)
     renderer.setScissorTest(false)
   }
 
@@ -927,7 +876,7 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
   /** The settled field's accumulated turn — see `DRIFT_RATE`. */
   let drift = 0
 
-  function update(time: number, state: InputState): number {
+  function update(time: number, state: InputState, split: number): number {
     const delta = Math.min((time - prevTime) / 1000, 0.1) // clamp big tab-switch gaps
     prevTime = time
 
@@ -1039,8 +988,9 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
     // cannot carry an entrance that happens inside it.
     if (MODEL_ENABLED) world.update(delta, progress, toModel(page))
 
+    sky.update(delta, !REDUCED_MOTION.matches)
     renderer.clear()
-    drawStarfield(page)
+    drawSplit(split)
     if (MODEL_ENABLED) {
       renderer.clearDepth() // world layer sits in front of the starfield
       renderer.render(world.scene, world.modelCamera) // front-on, not bird's-eye
@@ -1083,6 +1033,7 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
     stillDrawn = false
     world.resize(w / h) // one camera drives the starfield and world passes
     band.radiusScale = ringScale(w / h)
+    sky.setScale(band.radiusScale)
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
     renderer.setSize(w, h, false)
   }
