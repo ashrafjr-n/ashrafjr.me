@@ -8,8 +8,8 @@
  */
 import './style.css'
 import { initScene } from './three/scene'
-import { SCROLL_KEYS, lockScroll, unlockScroll } from './lib/scroll-lock'
-import { state, scroller, initPointer, initScroll } from './lib/state'
+import { lockScroll, unlockScroll } from './lib/scroll-lock'
+import { state, initPointer, initScroll } from './lib/state'
 import { buildSocialBadges } from './ui/social'
 import { createCursor } from './ui/cursor'
 import { createIdentity } from './ui/identity'
@@ -119,48 +119,9 @@ window.addEventListener(
 
 initPointer()
 initScroll()
-// The page scrolls in `body` rather than the document, and a browser only
-// sends the scroll keys to an element once something inside it has focus —
-// with nothing focused they go to the document, which cannot scroll. Focusing
-// the scroller up front keeps Space / PageDown / the arrows working from the
-// first key, as they did when the document scrolled. -1 keeps it out of the
-// Tab order.
-scroller.tabIndex = -1
-scroller.focus({ preventScroll: true })
-// The same goes for a key pressed on a focused control. The badges and
-// EXPLORE are `position: fixed`, and a browser walks a fixed element's scroll
-// chain straight to the document, skipping `body` — so PageUp from EXPLORE
-// (where focus lands when the projects page closes) scrolled nothing. Handing
-// focus back to the scroller before the key's default action runs is what
-// sends it there. Space on a button is that button's own press, and a key the
-// scroll lock has refused, or one inside the projects list, is left alone.
-window.addEventListener('keydown', (e) => {
-  if (e.defaultPrevented || !SCROLL_KEYS.has(e.key)) return
-  const target = e.target
-  if (!(target instanceof HTMLElement) || target === scroller) return
-  if (projects.scroller.contains(target)) return
-  if (e.key === ' ' && target.closest('button')) return
-  scroller.focus({ preventScroll: true })
-})
-// And the wheel, for the same reason: over the badges or EXPLORE it walks the
-// fixed element's chain to the document and scrolls nothing, so it is passed
-// to the scroller by hand. The page spring smooths the jump, as it does every
-// wheel notch. Skipped while the scroll is locked — the loader's lock refuses
-// it first, and the projects page is `isPaused`. `deltaMode` is lines (1) or
-// pages (2) on some mice in Firefox.
-// ponytail: a touch drag that *starts* on those controls still does not
-// scroll; forwarding touch means re-implementing momentum, not worth it for
-// two small targets.
-window.addEventListener(
-  'wheel',
-  (e) => {
-    if (e.defaultPrevented || isPaused || !(e.target instanceof Node)) return
-    if (!socialBadges.contains(e.target) && !explore.el.contains(e.target)) return
-    const unit = e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? scroller.clientHeight : 1
-    scroller.scrollTop += e.deltaY * unit
-  },
-  { passive: true },
-)
+// Wheel, touch and the scroll keys pick a side too. Not while the loader is up
+// or the projects page covers the site.
+split.bindScroll(() => loaderGone && !isPaused)
 
 let introShown = -1
 

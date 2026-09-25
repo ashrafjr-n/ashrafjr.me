@@ -22,8 +22,23 @@ const REDUCED_MOTION = window.matchMedia('(prefers-reduced-motion: reduce)')
 const svg = (d: string): string =>
   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" ' +
   `stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`
-const ARROW_LEFT = svg('<path d="m12 19-7-7 7-7"/><path d="M19 12H5"/>')
-const ARROW_RIGHT = svg('<path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>')
+const ARROW_UP = svg('<path d="m5 12 7-7 7 7"/><path d="M12 19V5"/>')
+const ARROW_DOWN = svg('<path d="M12 5v14"/><path d="m19 12-7 7-7-7"/>')
+
+/**
+ * Scroll picks a side: down opens the night, up opens the day, and the
+ * opposite direction brings a world back to the split. **One gesture, one
+ * transition** — the gesture triggers the same timed move the buttons do and
+ * never scrubs it. `WHEEL_STEP` px of wheel in one direction fires it; after
+ * that input is ignored until the move has landed *and* the wheel has been
+ * quiet for `QUIET_MS`, which is what swallows a trackpad's inertia tail so
+ * one swipe cannot open a world and close it again.
+ */
+const WHEEL_STEP = 40
+const SWIPE_STEP = 50
+const QUIET_MS = 260
+const KEYS_DOWN = new Set(['ArrowDown', 'PageDown', ' '])
+const KEYS_UP = new Set(['ArrowUp', 'PageUp'])
 
 function sideButton(
   side: 'left' | 'right',
@@ -55,6 +70,8 @@ export interface Split {
   night(): number
   day(): number
   go(world: World): void
+  /** Let wheel, touch and the scroll keys pick a side while `canNavigate()`. */
+  bindScroll(canNavigate: () => boolean): void
   /** Advance the rope. Returns its x in CSS pixels. */
   update(time: number): number
 }
@@ -70,9 +87,11 @@ export function createSplit(): Split {
 
   const controls = document.createElement('div')
   controls.className = 'sides'
-  const dayBtn = sideButton('left', 'day', ARROW_LEFT, 'ABOUT<br>ME')
-  const nightBtn = sideButton('right', 'night', ARROW_RIGHT, 'MY<br>WORK')
-  const backBtn = sideButton('left', 'night', ARROW_RIGHT, 'BACK')
+  // The labels name the gesture; the buttons stay clickable for a keyboard or
+  // anyone who never scrolls.
+  const dayBtn = sideButton('left', 'day', ARROW_UP, 'SCROLL<br>UP')
+  const nightBtn = sideButton('right', 'night', ARROW_DOWN, 'SCROLL<br>DOWN')
+  const backBtn = sideButton('left', 'night', ARROW_UP, 'BACK')
   backBtn.classList.add('side--back')
   controls.append(dayBtn, nightBtn, backBtn)
 
@@ -106,9 +125,66 @@ export function createSplit(): Split {
   nightBtn.classList.add('is-shown')
 
   let drawnX = NaN
+  /** Set by a gesture; cleared once the move has landed and input is quiet. */
+  let locked = false
+  let lastInput = -Infinity
+  let wheelSum = 0
+
+  /** +1 is scrolling down, -1 up. */
+  function step(dir: number): void {
+    const next: World | null =
+      dir > 0
+        ? goal === 'split' ? 'night' : goal === 'day' ? 'split' : null
+        : goal === 'split' ? 'day' : goal === 'night' ? 'split' : null
+    if (!next) return
+    go(next)
+    locked = true
+  }
+
+  function bindScroll(canNavigate: () => boolean): void {
+    window.addEventListener(
+      'wheel',
+      (e) => {
+        if (!canNavigate()) return
+        const t = performance.now()
+        if (t - lastInput > QUIET_MS) wheelSum = 0
+        lastInput = t
+        if (locked) return
+        // `deltaMode` is lines (1) or pages (2) on some mice in Firefox.
+        wheelSum += e.deltaY * (e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? 400 : 1)
+        if (Math.abs(wheelSum) < WHEEL_STEP) return
+        step(Math.sign(wheelSum))
+        wheelSum = 0
+      },
+      { passive: true },
+    )
+    let touchY = NaN
+    window.addEventListener('touchstart', (e) => (touchY = e.touches[0].clientY), { passive: true })
+    window.addEventListener(
+      'touchend',
+      (e) => {
+        const dy = touchY - e.changedTouches[0].clientY
+        touchY = NaN
+        if (!canNavigate() || locked || !(Math.abs(dy) >= SWIPE_STEP)) return
+        lastInput = performance.now()
+        step(Math.sign(dy)) // finger up = scroll down
+      },
+      { passive: true },
+    )
+    window.addEventListener('keydown', (e) => {
+      if (!canNavigate() || locked || e.defaultPrevented) return
+      const dir = KEYS_DOWN.has(e.key) ? 1 : KEYS_UP.has(e.key) ? -1 : 0
+      // Space on a focused button is that button's own press.
+      if (!dir || (e.key === ' ' && (e.target as Element).closest?.('button, a'))) return
+      e.preventDefault()
+      lastInput = performance.now()
+      step(dir)
+    })
+  }
 
   function update(time: number): number {
     now = time
+    if (locked && startedAt < 0 && time - lastInput > QUIET_MS) locked = false
     if (startedAt >= 0) {
       const span = TRAVEL * Math.abs(to - from) * 1000
       const u = REDUCED_MOTION.matches || span === 0 ? 1 : (time - startedAt) / span
@@ -124,7 +200,8 @@ export function createSplit(): Split {
           backBtn.classList.toggle('side--night', left)
           backBtn.classList.toggle('side--day', !left)
           backBtn.classList.remove('is-picked')
-          backBtn.querySelector('.side-ring')!.innerHTML = left ? ARROW_RIGHT : ARROW_LEFT
+          // Pointing the way the scroll back goes: up out of the night, down out of the day.
+          backBtn.querySelector('.side-ring')!.innerHTML = left ? ARROW_UP : ARROW_DOWN
           backBtn.classList.add('is-shown')
         }
       }
@@ -145,6 +222,7 @@ export function createSplit(): Split {
     night: () => clamp(-s, 0, 1),
     day: () => clamp(s, 0, 1),
     go,
+    bindScroll,
     update,
   }
 }
