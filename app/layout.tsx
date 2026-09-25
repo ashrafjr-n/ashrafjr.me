@@ -1,6 +1,5 @@
 import { GoogleAnalytics } from "@next/third-parties/google";
 import type { Metadata, Viewport } from "next";
-import { JetBrains_Mono } from 'next/font/google';
 import localFont from 'next/font/local';
 import "./globals.css";
 
@@ -12,13 +11,6 @@ const soriaFont = localFont({
 const vercettiFont = localFont({
   src: "../public/Vercetti-Regular.woff",
   variable: "--font-vercetti",
-});
-
-// The intro line and the social badges, kept from the previous site.
-const jetbrainsMono = JetBrains_Mono({
-  weight: "400",
-  subsets: ["latin"],
-  variable: "--font-jetbrains",
 });
 
 export const metadata: Metadata = {
@@ -73,7 +65,7 @@ export default function RootLayout({
   return (
     <html lang="en" className="overscroll-y-none">
       <body
-        className={`${soriaFont.variable} ${vercettiFont.variable} ${jetbrainsMono.variable} font-sans antialiased`}
+        className={`${soriaFont.variable} ${vercettiFont.variable} font-sans antialiased`}
       >
         {children}
       </body>

@@ -92,7 +92,10 @@ body {
 }
 /* Kept from the previous site: the intro line and the social badges. */
 :root {
-  --font-code: var(--font-jetbrains), monospace;
+  /* The reference's own two faces: Soria for the intro (its title's font),
+     Vercetti for the badges' caption (its footer's). */
+  --font-intro: var(--font-soria), serif;
+  --font-caption: var(--font-vercetti), sans-serif;
   --text-dim: rgba(255, 255, 255, 0.5);
   --accent: #e8e8ec;
 }
@@ -106,7 +109,7 @@ body {
      (Intro.tsx), so the line drifts up as it fades. */
   transform: translate(-50%, 0);
   margin: 0;
-  font-family: var(--font-code);
+  font-family: var(--font-intro);
   font-size: clamp(0.85rem, 1.9vw, 1.35rem);
   font-weight: 400;
   letter-spacing: 0.16em;
@@ -139,7 +142,7 @@ body {
   display: flex;
   align-items: center;
   gap: 0.45rem;
-  font-family: var(--font-code);
+  font-family: var(--font-caption);
   font-size: 10px;
   letter-spacing: 0.12em;
   text-transform: uppercase;
