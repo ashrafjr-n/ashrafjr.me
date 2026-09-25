@@ -77,7 +77,7 @@ const OPEN_SIZE = 1.8
 const STAR_COUNT = 5000
 const STAR_RADIUS = [200, 300]
 /** In drawing-buffer px: no attenuation, the shell is far off anyway. */
-const STAR_SIZE = 2.6
+const STAR_SIZE = 1.4
 /** A slow turn of the whole shell, rad/s. */
 const STAR_DRIFT = 0.01
 
