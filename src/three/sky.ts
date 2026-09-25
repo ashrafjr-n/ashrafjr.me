@@ -43,13 +43,13 @@ const CLOUD_COUNT = 30
  */
 const SHRED_COUNT = 26
 const SHRED_INNER = [2.05, 2.3]
-const SHRED_OUTER = [2.8, 2.95]
+const SHRED_OUTER = [2.7, 2.82]
 /**
  * A little inside the star band (2.71..2.92): a cloud is thick, so its middle
  * sits inward for its outer edge to meet the stars. Kept low (`y`) as well —
  * the ring's far side must stay under the intro line.
  */
-const RING_RADIUS = 2.6
+const RING_RADIUS = 2.55
 const RING_JITTER = 0.1
 /** World width of one cloud; the camera's perspective makes the near ones larger. */
 const SIZE_MIN = 1.55
@@ -150,7 +150,7 @@ export function createSky(camera: PerspectiveCamera): Sky {
       kind,
       angle: ((i + rand(-0.3, 0.3)) / CLOUD_COUNT) * Math.PI * 2,
       radius: RING_RADIUS + rand(-RING_JITTER, RING_JITTER),
-      y: rand(0, 0.3),
+      y: rand(-0.2, 0.1),
       width: rand(SIZE_MIN, SIZE_MAX),
       tilt: rand(-0.18, 0.18),
       alpha: 1,
@@ -167,7 +167,7 @@ export function createSky(camera: PerspectiveCamera): Sky {
       kind: FIRST_SHRED + (i % 4),
       angle: ((i + rand(-0.4, 0.4)) / SHRED_COUNT) * Math.PI * 2,
       radius: rand(lo, hi),
-      y: rand(0, 0.25),
+      y: rand(-0.2, 0.05),
       width: rand(0.8, 1.3),
       tilt: rand(-0.6, 0.6),
       alpha: rand(0.6, 0.85),
