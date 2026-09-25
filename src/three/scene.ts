@@ -29,33 +29,35 @@ const HERO_FOV = 35
 const DIVE_FOV = 62
 /**
  * Where the camera is once it has turned, how far the first drop takes it (to
- * the tunnel's mouth, through the ring) and how far the second (down the
- * tunnel to its last letters — the end of the road, not past it).
+ * the tunnel's mouth, through the ring) and how far the second: down the
+ * tunnel and out past its end, so the statements leave the screen and the
+ * camera arrives over PROJECTS (`ui/title.ts`).
  */
 const TURNED_Y = 7
 const DROP_TO_MOUTH = 8
-const DROP_THROUGH = 19
+const DROP_THROUGH = 37
 
 /**
- * The journey's beats, as `[from, span]` of `p`, on mohitvirli.github.io's
- * own schedule: the turn over 0..0.3 and the drop from 0.3, both **linear** —
- * the camera's damping is what smooths them, so there is no stop where one
- * hands over to the next. PROJECTS follows at that site's 0.7 / 0.8
- * (`ui/title.ts`), as the camera reaches the end of the tunnel.
+ * The journey's beats, as `[from, span]` of `p`, in mohitvirli.github.io's
+ * order: the turn over 0..0.3, then a quick plunge, then the long stretch —
+ * all **linear**, the camera's damping is what smooths them, so there is no
+ * stop where one hands over to the next. PROJECTS comes into view in the
+ * road's last tenth (`ui/title.ts`); only once the camera has arrived do its
+ * letters move and the tile come in.
  */
 const TURN = [0, 0.3] as const
-const DROP_A = [0.3, 0.2] as const
-const DROP_B = [0.5, 0.25] as const
-const OPEN = [0.05, 0.37] as const
-const CLOUDS_OUT = [0.34, 0.12] as const
-const WIDEN = [0.15, 0.3] as const
+const DROP_A = [0.3, 0.12] as const
+const DROP_B = [0.42, 0.3] as const
+const OPEN = [0.05, 0.33] as const
+const CLOUDS_OUT = [0.3, 0.12] as const
+const WIDEN = [0.15, 0.25] as const
 /**
  * The statements do not exist until the camera is inside the ring; then all
  * three rise out of the depth into place **together**, as it comes down to
  * the tunnel's mouth.
  */
-const REVEAL = [0.4, 0.12] as const
-const TWIST = [0.5, 0.3] as const
+const REVEAL = [0.36, 0.1] as const
+const TWIST = [0.42, 0.3] as const
 
 /** drei `ScrollControls` on mohitvirli.github.io: `damping={0.4} maxSpeed={1}`, default eps. */
 const SCROLL_DAMPING = 0.4

@@ -7,18 +7,26 @@
  * top of the screen and come up to full white. Their size never changes and
  * neither does their x; only the heights close up. Scroll-driven both ways.
  *
- * On that site's schedule: the fade over `range(0.7, 0.2)`, the close-up over
- * `range(0.8, 0.2)`, and each letter chasing its height with
- * `MathUtils.damp(…, 7, delta)`. The line is at the top here (asked), so a
- * letter's offset is `(1 - drop) * (i + 1)` steps *below* it — the same
- * diagonal, rising into place.
+ * **In order, as on that site**: in the last tenth of the statements' road
+ * the word appears **far off**, a speck at the vanishing point, and grows as
+ * the camera comes toward it (a perspective growth, `1 / (1 + FAR * (1 - a))`);
+ * only once the camera has arrived and the statements are off the screen do
+ * the letters close onto the line, each chasing its height with
+ * `MathUtils.damp(…, 7, delta)` as there. The line is at the top here
+ * (asked), so a letter's offset is `(1 - drop) * (i + 1)` steps *below* it —
+ * the same diagonal, rising into place.
  */
-import { range } from '../lib/math'
+import { range, smoother } from '../lib/math'
 
 const WORD = 'PROJECTS'
-/** The fade in, then the drop onto the line, as `[from, span]` of the journey. */
-const FADE = [0.7, 0.2] as const
-const DROP = [0.8, 0.2] as const
+/**
+ * The approach from far off (the road's last tenth, to the camera's arrival),
+ * then the close-up onto the line, as `[from, span]` of the journey.
+ */
+const APPROACH = [0.62, 0.12] as const
+const DROP = [0.76, 0.2] as const
+/** How far off the word starts: its scale is `1 / (1 + FAR)` at first. */
+const FAR = 12
 /** One step of the diagonal, in screen heights. */
 const STEP = 0.085
 /** The reference's per-letter damping, λ. */
@@ -49,8 +57,9 @@ export function createTitle(): Title {
   let drawnP = -1
 
   function update(p: number, delta: number): void {
-    const fade = range(p, ...FADE)
-    const drop = range(p, ...DROP)
+    const near = range(p, ...APPROACH)
+    const fade = Math.min(1, near * 3)
+    const drop = smoother(range(p, ...DROP))
     const chase = reduced.matches ? 1 : 1 - Math.exp(-LAMBDA * delta)
     let moving = p !== drawnP
     drawnP = p
@@ -62,6 +71,7 @@ export function createTitle(): Title {
     if (!moving) return
     const h = window.innerHeight
     el.style.visibility = fade > 0 ? 'visible' : 'hidden'
+    el.style.scale = String(1 / (1 + FAR * (1 - near)))
     letters.forEach((span, i) => {
       span.style.translate = `0 ${(offsets[i] * h).toFixed(1)}px`
       span.style.opacity = String(fade * (FAINT + (1 - FAINT) * drop))

@@ -24,7 +24,7 @@
  * "View <name>", grown out of a point. Fine pointers only.
  */
 
-import { range } from '../lib/math'
+import { range, smoother } from '../lib/math'
 
 interface Project {
   name: string
@@ -226,14 +226,22 @@ function bindTilt(card: HTMLElement): void {
 const CLOSE_LABEL = 'Close projects'
 /** The tile's own title, shown on hover — two lines, like the reference's. */
 const TILE_TITLE = 'SELECTED WORK'
-/** The tile comes in over this `[from, span]` of the journey. */
-const TILE_IN = [0.85, 0.15] as const
+/**
+ * The tile's entrance, as the reference's: there the camera pulls back as the
+ * tiles come in (z 5 → 15 over the last stretch, damped λ 7), so a tile
+ * arrives from right up against the lens and settles into place. Here it
+ * starts `PULL` times its size and recedes, over `TILE_IN` of the journey,
+ * chased at that same λ.
+ */
+const TILE_IN = [0.84, 0.16] as const
+const PULL = 1.6
+const LAMBDA = 7
 
 export interface Projects {
   /** The tile, for the journey's stage. */
   tile: HTMLButtonElement
-  /** Fade the tile in off the journey. */
-  update(p: number): void
+  /** Bring the tile in off the journey. */
+  update(p: number, delta: number): void
   /** The one element the page's scroll lock has to leave scrollable. */
   scroller: HTMLElement
 }
@@ -415,13 +423,17 @@ export function createProjects(
     if (e.key === 'Escape') shut()
   })
 
+  let shown = 0
   let drawn = -1
-  function update(p: number): void {
-    const t = range(p, ...TILE_IN)
+  function update(p: number, delta: number): void {
+    const target = smoother(range(p, ...TILE_IN))
+    const chase = REDUCED_MOTION.matches ? 1 : 1 - Math.exp(-LAMBDA * delta)
+    shown = Math.abs(target - shown) < 1e-4 ? target : shown + (target - shown) * chase
+    const t = shown
     if (t === drawn) return
     drawn = t
-    tile.style.opacity = String(t)
-    tile.style.scale = String(0.94 + 0.06 * t)
+    tile.style.opacity = String(Math.min(1, t * 2))
+    tile.style.scale = String(1 + PULL * (1 - t))
     // Out of reach, keyboard included, until it is really there.
     tile.style.visibility = t > 0 ? 'visible' : 'hidden'
     tile.style.pointerEvents = t > 0.6 ? 'auto' : 'none'

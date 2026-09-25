@@ -38,6 +38,10 @@
   /* The "in progress" pill's colour — the site's one deliberate accent, asked
      for so unfinished work reads at a glance. */
   --status-live: #4d8dff;
+  /* The tile's face: white by day, black by night (asked); its title takes
+     the other one. */
+  --tile-bg: #ffffff;
+  --tile-ink: #000000;
   /* The projects portal: opens out of the tile as the reference's blends in
      (0.5s), folds back as it blends out (1s). */
   --portal-open: 0.5s;
@@ -49,6 +53,8 @@
 
 :root[data-theme="dark"] {
   --bg: #111111;
+  --tile-bg: #000000;
+  --tile-ink: #ffffff;
 }
 
 /* ===========================================================
@@ -162,6 +168,9 @@ body {
   line-height: 1;
   color: #ffffff;
   visibility: hidden;
+  /* The vanishing point — the middle of the screen — so the word grows out of
+     it as the camera comes toward it (ui/title.ts). */
+  transform-origin: 50% 41svh;
 }
 
 .projects-title span {
@@ -206,8 +215,8 @@ body {
   position: absolute;
   inset: 0;
   overflow: hidden;
-  background: #000000;
-  transition: translate 0.4s ease;
+  background: var(--tile-bg);
+  transition: translate 0.4s ease, background-color 1s ease;
 }
 
 /* The screenshots as a loose stack, turned and offset, drifting against the
@@ -243,7 +252,7 @@ body {
   font-size: clamp(26px, 3.4vw, 60px);
   line-height: 0.95;
   text-align: center;
-  color: #ffffff;
+  color: var(--tile-ink);
   opacity: 0;
   transition: opacity 0.4s ease, translate 0.4s ease;
   pointer-events: none;
@@ -464,20 +473,23 @@ body {
   inset: 0;
   /* Over everything but the social badges (90), which stay live over it. */
   z-index: 80;
-  background: #000000;
+  /* The tile's own colour while it is folded into it, black once open — so
+     by day the white face turns black as it opens out, and back as it folds. */
+  background: var(--tile-bg);
   color: #ffffff;
   visibility: hidden;
   /* The closing transition — the state being returned to decides it. JS sets
      the clip back to the tile's box; visibility waits for the fold. */
   transition: clip-path var(--portal-close) cubic-bezier(0.65, 0, 0.35, 1),
-    visibility 0s linear var(--portal-close);
+    background-color var(--portal-close) ease, visibility 0s linear var(--portal-close);
 }
 
 .projects.is-open {
   visibility: visible;
   clip-path: inset(0);
+  background: #000000;
   transition: clip-path var(--portal-open) cubic-bezier(0.33, 1, 0.68, 1),
-    visibility 0s;
+    background-color var(--portal-open) ease, visibility 0s;
 }
 
 .projects-scroller {
