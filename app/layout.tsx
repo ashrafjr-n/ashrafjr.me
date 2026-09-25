@@ -15,7 +15,7 @@ const vercettiFont = localFont({
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'https://example.com/'),
-  title: "Ashraf Al-Jarabeah ✌️",
+  title: "ASHRAF",
   description: "Computer science student and full-stack developer, building toward AI.",
   keywords: "Ashraf Al-Jarabeah, Full-Stack Developer, Computer Science, React, Next.js, Three.js, TypeScript, AI, Portfolio",
   authors: [{ name: "Ashraf Al-Jarabeah" }],
