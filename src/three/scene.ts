@@ -7,7 +7,8 @@
  * over the ring at the hero's ~63° angle, turns to look straight down while
  * the ring opens around it, drops through the middle — where the statements
  * rise into the tunnel under it (`three/tunnel.ts`) — and travels down the
- * tunnel to the end of it, where PROJECTS comes in (`ui/title.ts`).
+ * tunnel to the end of it, where PROJECTS comes in (`ui/title.ts`) and then
+ * the card that opens the projects (`ui/projects.ts`).
  *
  * **The scroll feels like mohitvirli.github.io's, by construction**: `p` is
  * the scroll run through maath's `damp` with drei `ScrollControls`' settings
@@ -36,26 +37,25 @@ const DROP_TO_MOUTH = 8
 const DROP_THROUGH = 19
 
 /**
- * The journey's beats, as `[from, span]` of `p`. They overlap on purpose, so
- * one move is still finishing as the next starts and the camera never stops.
+ * The journey's beats, as `[from, span]` of `p`, on mohitvirli.github.io's
+ * own schedule: the turn over 0..0.3 and the drop from 0.3, both **linear** —
+ * the camera's damping is what smooths them, so there is no stop where one
+ * hands over to the next. PROJECTS follows at that site's 0.7 / 0.8
+ * (`ui/title.ts`), as the camera reaches the end of the tunnel.
  */
-const TURN = [0, 0.28] as const
-const OPEN = [0.04, 0.42] as const
-const CLOUDS_OUT = [0.3, 0.14] as const
-const WIDEN = [0.12, 0.3] as const
+const TURN = [0, 0.3] as const
+const DROP_A = [0.3, 0.2] as const
+const DROP_B = [0.5, 0.25] as const
+const OPEN = [0.05, 0.37] as const
+const CLOUDS_OUT = [0.34, 0.12] as const
+const WIDEN = [0.15, 0.3] as const
 /**
- * The two drops overlap a little, so the camera slows at the tunnel's mouth —
- * as the statements rise into place — without stopping.
+ * The statements do not exist until the camera is inside the ring; then all
+ * three rise out of the depth into place **together**, as it comes down to
+ * the tunnel's mouth.
  */
-const DROP_A = [0.15, 0.3] as const
-const DROP_B = [0.52, 0.4] as const
-/**
- * The statements do not exist until the camera is inside the ring; then each
- * rises out of the depth into its place, one wall after another.
- */
-const REVEAL = [0.36, 0.14] as const
-const REVEAL_STAGGER = 0.05
-const TWIST = [0.5, 0.45] as const
+const REVEAL = [0.4, 0.12] as const
+const TWIST = [0.5, 0.3] as const
 
 /** drei `ScrollControls` on mohitvirli.github.io: `damping={0.4} maxSpeed={1}`, default eps. */
 const SCROLL_DAMPING = 0.4
@@ -122,7 +122,6 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
 
   let prevTime = performance.now()
   const scroll = { value: 0, velocity: 0 }
-  const reveal = [0, 0, 0]
   let yaw = 0
   let pitch = 0
 
@@ -140,9 +139,8 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
     const p = scroll.value
 
     // --- The camera: turn to look down, then dive. Targets off `p`, chased. ---
-    const turn = smoother(range(p, ...TURN))
-    const drop =
-      DROP_TO_MOUTH * smoother(range(p, ...DROP_A)) + DROP_THROUGH * smoother(range(p, ...DROP_B))
+    const turn = range(p, ...TURN)
+    const drop = DROP_TO_MOUTH * range(p, ...DROP_A) + DROP_THROUGH * range(p, ...DROP_B)
     goal.set(0, HERO_POS.y + (TURNED_Y - HERO_POS.y) * turn - drop, HERO_POS.z * (1 - turn))
     goalTurn.slerpQuaternions(heroTurn, downTurn, turn)
     if (still) {
@@ -167,10 +165,7 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
       camera.updateProjectionMatrix()
     }
 
-    for (let k = 0; k < reveal.length; k++) {
-      reveal[k] = smoother(range(p, REVEAL[0] + k * REVEAL_STAGGER, REVEAL[1]))
-    }
-    tunnel.update(reveal, smoother(range(p, ...TWIST)))
+    tunnel.update(smoother(range(p, ...REVEAL)), smoother(range(p, ...TWIST)))
     sky.update(
       delta,
       !REDUCED_MOTION.matches,

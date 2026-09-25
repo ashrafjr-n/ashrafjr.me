@@ -3,8 +3,8 @@
  * statement running down each of its three walls, into the depth.
  *
  * There are no walls, only the type. Nothing of it shows from the hero: once
- * the camera is inside the ring, each statement **rises out of the depth**
- * along its wall into place, fading up as it comes, one wall after another.
+ * the camera is inside the ring, all three **rise out of the depth** along
+ * their walls into place together, fading up as they come.
  * Then the camera travels down the shaft's axis (`three/scene.ts`), so each
  * statement runs from huge at the edge of the frame to the vanishing point in
  * the middle, and the shaft turns a quarter as the camera goes.
@@ -30,8 +30,8 @@ const RISE = 16
 
 export interface Tunnel {
   group: Group
-  /** `reveal` is each statement's rise, 0..1; `twist` is 0..1 of the turn. */
-  update(reveal: readonly number[], twist: number): void
+  /** `reveal` is the statements' rise, 0..1; `twist` is 0..1 of the turn. */
+  update(reveal: number, twist: number): void
 }
 
 export function createTunnel(): Tunnel {
@@ -70,13 +70,12 @@ export function createTunnel(): Tunnel {
     homes.push(text.position.y)
   })
 
-  function update(reveal: readonly number[], twist: number): void {
+  function update(reveal: number, twist: number): void {
     group.rotation.y = twist * TWIST
     texts.forEach((text, k) => {
-      const r = reveal[k]
-      text.visible = r > 0
-      text.position.y = homes[k] - (1 - r) * RISE
-      text.fillOpacity = r
+      text.visible = reveal > 0
+      text.position.y = homes[k] - (1 - reveal) * RISE
+      text.fillOpacity = reveal
     })
   }
 
