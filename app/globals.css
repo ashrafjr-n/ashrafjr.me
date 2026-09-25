@@ -123,8 +123,8 @@ body {
 
 @media (max-width: 767.98px) {
   .intro {
-    /* Dead centre of the screen on phones. */
-    top: 50%;
+    /* Centred on phones, a little above the middle. */
+    top: 42%;
     transform: translate(-50%, calc(-50% + var(--drift, 0px)));
   }
 }
