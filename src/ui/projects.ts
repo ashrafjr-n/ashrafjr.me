@@ -24,6 +24,7 @@
  * "View <name>", grown out of a point. Fine pointers only.
  */
 
+import { beat, MOUTH_AT } from '../lib/journey'
 import { range } from '../lib/math'
 
 interface Project {
@@ -230,9 +231,10 @@ const TILE_TITLE = 'SELECTED WORK'
  * The tile's entrance, as the reference's tiles, measured off the live site:
  * the camera pulls back over `range(0.85, 0.18)` (damped λ 7) and the tiles
  * **rise into view from under the bottom edge** to their place. Here the tile
- * rises `RISE` screen heights over `TILE_IN`, chased at that same λ.
+ * rises `RISE` screen heights over `TILE_IN` (in screens, `lib/journey.ts`),
+ * chased at that same λ.
  */
-const TILE_IN = [0.85, 0.15] as const
+const TILE_IN = beat(MOUTH_AT + 0.76, 0.6)
 const RISE = 1.1
 const LAMBDA = 7
 

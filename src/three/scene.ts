@@ -2,24 +2,33 @@
  * The Three.js scene: the sky with its cloud ring (`three/sky.ts`), seen through
  * one camera that the scroll flies.
  *
- * **The journey** is one value, `p` (0..1), and every target below is a pure
- * function of it, so scrolling back up rewinds all of it. The camera starts
- * over the ring at the hero's ~63° angle, turns to look straight down while
- * the ring opens around it, and falls through the middle toward the
- * statements' tunnel far below (`three/tunnel.ts`), through it and out past
- * its end, where PROJECTS comes in (`ui/title.ts`) and then the tile that
- * opens the projects (`ui/projects.ts`).
+ * **The journey** is one value, `p` (0..1): the scroll run through maath's
+ * `damp` with drei `ScrollControls`' settings (`damping` 0.4, `maxSpeed` 1),
+ * as on mohitvirli.github.io. Everything in the 3D is then placed off **one**
+ * chase of it (`flight`, λ 7) — the camera's position, its turn, the ring,
+ * the fov and the tunnel's twist together — so no part of the view can lag
+ * behind another on a fast scroll. (The camera's position and turn were once
+ * chased separately, at λ 7 and 5, and the ring not at all; on a quick scroll
+ * they came apart and the view lurched.)
  *
- * **The scroll feels like mohitvirli.github.io's, by construction**: `p` is
- * the scroll run through maath's `damp` with drei `ScrollControls`' settings
- * there (`damping` 0.4, `maxSpeed` 1), and the camera then chases its target
- * with that site's own damping (λ 7 for position, 5 for the turn).
+ * The camera starts over the ring at the hero's ~63° angle and turns to look
+ * straight down while the ring opens. Then it **approaches** the statements'
+ * tunnel below (`three/tunnel.ts`): an eased fall that starts from rest and
+ * reaches the tunnel's mouth at exactly the speed it then keeps through the
+ * tunnel, so there is neither a stop nor a jump at the mouth. The ring comes
+ * down with it, a little slower, widening round the tunnel until it slips
+ * past the edges of the frame, and fades as the camera reaches it. Through
+ * the tunnel and out past its end, PROJECTS comes in (`ui/title.ts`) and then
+ * the tile that opens the projects (`ui/projects.ts`).
+ *
+ * Beats are placed in **screens of scroll** (`lib/journey.ts`).
  */
 import { Matrix4, PerspectiveCamera, Quaternion, Vector3, WebGLRenderer } from 'three'
-import { damp, range, smoother } from '../lib/math'
+import { at, beat, JOURNEY_SCREENS, MOUTH_AT } from '../lib/journey'
+import { clamp, damp, range, smoother } from '../lib/math'
 import type { InputState } from '../lib/state'
 import { createSky } from './sky'
-import { createTunnel } from './tunnel'
+import { createTunnel, TUNNEL_TOP } from './tunnel'
 
 /** The hero's vantage: above the ring, looking down at it at ~63°. */
 const HERO_POS = new Vector3(0, 9.3, 4.6)
@@ -27,48 +36,59 @@ const HERO_TARGET = new Vector3(0, 0.25, 0)
 const HERO_FOV = 35
 /** Straight down at the end of the turn, with the old "into the screen" as screen-up. */
 const DIVE_FOV = 62
-/**
- * Where the camera is once it has turned, and how far it then drops: one
- * straight fall down to the statements' tunnel far below (`three/tunnel.ts`,
- * its mouth at y −78.7), through it and out past its end. Solved against the
- * live reference so the camera enters the tunnel at p ≈ 0.66 and leaves it at
- * ≈ 0.79, as it enters and leaves that site's text.
- */
+/** Where the camera is once it has turned. */
 const TURNED_Y = 7
-const DROP_DEPTH = 119
 /**
- * The cloud ring comes down with the camera, a little slower, so — like the
- * clouds all the way down on the reference — it stays around the far-off
- * tunnel as the camera falls, and the camera passes through it right at the
- * tunnel's mouth (`7 / (1 - SINK)` of the drop, ≈ 86 units).
+ * The camera's speed down the tunnel, units per screen of scroll — the pace
+ * the stretch from the mouth on was approved at — and how far past the mouth
+ * it goes: the tunnel's length and a little more, so it ends just clear of it.
  */
-const SINK = 0.918
+const THROUGH_SPEED = 59.5
+const THROUGH_DEPTH = 33.3
+/**
+ * The ring comes down at this share of the camera's fall, so the camera
+ * catches it exactly at the tunnel's mouth.
+ */
+const SINK = TUNNEL_TOP / (TUNNEL_TOP - TURNED_Y)
+/** The ring fades as the camera closes on it: gone at `RING_GONE`, whole at `RING_WHOLE` units. */
+const RING_GONE = 0.8
+const RING_WHOLE = 3
+
+/** The beats, in screens of scroll. */
+const TURN = beat(0, 0.6)
+const APPROACH = beat(0.6, MOUTH_AT - 0.6)
+const OPEN = beat(0.1, 0.4)
+/**
+ * The lens widens into the tunnel's, just before the mouth: there the camera's
+ * approach grows the tunnel far faster than the widening shrinks it. Widened
+ * during the turn, it visibly shrank the far-off tunnel before it grew.
+ */
+const WIDEN = beat(MOUTH_AT - 0.45, 0.45)
+const TWIST = beat(MOUTH_AT - 0.16, 0.72)
+/** How long the approach takes, in screens. */
+const APPROACH_SPAN = MOUTH_AT - 0.6
 
 /**
- * The journey's beats, as `[from, span]` of `p` — drei's `range(from,
- * distance)` — on mohitvirli.github.io's own schedule, measured off the live
- * site: the turn over `range(0, 0.3)`, the fall over `range(0.3, 0.5)` (0.3 to
- * **0.8**), both linear and smoothed only by the camera's damping. The tunnel
- * is in view from the moment the camera looks down — small, far off in the
- * middle of the screen, as that site's window is — and grows as the camera
- * comes to it; the camera is inside it by ~0.6 and past it by ~0.78, the
- * tunnel turning a quarter meanwhile (`range(0.65, 0.15)` there). PROJECTS
- * follows (`ui/title.ts`).
+ * The camera's height, given how far through the turn and the approach it is
+ * (0..1 each) and how many screens past the mouth: after the turn, a cubic
+ * Hermite from rest at `TURNED_Y` to the mouth, arriving at `THROUGH_SPEED`;
+ * then straight on at that speed to `THROUGH_DEPTH` past the mouth.
  */
-const TURN = [0, 0.3] as const
-const DROP = [0.3, 0.5] as const
-const OPEN = [0.05, 0.3] as const
-const CLOUDS_OUT = [0.62, 0.05] as const
-const WIDEN = [0.15, 0.25] as const
-const TWIST = [0.62, 0.18] as const
+function cameraY(turn: number, u: number, screensPast: number): number {
+  const fall = TURNED_Y - TUNNEL_TOP
+  // End slope, in units of the whole fall per unit of `u`.
+  const r = (THROUGH_SPEED * APPROACH_SPAN) / fall
+  const eased = -2 * u * u * u + 3 * u * u + r * (u * u * u - u * u)
+  const y = HERO_POS.y + (TURNED_Y - HERO_POS.y) * turn - fall * eased
+  return y - Math.min(THROUGH_DEPTH, THROUGH_SPEED * Math.max(0, screensPast))
+}
 
 /** drei `ScrollControls` on mohitvirli.github.io: `damping={0.4} maxSpeed={1}`, default eps. */
 const SCROLL_DAMPING = 0.4
 const SCROLL_MAX_SPEED = 1
 const SCROLL_EPS = 0.00001
-/** That site's camera damping (`THREE.MathUtils.damp` λ): position, and the turn. */
-const MOVE_LAMBDA = 7
-const TURN_LAMBDA = 5
+/** The one chase the whole view is placed off, λ. */
+const FLIGHT_LAMBDA = 7
 
 /** How far the pointer turns the view at the screen's edges, radians. */
 const LOOK = Math.PI / 90
@@ -115,9 +135,6 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
   const downTurn = orientation(new Vector3(), new Vector3(0, -1, 0), new Vector3(0, 0, -1))
   const look = new Quaternion()
   const lookAxis = new Vector3()
-  const goal = new Vector3().copy(HERO_POS)
-  const goalTurn = new Quaternion().copy(heroTurn)
-  const facing = new Quaternion().copy(heroTurn)
   camera.position.copy(HERO_POS)
 
   const sky = createSky(camera)
@@ -127,6 +144,7 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
 
   let prevTime = performance.now()
   const scroll = { value: 0, velocity: 0 }
+  let flight = 0
   let yaw = 0
   let pitch = 0
 
@@ -142,20 +160,16 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
       damp(scroll, state.scroll, SCROLL_DAMPING, delta, SCROLL_MAX_SPEED, SCROLL_EPS)
     }
     const p = scroll.value
+    flight = still ? p : flight + (p - flight) * (1 - Math.exp(-FLIGHT_LAMBDA * delta))
+    if (Math.abs(p - flight) < 1e-6) flight = p
+    const f = flight
 
-    // --- The camera: turn to look down, then dive. Targets off `p`, chased. ---
-    const turn = range(p, ...TURN)
-    const drop = DROP_DEPTH * range(p, ...DROP)
-    goal.set(0, HERO_POS.y + (TURNED_Y - HERO_POS.y) * turn - drop, HERO_POS.z * (1 - turn))
-    goalTurn.slerpQuaternions(heroTurn, downTurn, turn)
-    if (still) {
-      camera.position.copy(goal)
-      facing.copy(goalTurn)
-    } else {
-      camera.position.lerp(goal, 1 - Math.exp(-MOVE_LAMBDA * delta))
-      facing.slerp(goalTurn, 1 - Math.exp(-TURN_LAMBDA * delta))
-    }
-    camera.quaternion.copy(facing)
+    // --- The camera: turn to look down, approach, and on through ---
+    const turn = smoother(range(f, ...TURN))
+    const approach = range(f, ...APPROACH)
+    const y = cameraY(turn, approach, (f - at(MOUTH_AT)) * JOURNEY_SCREENS)
+    camera.position.set(0, y, HERO_POS.z * (1 - turn))
+    camera.quaternion.slerpQuaternions(heroTurn, downTurn, turn)
 
     // A few degrees toward the pointer, on top of the flight. Not in the hero:
     // it comes in with the turn, so the opening frame stays exactly as it was.
@@ -164,20 +178,23 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
     camera.quaternion.multiply(look.setFromAxisAngle(lookAxis.set(0, 1, 0), yaw))
     camera.quaternion.multiply(look.setFromAxisAngle(lookAxis.set(1, 0, 0), pitch))
 
-    const fov = HERO_FOV + (DIVE_FOV - HERO_FOV) * smoother(range(p, ...WIDEN))
+    const fov = HERO_FOV + (DIVE_FOV - HERO_FOV) * smoother(range(f, ...WIDEN))
     if (fov !== camera.fov) {
       camera.fov = fov
       camera.updateProjectionMatrix()
     }
 
-    tunnel.update(smoother(range(p, ...TWIST)))
+    // The ring follows the camera's own height, so the two can never part.
+    const sink = Math.max(0, TURNED_Y - y) * SINK
+    const gap = y + sink
+    tunnel.update(smoother(range(f, ...TWIST)))
     sky.update(
       delta,
       !REDUCED_MOTION.matches,
-      smoother(range(p, ...OPEN)),
-      1 - smoother(range(p, ...CLOUDS_OUT)),
+      smoother(range(f, ...OPEN)),
+      smoother(clamp((gap - RING_GONE) / (RING_WHOLE - RING_GONE), 0, 1)),
       dark,
-      drop * SINK,
+      sink,
     )
     renderer.render(sky.scene, camera)
     return p

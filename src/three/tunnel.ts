@@ -2,11 +2,10 @@
  * The statements' tunnel: a triangular shaft under the cloud ring, with one
  * statement running down each of its three walls, into the depth.
  *
- * There are no walls, only the type. The shaft sits **far below the ring**,
- * like mohitvirli.github.io's window: out of frame from the hero, it comes
- * into view as a small shape in the middle of the screen the moment the
- * camera looks down, and grows as the camera falls toward it
- * (`three/scene.ts`). Inside, each statement runs from huge at the edge of
+ * There are no walls, only the type. The shaft sits **below the ring**: out
+ * of frame from the hero, it comes into view in the middle of the screen as
+ * the camera turns to look down, and grows steadily as the camera comes down
+ * to it (`three/scene.ts`). Inside, each statement runs from huge at the edge of
  * the frame to the vanishing point in the middle, and the shaft turns a
  * quarter as the camera goes through.
  *
@@ -18,8 +17,8 @@ import { Text } from 'troika-three-text'
 
 const STATEMENTS = ['COMPUTER SCIENCE', 'FULL-STACK DEVELOPER', 'BUILDING TOWARD AI']
 export const TUNNEL_FONT = '/fonts/DMSerifDisplay-Regular.ttf'
-/** Where the shaft opens, far under the ring, and how far off the axis each wall is. */
-const TOP = -78.7
+/** Where the shaft opens, under the ring, and how far off the axis each wall is. */
+export const TUNNEL_TOP = -30
 const APOTHEM = 1.15
 const FONT_SIZE = 2.1
 /** How far down its wall each statement starts, so the three are not level. */
@@ -59,7 +58,7 @@ export function createTunnel(): Tunnel {
     across.crossVectors(inward, down)
     basis.makeBasis(down, across, inward)
     text.quaternion.setFromRotationMatrix(basis)
-    text.position.set(-inward.x * APOTHEM, TOP - STAGGER[k], -inward.z * APOTHEM)
+    text.position.set(-inward.x * APOTHEM, TUNNEL_TOP - STAGGER[k], -inward.z * APOTHEM)
     text.sync()
     group.add(text)
   })

@@ -135,10 +135,9 @@ body {
    go — and holds PROJECTS (ui/title.ts) and the tile that opens the projects
    (ui/projects.ts). */
 .journey {
-  /* Four screens of scroll, as ScrollControls' pages={4} on the reference
-     gives (its scroller is pages + 1 screens tall — measured on the live
-     site): the journey plays over this height less the stuck stage. */
-  height: 500svh;
+  /* Its height is set from lib/journey.ts (main.ts): the journey's screens of
+     scroll, plus the stuck stage. */
+  height: 376svh;
 }
 
 .journey-stage {

@@ -5,6 +5,7 @@
 import './style.css'
 import { initScene } from './three/scene'
 import { range } from './lib/math'
+import { beat, JOURNEY_SCREENS } from './lib/journey'
 import { state, initPointer, initScroll, scroller } from './lib/state'
 import { buildSocialBadges } from './ui/social'
 import { createLoader } from './ui/loader'
@@ -15,8 +16,8 @@ import { lockScroll, unlockScroll } from './lib/scroll-lock'
 
 /** How far the line drifts upward as it goes, in px. */
 const INTRO_DRIFT = 70
-/** The share of the journey the intro line takes to leave. */
-const INTRO_OUT = 0.1
+/** The intro line leaves over the first stretch of the journey, in screens. */
+const INTRO_OUT = beat(0, 0.4)
 
 /** Scene 1 intro line, centred near the top of the viewport. */
 function buildIntro(): HTMLParagraphElement {
@@ -45,6 +46,8 @@ const intro = buildIntro()
  */
 const journey = document.createElement('div')
 journey.className = 'journey'
+// The journey's screens of scroll, plus the screen the stage sticks in.
+journey.style.height = `${(JOURNEY_SCREENS + 1) * 100}svh`
 const stage = document.createElement('div')
 stage.className = 'journey-stage'
 const title = createTitle()
@@ -100,7 +103,7 @@ function raf(time: number) {
     if (loaderGone) theme.show()
   }
   const p = scene.update(time, state, theme.update(delta))
-  updateIntro(range(p, 0, INTRO_OUT))
+  updateIntro(range(p, ...INTRO_OUT))
   title.update(p, delta)
   projects.update(p, delta)
   requestAnimationFrame(raf)

@@ -7,19 +7,23 @@
  * top of the screen and come up to full white. Their size never changes and
  * neither does their x; only the heights close up. Scroll-driven both ways.
  *
- * On that site's schedule, measured off the live site: the letters fade in
- * over `range(0.7, 0.2)` as the camera leaves the tunnel, and close onto the
- * line over `range(0.8, 0.2)`, each chasing its height with
+ * The letters fade in as the camera goes through the tunnel's last stretch,
+ * and close onto the line once it is out, each chasing its height with
  * `MathUtils.damp(…, 7, delta)`; their opacity is the fade and nothing else.
  * The line is at the top, as there, so a letter's offset is `(1 - drop) *
  * (i + 1)` steps *below* it.
  */
+import { beat, MOUTH_AT } from '../lib/journey'
 import { range } from '../lib/math'
 
 const WORD = 'PROJECTS'
-/** The fade in, then the close-up onto the line, as `[from, span]` of the journey. */
-const FADE = [0.7, 0.2] as const
-const DROP = [0.8, 0.2] as const
+/**
+ * The fade in, then the close-up onto the line, in screens (`lib/journey.ts`):
+ * the fade from a sixth of a screen past the tunnel's mouth, the close-up
+ * once the camera is out of it.
+ */
+const FADE = beat(MOUTH_AT + 0.16, 0.8)
+const DROP = beat(MOUTH_AT + 0.56, 0.8)
 /** One step of the diagonal, in screen heights (the reference's, measured). */
 const STEP = 0.1
 /** The reference's per-letter damping, λ. */
