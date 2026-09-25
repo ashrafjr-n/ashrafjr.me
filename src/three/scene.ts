@@ -777,7 +777,7 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
   }, true) // the ring scatters; the cloud does not
   band.radiusScale = ringScale(world.camera.aspect)
 
-  const sky = createSky()
+  const sky = createSky(world.camera)
   sky.setScale(band.radiusScale)
 
   /** Both layers, in one array so the frame loop allocates nothing per frame. */

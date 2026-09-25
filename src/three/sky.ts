@@ -1,110 +1,179 @@
 /**
- * The day half: a clear blue sky with a ring of clouds turning in it, seen
- * through the starfield's own bird's-eye camera so the two rings read as one
- * ellipse split by the rope.
+ * The day half: a flat blue sky with a fine grain, and a ring of clouds turning
+ * in it — seen through the starfield's own bird's-eye camera, on the star
+ * band's radius, so the two rings read as one ellipse split by the rope.
  *
- * `cloud_ring.glb` is "Cloud Ring" by RandyGF (CC-BY-4.0, Sketchfab). Its three
- * concentric rings are turned here, clockwise at the star band's pace, and the
- * GLB's own animation is not used.
+ * The ring is built from four photographed clouds (`public/assets/hero/clouds/`,
+ * keyed to transparent PNGs), each used several times as a sprite. Every sprite
+ * is turned so its top faces the ring's centre on screen, which is what lets the
+ * crescent's curve follow the circle and the rest read as one band.
  */
 import {
-  AmbientLight,
-  CanvasTexture,
-  DirectionalLight,
-  Group,
-  SRGBColorSpace,
+  Mesh,
+  PlaneGeometry,
   Scene,
+  ShaderMaterial,
+  SRGBColorSpace,
+  Sprite,
+  SpriteMaterial,
+  TextureLoader,
+  Vector3,
 } from 'three'
-import type { Material, Mesh, MeshStandardMaterial, Object3D } from 'three'
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
+import type { PerspectiveCamera, Texture } from 'three'
+import { rand } from '../lib/math'
 import { MODEL_SPIN_RATE } from './world'
 
-const CLOUD_URL = '/assets/hero/cloud_ring.glb'
-/** Puts the rings' middle on the star band's radius (~2.8). */
-const CLOUD_SCALE = 0.52
-const CLOUD_Y = 0
-/** Inner ring fastest, like an orbit; all clockwise, around the band's rate. */
-const RING_RATES = [1.25, 1.1, 0.95].map((k) => -k * MODEL_SPIN_RATE)
-/** The clouds' own alpha, over the texture's. */
-const CLOUD_OPACITY = 0.82
-/** Seconds the clouds take to fade in once the GLB has arrived. */
+const CLOUDS = [
+  { url: '/assets/hero/clouds/cloud-crescent.png', weight: 3 },
+  { url: '/assets/hero/clouds/cloud-wide.png', weight: 2 },
+  { url: '/assets/hero/clouds/cloud-wisp.png', weight: 1 },
+  { url: '/assets/hero/clouds/cloud-puff.png', weight: 2 },
+]
+const CLOUD_COUNT = 30
+/**
+ * A little inside the star band (2.71..2.92): a cloud is thick, so its middle
+ * sits inward for its outer edge to meet the stars. Kept low (`y`) as well —
+ * the ring's far side must stay under the intro line.
+ */
+const RING_RADIUS = 2.6
+const RING_JITTER = 0.1
+/** World width of one cloud; the camera's perspective makes the near ones larger. */
+const SIZE_MIN = 1.55
+const SIZE_MAX = 2.1
+/** Clockwise, at the band's typical pace. */
+const RING_RATE = 1.1 * MODEL_SPIN_RATE
+/** Seconds the clouds take to fade in once every texture has arrived. */
 const FADE_IN = 1.2
 
-/** Top to bottom of the frame: deep blue overhead, clearer toward the horizon. */
-function skyTexture(): CanvasTexture {
-  const c = document.createElement('canvas')
-  c.width = 2
-  c.height = 512
-  const g = c.getContext('2d')!
-  const grad = g.createLinearGradient(0, 0, 0, 512)
-  grad.addColorStop(0, '#0d3a86')
-  grad.addColorStop(0.55, '#2f6fc4')
-  grad.addColorStop(1, '#6fa6e3')
-  g.fillStyle = grad
-  g.fillRect(0, 0, 2, 512)
-  const tex = new CanvasTexture(c)
-  tex.colorSpace = SRGBColorSpace
-  return tex
+/**
+ * The sky: one flat colour, sampled off the reference, with a static grain at
+ * the reference's own strength (std ~5.9 / 4.9 / 2.2 per channel). Drawn
+ * straight in clip space, so no camera touches it, and the grain is per CSS
+ * pixel so it looks the same on any pixel ratio.
+ */
+const SKY_VERTEX = /* glsl */ `
+void main() { gl_Position = vec4(position.xy, 0.0, 1.0); }
+`
+const SKY_FRAGMENT = /* glsl */ `
+uniform float uPixelRatio;
+float hash(vec2 p) {
+  p = fract(p * vec2(123.34, 456.21));
+  p += dot(p, p + 45.32);
+  return fract(p.x * p.y);
+}
+void main() {
+  vec2 cell = floor(gl_FragCoord.xy / uPixelRatio);
+  float n = hash(cell) * 2.0 - 1.0;
+  vec3 base = vec3(78.5, 152.9, 210.3) / 255.0;
+  vec3 grain = vec3(10.2, 8.4, 3.9) / 255.0;
+  gl_FragColor = vec4(base + n * grain, 1.0);
+}
+`
+
+interface Cloud {
+  sprite: Sprite
+  kind: number
+  angle: number
+  radius: number
+  y: number
+  width: number
+  /** A small turn of its own on top of facing the centre, so no two align. */
+  tilt: number
 }
 
 export interface Sky {
   scene: Scene
-  /** `turning` is false under reduced motion: the rings hold still, like the stars. */
+  /** `turning` is false under reduced motion: the ring holds still, like the stars. */
   update(delta: number, turning: boolean): void
   /** The ring's size follows the star band's on narrow screens. */
   setScale(k: number): void
 }
 
-export function createSky(): Sky {
+export function createSky(camera: PerspectiveCamera): Sky {
   const scene = new Scene()
-  scene.background = skyTexture()
-  scene.add(new AmbientLight(0xffffff, 2.2))
-  const sun = new DirectionalLight(0xffffff, 2.4)
-  sun.position.set(-3, 10, 4)
-  scene.add(sun)
 
-  const holder = new Group()
-  holder.position.y = CLOUD_Y
-  holder.scale.setScalar(CLOUD_SCALE)
-  scene.add(holder)
-
-  const rings: Object3D[] = []
-  const materials: Material[] = []
-  let opacity = 0
-  let loaded = false
-
-  new GLTFLoader().load(CLOUD_URL, (gltf) => {
-    holder.add(gltf.scene)
-    gltf.scene.traverse((o) => {
-      // GLTFLoader sanitises node names: `Cloud GN.001` arrives as `Cloud_GN001`.
-      if (o.name.startsWith('Cloud_GN')) rings.push(o)
-      // The innermost ring fills the middle in; the star ring is hollow.
-      if (o.name.startsWith('Cloud_GN001')) o.visible = false
-      const mesh = o as Mesh
-      // All three rings share one material; read its opacity only once.
-      if (mesh.isMesh && !materials.includes(mesh.material as Material)) {
-        const m = mesh.material as MeshStandardMaterial
-        // The GLB ships a dark grey at 0.4 alpha, which reads as smoke on blue.
-        m.color.set(0xffffff)
-        m.userData.full = CLOUD_OPACITY
-        m.opacity = 0
-        materials.push(m)
-      }
-    })
-    loaded = true
+  const skyMaterial = new ShaderMaterial({
+    vertexShader: SKY_VERTEX,
+    fragmentShader: SKY_FRAGMENT,
+    uniforms: { uPixelRatio: { value: Math.min(window.devicePixelRatio, 2) } },
+    depthTest: false,
+    depthWrite: false,
   })
+  const skyQuad = new Mesh(new PlaneGeometry(2, 2), skyMaterial)
+  skyQuad.frustumCulled = false
+  skyQuad.renderOrder = -1
+  scene.add(skyQuad)
+
+  const textures: (Texture | null)[] = CLOUDS.map(() => null)
+  /** Height over width of each cloud image, read once it has loaded. */
+  const ratios = CLOUDS.map(() => 0.5)
+  const loader = new TextureLoader()
+  CLOUDS.forEach(({ url }, i) =>
+    loader.load(url, (tex) => {
+      tex.colorSpace = SRGBColorSpace
+      const img = tex.image as HTMLImageElement
+      ratios[i] = img.height / img.width
+      textures[i] = tex
+      for (const cloud of clouds) {
+        if (cloud.kind !== i) continue
+        cloud.sprite.material.map = tex
+        cloud.sprite.material.needsUpdate = true
+      }
+    }),
+  )
+
+  // Weighted so the crescent, whose curve follows the ring, turns up most.
+  const bag = CLOUDS.flatMap((c, i) => Array<number>(c.weight).fill(i))
+  const clouds: Cloud[] = []
+  for (let i = 0; i < CLOUD_COUNT; i++) {
+    const kind = bag[(i * 3 + Math.floor(Math.random() * 2)) % bag.length]
+    // Its own material, so it can carry its own rotation.
+    const sprite = new Sprite(new SpriteMaterial({ transparent: true, depthWrite: false, opacity: 0 }))
+    clouds.push({
+      sprite,
+      kind,
+      angle: ((i + rand(-0.3, 0.3)) / CLOUD_COUNT) * Math.PI * 2,
+      radius: RING_RADIUS + rand(-RING_JITTER, RING_JITTER),
+      y: rand(0, 0.3),
+      width: rand(SIZE_MIN, SIZE_MAX),
+      tilt: rand(-0.18, 0.18),
+    })
+    scene.add(sprite)
+  }
+
+  let spin = 0
+  let scale = 1
+  let fade = 0
+  const p = new Vector3()
+  const c = new Vector3()
 
   function update(delta: number, turning: boolean): void {
-    if (turning) for (let i = 0; i < rings.length; i++) rings[i].rotation.y += RING_RATES[i % 3] * delta
-    if (loaded && opacity < 1) {
-      opacity = Math.min(1, opacity + delta / FADE_IN)
-      const eased = opacity * opacity * (3 - 2 * opacity)
-      for (const m of materials) (m as Material & { opacity: number }).opacity = m.userData.full * eased
+    if (turning) spin += RING_RATE * delta
+    if (fade < 1 && textures.every(Boolean)) fade = Math.min(1, fade + delta / FADE_IN)
+    const eased = fade * fade * (3 - 2 * fade)
+    const aspect = camera.aspect
+
+    for (const cloud of clouds) {
+      const a = cloud.angle + spin
+      const r = cloud.radius * scale
+      const y = cloud.y * scale
+      cloud.sprite.position.set(Math.cos(a) * r, y, Math.sin(a) * r)
+
+      const w = cloud.width * scale
+      cloud.sprite.scale.set(w, w * ratios[cloud.kind], 1)
+      const m = cloud.sprite.material
+      m.opacity = eased
+
+      // Top of the image toward the ring's centre, as seen on screen.
+      p.copy(cloud.sprite.position).project(camera)
+      c.set(0, y, 0).project(camera)
+      m.rotation = Math.atan2(-(c.x - p.x) * aspect, c.y - p.y) + cloud.tilt
     }
   }
 
   function setScale(k: number): void {
-    holder.scale.setScalar(CLOUD_SCALE * k)
+    scale = k
+    skyMaterial.uniforms.uPixelRatio.value = Math.min(window.devicePixelRatio, 2)
   }
 
   return { scene, update, setScale }
