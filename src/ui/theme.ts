@@ -16,17 +16,21 @@ const KEY = 'theme'
 /** Seconds the sky takes to change. */
 const DURATION = 1
 
-// Phosphor `moon-stars` / `sun-dim`, fill weight (MIT).
-const phosphor = (d: string, kind: string): string =>
-  `<svg class="theme-icon theme-icon--${kind}" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="${d}"/></svg>`
-const MOON = phosphor(
-  'M240,96a8,8,0,0,1-8,8H216v16a8,8,0,0,1-16,0V104H184a8,8,0,0,1,0-16h16V72a8,8,0,0,1,16,0V88h16A8,8,0,0,1,240,96ZM144,56h8v8a8,8,0,0,0,16,0V56h8a8,8,0,0,0,0-16h-8V32a8,8,0,0,0-16,0v8h-8a8,8,0,0,0,0,16Zm65.14,94.33A88.07,88.07,0,0,1,105.67,46.86a8,8,0,0,0-10.6-9.06A96,96,0,1,0,218.2,160.93a8,8,0,0,0-9.06-10.6Z',
-  'moon',
-)
-const SUN = phosphor(
-  'M120,40V32a8,8,0,0,1,16,0v8a8,8,0,0,1-16,0Zm8,24a64,64,0,1,0,64,64A64.07,64.07,0,0,0,128,64ZM58.34,69.66A8,8,0,0,0,69.66,58.34l-8-8A8,8,0,0,0,50.34,61.66Zm0,116.68-8,8a8,8,0,0,0,11.32,11.32l8-8a8,8,0,0,0-11.32-11.32ZM192,72a8,8,0,0,0,5.66-2.34l8-8a8,8,0,0,0-11.32-11.32l-8,8A8,8,0,0,0,192,72Zm5.66,114.34a8,8,0,0,0-11.32,11.32l8,8a8,8,0,0,0,11.32-11.32ZM40,120H32a8,8,0,0,0,0,16h8a8,8,0,0,0,0-16Zm88,88a8,8,0,0,0-8,8v8a8,8,0,0,0,16,0v-8A8,8,0,0,0,128,208Zm96-88h-8a8,8,0,0,0,0,16h8a8,8,0,0,0,0-16Z',
-  'sun',
-)
+// mohitvirli.github.io's own `icons/night-mode.svg`, used with the author's
+// permission: one sun-and-moon mark for both themes, as there.
+const ICON =
+  '<svg class="theme-icon" viewBox="0 0 512 512" aria-hidden="true">' +
+  '<g transform="translate(0,512) scale(0.1,-0.1)" fill="currentColor">' +
+  '<path d="M2460 4668 c-25 -14 -58 -44 -75 -67 -29 -41 -30 -48 -33 -166 -3 -107 -1 -128 16 -161 85 -164 299 -164 384 0 17 33 19 54 16 161 -3 114 -5 124 -30 161 -44 62 -90 88 -167 92 -55 3 -74 -1 -111 -20z"/>' +
+  '<path d="M1115 4111 c-107 -50 -153 -172 -105 -279 24 -54 111 -146 170 -180 98 -58 229 -24 287 76 39 65 39 148 1 212 -34 59 -126 146 -180 170 -54 25 -121 25 -173 1z"/>' +
+  '<path d="M3832 4110 c-53 -24 -146 -111 -179 -167 -14 -24 -27 -65 -30 -95 -7 -74 33 -150 102 -193 66 -41 149 -42 215 -3 59 34 146 126 170 180 80 176 -102 358 -278 278z"/>' +
+  '<path d="M2330 3936 c-574 -102 -1005 -517 -1137 -1096 -25 -107 -25 -453 0 -560 29 -129 69 -241 123 -348 208 -409 599 -689 1052 -753 106 -15 382 -6 477 15 582 130 1013 592 1096 1174 15 106 6 382 -15 477 -62 273 -189 507 -382 699 -193 194 -423 319 -699 382 -96 22 -413 28 -515 10z m-297 -693 c24 -469 215 -818 576 -1050 82 -53 242 -128 348 -162 78 -26 143 -41 332 -78 23 -4 21 -8 -40 -69 -125 -127 -293 -223 -465 -265 -126 -31 -322 -31 -448 0 -96 23 -244 89 -323 142 -69 47 -188 164 -239 235 -62 87 -130 234 -155 340 -31 126 -31 322 0 448 38 155 123 315 226 425 54 59 161 151 174 151 4 0 11 -53 14 -117z"/>' +
+  '<path d="M539 2747 c-24 -13 -57 -43 -74 -66 -27 -39 -30 -50 -30 -120 0 -68 3 -82 27 -117 15 -21 44 -50 65 -64 33 -23 48 -25 159 -28 106 -3 127 -1 160 16 164 84 164 299 2 383 -30 15 -59 19 -151 19 -100 0 -119 -3 -158 -23z"/>' +
+  '<path d="M4275 2754 c-165 -89 -166 -301 -1 -386 33 -17 54 -19 161 -16 114 3 124 5 161 30 21 15 50 44 64 65 21 31 25 48 25 113 0 65 -4 82 -25 113 -14 21 -43 50 -64 65 -37 25 -46 27 -165 30 -101 2 -132 -1 -156 -14z"/>' +
+  '<path d="M1219 1487 c-20 -8 -49 -23 -65 -34 -50 -35 -124 -121 -144 -166 -80 -175 102 -357 278 -277 54 24 146 111 180 170 38 64 38 147 -1 212 -49 85 -161 127 -248 95z"/>' +
+  '<path d="M3740 1473 c-77 -40 -115 -103 -115 -187 0 -48 6 -71 27 -106 34 -59 126 -146 180 -170 176 -80 358 102 278 278 -24 53 -111 146 -167 179 -24 14 -65 27 -95 30 -45 4 -61 1 -108 -24z"/>' +
+  '<path d="M2480 954 c-46 -20 -87 -60 -112 -108 -17 -33 -19 -54 -16 -160 3 -111 5 -126 28 -159 14 -21 43 -50 64 -65 35 -24 49 -27 116 -27 67 0 81 3 116 27 21 15 50 44 64 65 23 33 25 48 28 159 3 106 1 127 -16 160 -54 104 -172 151 -272 108z"/>' +
+  '</g></svg>'
 /** One quick, smooth turn of the icon on every switch, ms. */
 const SPIN_MS = 520
 
@@ -45,10 +49,8 @@ export function createThemeSwitch(): ThemeSwitch {
   const el = document.createElement('button')
   el.type = 'button'
   el.className = 'theme-switch'
-  // Both icons, stacked: the stylesheet cross-fades them off `data-theme`
-  // while the pair turns, so the swap happens inside the spin.
-  el.innerHTML = `<span class="theme-icons">${MOON}${SUN}</span>`
-  const icons = el.firstElementChild as HTMLElement
+  el.innerHTML = ICON
+  const icon = el.firstElementChild as SVGElement
   const reduced = window.matchMedia('(prefers-reduced-motion: reduce)')
 
   function apply(): void {
@@ -67,7 +69,7 @@ export function createThemeSwitch(): ThemeSwitch {
     }
     apply()
     if (!reduced.matches) {
-      icons.animate([{ rotate: '0deg' }, { rotate: '360deg' }], {
+      icon.animate([{ rotate: '0deg' }, { rotate: '360deg' }], {
         duration: SPIN_MS,
         easing: 'cubic-bezier(0.65, 0, 0.35, 1)',
       })
