@@ -13,7 +13,7 @@ statements and **CONTACT**. Each visit opens on a short 0–99 count.
 ## Built with
 
 - **[Three.js](https://threejs.org)**: the WebGL starfield, around 20,000 stars
-  on their own orbits, and the cloud ring
+  on their own orbits, and the ring of clouds
 - **TypeScript**: vanilla and `strict`, with no UI framework
 - **[Vite](https://vite.dev)**: dev server and build
 - **Plain CSS**: design tokens, layout and every transition, with no CSS
@@ -42,9 +42,3 @@ screenshots live in `public/assets/projects/`.
 
 `prefers-reduced-motion` is honoured: the rings hold still and every
 transition is instant.
-
-## Credits
-
-"[Cloud Ring](https://sketchfab.com/3d-models/cloud-ring-27897026b0a24dfe992ca761a4029d01)"
-by [RandyGF](https://sketchfab.com/RandyGF), licensed under
-[CC BY 4.0](http://creativecommons.org/licenses/by/4.0/).
