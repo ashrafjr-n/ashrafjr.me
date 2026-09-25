@@ -1,7 +1,7 @@
 # ashraf
 
 My personal portfolio, in 3D. It opens on a sky of clouds; scrolling drops
-through a window into my work, education and projects. There is a dark mode.
+through a window into a little about me and my selected projects. There is a dark mode.
 
 It is built on [mohitvirli.github.io](https://github.com/mohitvirli/mohitvirli.github.io)
 by Mohit Virli, with his permission.
@@ -29,7 +29,7 @@ writes `public/CNAME`. Set `NEXT_PUBLIC_GA_ID` to turn on Google Analytics.
 ## Content
 
 - Projects: `app/constants/projects.ts`
-- Work and education: `app/constants/work.ts`
+- About (the timeline): `app/constants/work.ts`
 - Footer links: `app/constants/footer.ts`
 
 ## Credits
@@ -42,3 +42,10 @@ writes `public/CNAME`. Set `NEXT_PUBLIC_GA_ID` to turn on Google Analytics.
   by arloopa, [CC BY 4.0](http://creativecommons.org/licenses/by/4.0/)
 - [Wanderer above the sea of fog](https://sketchfab.com/3d-models/wanderer-above-the-sea-of-fog-518e605e9b734c86aab5bc22f9797f77)
   by betocarrillo, [CC BY-SA 4.0](http://creativecommons.org/licenses/by-sa/4.0/)
+
+Fonts:
+
+- [Soria](https://www.fontsquirrel.com/fonts/soria) by Dani,
+  [SIL Open Font License 1.1](https://www.fontsquirrel.com/license/soria)
+- [Vercetti Regular](https://filipposfragkogiannis.com/fonts/vercetti-regular/)
+  by Filippos Fragkogiannis, Licence Amicale
