@@ -148,11 +148,8 @@ body {
 /* ===========================================================
    Three.js background canvas
 
-   It is the backdrop for all three scenes, not just the first. The press
-   leaves the star field on screen rather than clearing it away, so this canvas
-   is what Scene 2's statements are read against and what Scene 3's panel
-   inverts to black-on-white. It must stay below the panel (z-index 30) for
-   that to work, and it must stay painted.
+   Stars to the right of the rope and the day sky with its cloud ring to the
+   left, split at the rope's x (ui/split.ts) — see three/scene.ts `drawSplit`.
    =========================================================== */
 #scene {
   position: fixed;
@@ -361,9 +358,8 @@ body {
 /* ===========================================================
    The pointer (ui/cursor.ts)
    A disc that negates whatever the page has drawn under it — and it is the
-   pointer **only inside the inversion panel below**. Everywhere else the
-   reader keeps their own system cursor. Same mechanism as that panel, shrunk
-   to a circle and moved with the mouse.
+   pointer **only over EXPLORE**. Everywhere else the reader keeps their own
+   system cursor.
    =========================================================== */
 .cursor {
   position: fixed;
@@ -379,7 +375,7 @@ body {
   mix-blend-mode: difference;
   /* **The highest z-index on the page, and it has to stay that way.** A
      blended element only negates what is painted below it, so anything stacked
-     over the disc (the badges are 90, the projects page 80, EXPLORE 35, the invert panel 30)
+     over the disc (the badges are 90, the projects page 80, EXPLORE 35)
      would simply stop being inverted. */
   z-index: 100;
   pointer-events: none;

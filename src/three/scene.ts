@@ -1,27 +1,14 @@
 /**
- * Base Three.js scene — the orbiting starfield, plus the world layer (the
- * model) composited on top of it.
+ * Base Three.js scene — the orbiting starfield, the day sky with its cloud ring
+ * (`three/sky.ts`), and the world layer (the model, currently off).
  *
- * The stars orbit the model's centre on roughly the model's own orbital plane,
- * each at its own randomised speed, so they read as one system with the stars
- * embedded in the model rather than as a separate dolly-ing backdrop. Mouse
- * parallax is layered on top via shared input state, lerped for smooth motion.
+ * The frame is split at the rope (`ui/split.ts`): stars to its right, sky to
+ * its left, both through the same fixed bird's-eye camera so the star ring and
+ * the cloud ring read as one ellipse. The page no longer scrolls, so the scatter
+ * (`lib/scatter.ts`) sits at page 0 — the protected opening composition.
+ * **No camera moves.**
  *
- * **On scroll the field scatters** (`lib/scatter.ts`): both layers wind up, the
- * ring breaks apart in two directions — inner stars through the centre, outer
- * stars away — the orbit runs out, and a slice of the cloud drifts to an even
- * spread. **No camera moves, no layer is turned to face one, and no star's
- * depth is touched**; three bridges that did any of those were built and
- * rejected for reading as the viewer moving. Nothing flies off or fades any
- * more either: **the settled field is Scene 2's backdrop and, through
- * `ui/invert.ts`'s panel, Scene 3's inverted one.** Once it has settled this
- * file stops writing positions entirely; see the gate in `update()`.
- *
- * Two render passes share one renderer. The starfield is drawn through the
- * world layer's bird's-eye camera, then — behind a depth clear, so the model
- * always sits in front of the stars — the model through its own front-on
- * camera.
- * Palette: white/silver/gray only — no color pops.
+ * Palette: white/silver/gray stars; the sky is the day side's blue.
  */
 import {
   AdditiveBlending,
