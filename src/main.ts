@@ -20,12 +20,11 @@ import { createProjects } from './ui/projects'
 import { createLoader } from './ui/loader'
 
 /**
- * The statements' scene value runs up over this many seconds once the day
- * world is open, and back down over the shorter one on the way out. Linear:
- * `ui/identity.ts` eases every beat of its own.
+ * The statements' share of the day's opening: they set off while the rope is
+ * still leaving and finish as the day is fully open. `ui/identity.ts` eases
+ * every beat of its own, so this stays linear.
  */
-const DAY_IN = 2.3
-const DAY_OUT = 0.9
+const DAY_FROM = 0.35
 /** How far the line drifts upward as it goes, in px. */
 const INTRO_DRIFT = 70
 
@@ -112,7 +111,7 @@ window.addEventListener('resize', () => scene.resize())
 window.addEventListener(
   'keydown',
   (e) => {
-    if (e.key === 'Escape' && !isPaused && split.target() !== 'split') split.go('split')
+    if (e.key === 'Escape' && !isPaused) split.go('split')
   },
   { capture: true },
 )
@@ -139,29 +138,19 @@ function updateIntro(t: number): void {
 // to the covered site is skipped. The scroll is frozen while that is true, so
 // `progress` could not have moved anyway; skipping it is what also stops the
 // stars' drift from running unseen.
-let dayT = 0
-let prevTime = -1
-
 function raf(time: number) {
   if (!loaderGone) loaderGone = loader.update(time)
-  const delta = prevTime < 0 ? 0 : Math.min((time - prevTime) / 1000, 0.1)
-  prevTime = time
   if (!isPaused) {
     const ropeX = split.update(time)
     scene.update(time, state, ropeX)
-    const goal = split.target()
+    // Everything below reads the one scroll-driven value, through `night` and
+    // `day`, so the whole scene moves with the scroll and stops with it.
     const night = split.night()
     const day = split.day()
     updateIntro(Math.max(night, day))
-    // The hands and EXPLORE wait until the rope is most of the way out.
-    const nightIn = goal === 'night' && night > 0.8
-    hands.show(nightIn)
-    explore.show(nightIn)
-    // The statements set off while the rope is still on its way out, so they
-    // follow it across rather than waiting for an empty sky.
-    const dayIn = goal === 'day' && day > 0.4
-    dayT = dayIn ? Math.min(1, dayT + delta / DAY_IN) : Math.max(0, dayT - delta / DAY_OUT)
-    identity.update(dayT, time)
+    hands.set(night)
+    explore.set(night)
+    identity.update(Math.max(0, (day - DAY_FROM) / (1 - DAY_FROM)), time)
   }
   requestAnimationFrame(raf)
 }

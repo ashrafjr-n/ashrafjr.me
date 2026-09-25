@@ -450,18 +450,10 @@ html.has-cursor button {
   font-size: 15px;
   letter-spacing: 0.28em;
   cursor: pointer;
+  /* Opacity, scale and visibility are written per frame off the scroll
+     (ui/explore.ts), so there is no transition on them here. */
   opacity: 0;
-  scale: 0.94;
   visibility: hidden;
-  transition: opacity 350ms ease, scale 350ms ease, visibility 0s linear 350ms;
-}
-
-.explore.is-shown {
-  opacity: 1;
-  scale: 1;
-  visibility: visible;
-  transition: opacity 1100ms ease 1700ms, scale 1400ms cubic-bezier(0.22, 1, 0.36, 1) 1700ms,
-    visibility 0s linear 1700ms;
 }
 
 .explore-icon {
@@ -746,43 +738,40 @@ html.has-cursor button {
   pointer-events: none;
 }
 
+/* **The entrance is the scroll.** ui/hands.ts writes `--light` / `--human`
+   (0..1, already eased) on `.hands` every frame the night's opening moves;
+   each hand turns its own into position, opacity and focus here, so the
+   hands slide in with the scroll and back out with it. No transitions. */
 .hand {
   position: absolute;
-  opacity: 0;
-  visibility: hidden;
-  filter: blur(10px);
-  transition: opacity 500ms ease, translate 700ms ease, filter 500ms ease,
-    visibility 0s linear 700ms;
+  opacity: var(--p);
+  translate: calc((1 - var(--p)) * var(--from-x)) calc((1 - var(--p)) * var(--from-y));
+  filter: blur(calc((1 - var(--p)) * 8px));
 }
 
 /* Both hands are turned a little clockwise, each about its own arm, so the
    fingers point at EXPLORE rather than past it. `rotate` is its own property,
    so it composes with the entrance's `translate`. */
 .hand--light {
+  --p: var(--light, 0);
+  --from-x: 8vw;
+  --from-y: -16vw;
   top: -2vw;
   right: -8vw;
   width: 51vw;
-  translate: 8vw -16vw;
   rotate: 7deg;
   transform-origin: 100% 0;
 }
 
 .hand--human {
+  --p: var(--human, 0);
+  --from-x: -6vw;
+  --from-y: 18vw;
   bottom: -1.5vw;
   left: 5.5vw;
   width: 42vw;
-  translate: -6vw 18vw;
   rotate: 13deg;
   transform-origin: 15% 100%;
-}
-
-.hands.is-in .hand {
-  opacity: 1;
-  visibility: visible;
-  translate: 0 0;
-  filter: blur(0);
-  transition: opacity 1800ms ease, translate 2600ms cubic-bezier(0.16, 1, 0.3, 1),
-    filter 1800ms ease, visibility 0s;
 }
 
 /* ---- The glowing hand's life (ui/hands.ts) ----
@@ -865,10 +854,6 @@ html.has-cursor button {
   }
 }
 
-.hands.is-in .hand--human {
-  transition-delay: 350ms;
-}
-
 /* ===========================================================
    The day world's CONTACT (ui/identity.ts)
    The day side's counterpart to EXPLORE: white on the blue, under the
@@ -939,10 +924,6 @@ html.has-cursor button {
 @media (prefers-reduced-motion: reduce) {
   .side,
   .side.is-shown,
-  .hand,
-  .hands.is-in .hand,
-  .explore,
-  .explore.is-shown,
   .contact,
   .contact.is-in {
     transition-duration: 1ms;
