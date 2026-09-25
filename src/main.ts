@@ -24,7 +24,7 @@ import { createLoader } from './ui/loader'
  * world is open, and back down over the shorter one on the way out. Linear:
  * `ui/identity.ts` eases every beat of its own.
  */
-const DAY_IN = 3.4
+const DAY_IN = 2.3
 const DAY_OUT = 0.9
 /** How far the line drifts upward as it goes, in px. */
 const INTRO_DRIFT = 70
@@ -196,7 +196,9 @@ function raf(time: number) {
     const nightIn = goal === 'night' && night > 0.8
     hands.show(nightIn)
     explore.show(nightIn)
-    const dayIn = goal === 'day' && day > 0.85
+    // The statements set off while the rope is still on its way out, so they
+    // follow it across rather than waiting for an empty sky.
+    const dayIn = goal === 'day' && day > 0.4
     dayT = dayIn ? Math.min(1, dayT + delta / DAY_IN) : Math.max(0, dayT - delta / DAY_OUT)
     identity.update(dayT, time)
   }

@@ -44,7 +44,7 @@ const SLIDE_SIDE = [-1, -1, -1]
  * Fraction of the scene the arrival takes. **The fill now starts 0.05 before
  * it ends**, so the two overlap rather than queue — see `FILL_FROM`.
  */
-const SLIDE_SPAN = 0.42
+const SLIDE_SPAN = 0.36
 /**
  * How far off-screen each statement starts, in viewport widths.
  *
@@ -72,13 +72,13 @@ const EDGE = 0.06
 
 /**
  * Where each statement's fill begins, and how long it takes, as fractions of
- * the scene. **The fill waits for the block to land** (`SLIDE_SPAN` 0.42), on
+ * the scene. **The fill waits for the block to land** (`SLIDE_SPAN` 0.36), on
  * request: slide, stop in the middle, then fill — two beats, not one.
  * `FILL_SPAN` is longer than the step, so the three sweeps overlap into one
- * pass down the block, finishing at 0.94.
+ * pass down the block, finishing at 0.83.
  */
-const FILL_FROM = 0.46
-const FILL_STEP = 0.14
+const FILL_FROM = 0.39
+const FILL_STEP = 0.12
 const FILL_SPAN = 0.2
 
 /**
@@ -98,7 +98,7 @@ const FILL_MAX_STEP = 1 / 60
 const REDUCED_MOTION = window.matchMedia('(prefers-reduced-motion: reduce)')
 
 /** Where in the scene CONTACT fades in: as the last statement's sweep lands. */
-const CONTACT_AT = 0.9
+const CONTACT_AT = 0.8
 
 /**
  * The size everything is measured at before being scaled to fit. Arbitrary,
