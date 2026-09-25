@@ -1,13 +1,5 @@
 @import "tailwindcss";
 
-/* The intro line's font, kept from the previous site (public/fonts, OFL). */
-@font-face {
-  font-family: "DM Serif Display";
-  src: url("/fonts/DMSerifDisplay-Regular.ttf") format("truetype");
-  font-weight: 400;
-  font-display: swap;
-}
-
 @theme {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -100,25 +92,27 @@ body {
 }
 /* Kept from the previous site: the intro line and the social badges. */
 :root {
-  /* The intro and the badges' caption share the previous site's own font
-     (self-hosted, OFL), asked 2026-09-25. */
-  --font-intro: "DM Serif Display", serif;
-  --font-caption: "DM Serif Display", serif;
+  /* Both match EXPLORE's font: Soria, the reference's own title face. */
+  --font-intro: var(--font-soria), serif;
+  --font-caption: var(--font-soria), serif;
   --text-dim: rgba(255, 255, 255, 0.5);
   --accent: #e8e8ec;
 }
 
 .intro {
   position: fixed;
-  top: 10svh;
+  /* Desktop and iPad (768px and up); the phone override below replaces this
+     with true centring. A little lower and a little smaller than before. */
+  top: 13svh;
   left: 50%;
   z-index: 20;
-  /* translateX centres it; the Y offset is written as the scroll starts
-     (Intro.tsx), so the line drifts up as it fades. */
-  transform: translate(-50%, 0);
+  /* translateX centres it; --drift is written as the scroll starts
+     (Intro.tsx), so the line drifts up as it fades, without fighting this
+     breakpoint's own transform. */
+  transform: translate(-50%, var(--drift, 0px));
   margin: 0;
   font-family: var(--font-intro);
-  font-size: clamp(1rem, 2.3vw, 1.65rem);
+  font-size: clamp(0.85rem, 2vw, 1.4rem);
   font-weight: 400;
   letter-spacing: 0.16em;
   white-space: nowrap;
@@ -129,7 +123,13 @@ body {
 
 @media (max-width: 767.98px) {
   .intro {
-    top: 15svh;
+    /* Dead centre of the screen, now that the badges are hidden here too. */
+    top: 50%;
+    transform: translate(-50%, calc(-50% + var(--drift, 0px)));
+  }
+
+  .social-badges {
+    display: none;
   }
 }
 

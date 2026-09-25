@@ -13,8 +13,9 @@ const DRIFT = 70;
 
 /**
  * "Hi! I am ASHRAF." — kept from the previous site in place of the reference's
- * 3D title: fixed near the top, JetBrains Mono, fading and lifting as the
- * scroll starts. It comes in with the canvas once everything has loaded.
+ * 3D title: fixed near the top (dead centre on phones), in Soria (matching
+ * EXPLORE), fading and lifting as the scroll starts. It comes in with the
+ * canvas once everything has loaded.
  */
 const Intro = () => {
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -25,12 +26,14 @@ const Intro = () => {
     if (progress === 100) gsap.to(wrapRef.current, { opacity: 1, duration: 3, delay: 1 });
   }, [progress]);
 
-  // Written straight to the style: the store changes every frame.
+  // Written straight to the style: the store changes every frame. Only the
+  // drift, as a custom property — the transform itself is the breakpoint's
+  // (globals.css), centred differently on phones.
   useEffect(() => useScrollStore.subscribe(({ scrollProgress }) => {
     const t = Math.min(scrollProgress / OUT, 1);
     if (!lineRef.current) return;
     lineRef.current.style.opacity = String(1 - t);
-    lineRef.current.style.transform = `translate(-50%, ${-t * DRIFT}px)`;
+    lineRef.current.style.setProperty('--drift', `${-t * DRIFT}px`);
   }), []);
 
   return (
