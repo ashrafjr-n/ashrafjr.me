@@ -86,7 +86,7 @@ const CLOUD_INNER = 3 // keeps stars off the camera's lens
  * plays no part — so this is set from the old deep field's size/distance ratio
  * to keep dots the same size on screen.
  */
-const CLOUD_POINT_SIZE = 0.11
+const CLOUD_POINT_SIZE = 0.2
 const CLOUD_FLATTEN = 0.7 // y squash: < 1 favours the model's orbital plane
 /**
  * Caps how close to the poles a star may sit, as |cos(polar angle)|. A star
@@ -119,9 +119,13 @@ const SPEED_TIERS = [
  * request — the stars are meant to read as white points, not as dimmed ones.
  * Keep r = g = b whatever these become; the palette allows nothing else.
  */
-const STAR_BRIGHT_MIN = 1.0
+// **Varied again on request (2026-09-25)**: a spread from dim to full, plus a
+// few clear-white points over 1, so the field has depth instead of one level.
+const STAR_BRIGHT_MIN = 0.3
 const STAR_BRIGHT_MAX = 1.0
 const STAR_OPACITY = 1.0
+const STAR_CLEAR_CHANCE = 0.06
+const STAR_CLEAR_LEVEL = 2.4
 
 // --- Close-in orbit band ---
 // The wide cloud can never show a full loop: the camera sits *inside* it
@@ -191,13 +195,13 @@ const BAND_Y_MAX = 1.0
  * Three scales points by `size * 0.5 * height / distance`, so it needs its own
  * smaller size to draw dots the same size on screen.
  */
-const BAND_POINT_SIZE = 0.025
+const BAND_POINT_SIZE = 0.05
 /**
  * The band reads brighter and whiter than the ambient field: near-pure white
  * against the field's dimmer silver spread, at full opacity. Brightness only —
  * its size, motion, speed and scatter are untouched by these.
  */
-const BAND_BRIGHT_MIN = 1.0
+const BAND_BRIGHT_MIN = 0.35
 const BAND_BRIGHT_MAX = 1.0
 const BAND_OPACITY = 1.0
 
@@ -220,7 +224,7 @@ const BAND_OPACITY = 1.0
  */
 // **Raised from 0.35 on request, for a whiter ring** — along with
 // BAND_BRIGHT_MIN from 0.96 to 1.0. Brightness only, like everything here.
-const BAND_CLEAR_CHANCE = 0.6
+const BAND_CLEAR_CHANCE = 0.4
 const BAND_CLEAR_LEVEL = 4.0
 
 // --- Scene 1 -> Scene 2 scroll transition ---
@@ -761,7 +765,7 @@ export function initScene(canvas: HTMLCanvasElement): SceneController {
     // Orbit radius is the distance from the model's *vertical axis*, so height
     // drops out of it — that is what keeps each star on a level circle.
     return { radius: dist * sinPolar, y: dist * cosPolar * CLOUD_FLATTEN }
-  }, {}, false, true) // does not scatter; a slice of it spreads evenly
+  }, { clearChance: STAR_CLEAR_CHANCE, clearLevel: STAR_CLEAR_LEVEL }, false, true) // does not scatter; a slice of it spreads evenly
 
   // The close-in band — the orbits that stay on screen for a whole revolution.
   const band = createStarLayer(BAND_COUNT, BAND_POINT_SIZE, () => ({
