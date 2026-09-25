@@ -107,11 +107,13 @@ body {
   transform: translate(-50%, var(--drift, 0px));
   margin: 0;
   font-family: var(--font-intro);
-  font-size: clamp(1.6rem, 4vw, 3.1rem);
+  font-size: clamp(1.35rem, 3.3vw, 2.5rem);
   font-weight: 400;
-  /* Soria has one weight: a hairline stroke in the text's own colour thickens
-     it a little, where a synthetic bold would smear it. */
-  -webkit-text-stroke: 0.5px currentColor;
+  /* Airy at rest; --spread (1 → 0, written by Intro.tsx) draws the letters
+     and words together as the line fades out on scroll. No stroke: Soria's
+     hairlines are the look, thickened it reads as another font. */
+  letter-spacing: calc(0.02em + 0.08em * var(--spread, 1));
+  word-spacing: calc(0.1em + 0.3em * var(--spread, 1));
   white-space: nowrap;
   color: var(--accent);
   pointer-events: none;

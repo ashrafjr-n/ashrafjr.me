@@ -34,6 +34,8 @@ const Intro = () => {
     if (!lineRef.current) return;
     lineRef.current.style.opacity = String(1 - t);
     lineRef.current.style.setProperty('--drift', `${-t * DRIFT}px`);
+    // Letters and words draw together as it goes (spacing in globals.css).
+    lineRef.current.style.setProperty('--spread', String(1 - t));
   }), []);
 
   return (
