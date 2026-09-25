@@ -2,7 +2,8 @@
 
 My personal portfolio. A figure balances on a rope down the middle of the
 screen: night and a turning ring of stars on one side, a blue sky and a ring of
-clouds on the other. Pick a side and the rope slides away. Night brings two
+clouds on the other. Scroll down for the night, up for the day (or click a
+side), and the rope slides away. Night brings two
 reaching hands and **EXPLORE**, which opens the projects. Day brings three
 statements and **CONTACT**. Each visit opens on a short 0–99 count.
 
