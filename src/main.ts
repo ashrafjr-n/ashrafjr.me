@@ -4,12 +4,15 @@
  */
 import './style.css'
 import { initScene } from './three/scene'
-import { state, initPointer, initScroll } from './lib/state'
+import { range } from './lib/math'
+import { state, initPointer, initScroll, scroller } from './lib/state'
 import { buildSocialBadges } from './ui/social'
 import { createLoader } from './ui/loader'
 
 /** How far the line drifts upward as it goes, in px. */
 const INTRO_DRIFT = 70
+/** The share of the journey the intro line takes to leave. */
+const INTRO_OUT = 0.1
 
 /** Scene 1 intro line, centred near the top of the viewport. */
 function buildIntro(): HTMLParagraphElement {
@@ -31,7 +34,10 @@ const canvas = document.createElement('canvas')
 canvas.id = 'scene'
 
 const intro = buildIntro()
-app.append(canvas, intro)
+/** The journey's scroll range: empty, it is only there to be scrolled through. */
+const journey = document.createElement('div')
+journey.className = 'journey'
+app.append(canvas, intro, journey)
 
 const scene = initScene(canvas)
 
@@ -40,7 +46,11 @@ app.append(buildSocialBadges())
 window.addEventListener('resize', () => scene.resize())
 
 initPointer()
-initScroll()
+// With nothing focused the scroll keys go to the document, which never scrolls
+// (see `html` in style.css); focused, the body takes them.
+scroller.tabIndex = -1
+scroller.focus({ preventScroll: true })
+initScroll(() => journey.offsetTop + journey.offsetHeight - scroller.clientHeight)
 
 let introShown = -1
 
@@ -55,8 +65,8 @@ function updateIntro(t: number): void {
 // --- Single RAF loop: the only one in the app; hook new per-frame work in here
 function raf(time: number) {
   if (!loaderGone) loaderGone = loader.update(time)
-  scene.update(time, state)
-  updateIntro(0)
+  const p = scene.update(time, state)
+  updateIntro(range(p, 0, INTRO_OUT))
   requestAnimationFrame(raf)
 }
 

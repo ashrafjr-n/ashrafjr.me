@@ -2,9 +2,9 @@
  * Shared input state — written by the input listeners, read by the scene.
  *
  * mouseX/Y : pointer position normalized to roughly -1..1 (center = 0).
- * scroll   : Scene 1 -> Scene 2 transition progress, 0 at the top of the page,
- *            1 once the page is scrolled to the bottom. Every part of the
- *            transition is driven off this single value.
+ * scroll   : how far through the journey the page is, 0 at the top, 1 once
+ *            the projects list reaches the bottom of the screen. Everything
+ *            in the journey is driven off this single value.
  */
 import { clamp } from './math'
 
@@ -24,9 +24,8 @@ export const state: InputState = {
  * Attach a pointer listener that feeds normalized mouse coords into state.
  *
  * **Only on a device with a real hovering pointer.** A touch screen fires a
- * compatibility `mousemove` on every tap, so on a phone or an iPad the whole
- * starfield would jerk toward wherever the reader last touched — a tilt with
- * nothing continuous behind it. There the field simply stays level.
+ * compatibility `mousemove` on every tap, so the view would jerk toward
+ * wherever the reader last touched.
  */
 export function initPointer(): void {
   if (!window.matchMedia('(hover: hover) and (pointer: fine)').matches) return
@@ -50,39 +49,22 @@ export function initPointer(): void {
 export const scroller = document.body
 
 /**
- * Attach a scroll listener that feeds 0..1 transition progress into state.
+ * Feed the journey's 0..1 progress into state. `end` is the scroll offset, in
+ * px, where the journey is complete.
  *
- * The scrollable height comes from `#app { min-height }` in style.css — every
- * layer is fixed, so the page has no content of its own to scroll. Also fires
- * once on init so the progress starts from wherever the scroller already is
- * rather than snapping from 0.
- *
- * **The range is measured out of band, never in the scroll handler.**
- * `scrollHeight` is a layout-dependent property, so reading it forces the
- * browser to flush layout synchronously — and doing that inside a `scroll`
- * listener puts a forced reflow on the single hottest path on the site, once
- * per scroll event.
- *
- * **But it cannot simply be measured once at startup either, and that shipped
- * broken.** The range comes from `#app { min-height }`, and in dev the
- * stylesheet is injected by script rather than being render-blocking — so at
- * the moment this runs the page can still be one viewport tall. The range then
- * comes out near zero and every scroll maps many times too far down the page:
- * a touch of the wheel landed in the middle of Scene 2. Reading it fresh per
- * event used to hide that, at the cost of the reflow.
- *
- * So it is measured whenever either side of it changes size — the content
- * (`#app`) or the scroller's own box (`body`, on every resize and orientation
- * change) — which is what a `ResizeObserver` is for, and it fires when the
- * stylesheet lands too, without any of them needing their own listener.
+ * **The range is measured out of band, never in the scroll handler** — reading
+ * layout there is a forced reflow on the hottest path on the site — and not
+ * only at startup either: in dev the stylesheet is injected by script, so the
+ * page can still be one screen tall when this runs. A `ResizeObserver` on the
+ * scroller and `#app` fires when the stylesheet lands and on every resize.
  */
-export function initScroll(): void {
+export function initScroll(end: () => number): void {
   let range = 0
   const read = (): void => {
     state.scroll = range > 0 ? clamp(scroller.scrollTop / range, 0, 1) : 0
   }
   const measure = (): void => {
-    range = scroller.scrollHeight - scroller.clientHeight
+    range = end()
     read()
   }
   // An element's `scroll` event does not bubble, so this has to be on the

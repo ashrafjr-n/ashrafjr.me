@@ -136,6 +136,12 @@ body {
   min-height: 100svh;
 }
 
+/* The journey's scroll range (three/scene.ts): nothing in it, every layer it
+   drives is fixed. */
+.journey {
+  height: 640svh;
+}
+
 /* ===========================================================
    Three.js background canvas
 

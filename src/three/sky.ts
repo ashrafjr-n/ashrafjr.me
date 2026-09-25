@@ -1,12 +1,13 @@
 /**
- * The day half: a flat blue sky with a fine grain, and a ring of clouds turning
- * in it — seen through the starfield's own bird's-eye camera, on the star
- * band's radius, so the two rings read as one ellipse split by the rope.
+ * The sky: a flat blue with a fine grain, and a ring of clouds turning in it.
  *
  * The ring is built from four photographed clouds (`public/assets/hero/clouds/`,
  * keyed to transparent PNGs), each used several times as a sprite. Every sprite
  * is turned so its top faces the ring's centre on screen, which is what lets the
  * crescent's curve follow the circle and the rest read as one band.
+ *
+ * On scroll the ring **opens**: its radius grows faster than its clouds do, so
+ * they draw apart as the camera dives through the middle (`three/scene.ts`).
  */
 import {
   Mesh,
@@ -44,8 +45,8 @@ const SHRED_COUNT = 26
 const SHRED_INNER = [2.05, 2.3]
 const SHRED_OUTER = [2.7, 2.82]
 /**
- * A little inside the star band (2.71..2.92): a cloud is thick, so its middle
- * sits inward for its outer edge to meet the stars. Kept low (`y`) as well —
+ * A cloud is thick, so its middle sits well inside the ring's outer edge
+ * (2.92, what `three/scene.ts` fits to the screen). Kept low (`y`) as well —
  * the ring's far side must stay under the intro line.
  */
 const RING_RADIUS = 2.55
@@ -57,6 +58,9 @@ const SIZE_MAX = 2.1
 const RING_RATE = 0.1
 /** Seconds the clouds take to fade in once every texture has arrived. */
 const FADE_IN = 1.2
+/** Fully open, the ring is this many times its radius, and each cloud this many times its size. */
+const OPEN_RADIUS = 4
+const OPEN_SIZE = 1.8
 
 /**
  * The sky: one flat colour, sampled off the reference, with a static grain at
@@ -98,9 +102,12 @@ interface Cloud {
 
 export interface Sky {
   scene: Scene
-  /** `turning` is false under reduced motion: the ring holds still, like the stars. */
-  update(delta: number, turning: boolean): void
-  /** The ring's size follows the star band's on narrow screens. */
+  /**
+   * `turning` is false under reduced motion: the ring holds still. `open` is
+   * how far the ring has opened, 0..1, and `fade` how much of it is left.
+   */
+  update(delta: number, turning: boolean, open: number, fade: number): void
+  /** The ring is scaled down to fit a narrow screen. */
   setScale(k: number): void
 }
 
@@ -180,19 +187,23 @@ export function createSky(camera: PerspectiveCamera): Sky {
   const p = new Vector3()
   const c = new Vector3()
 
-  function update(delta: number, turning: boolean): void {
+  function update(delta: number, turning: boolean, open: number, left: number): void {
     if (turning) spin += RING_RATE * delta
     if (fade < 1 && textures.every(Boolean)) fade = Math.min(1, fade + delta / FADE_IN)
-    const eased = fade * fade * (3 - 2 * fade)
+    const eased = fade * fade * (3 - 2 * fade) * left
     const aspect = camera.aspect
+    const spread = scale * (1 + (OPEN_RADIUS - 1) * open)
+    const grow = scale * (1 + (OPEN_SIZE - 1) * open)
 
     for (const cloud of clouds) {
+      cloud.sprite.visible = eased > 0
+      if (!cloud.sprite.visible) continue
       const a = cloud.angle + spin
-      const r = cloud.radius * scale
+      const r = cloud.radius * spread
       const y = cloud.y * scale
       cloud.sprite.position.set(Math.cos(a) * r, y, Math.sin(a) * r)
 
-      const w = cloud.width * scale
+      const w = cloud.width * grow
       cloud.sprite.scale.set(w, w * ratios[cloud.kind], 1)
       const m = cloud.sprite.material
       m.opacity = eased * cloud.alpha
