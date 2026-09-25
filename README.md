@@ -1,8 +1,9 @@
 # ashraf
 
 My personal portfolio. It opens on a ring of clouds in a blue sky; scrolling
-dives through the ring into a tunnel of three statements and out onto my
-projects. There is a dark mode, and each visit opens on a short 0–99 count.
+dives through the ring and down a tunnel of three statements to my projects,
+which **EXPLORE** opens. There is a dark mode, and each visit opens on a short
+0–99 count.
 
 ## Built with
 
