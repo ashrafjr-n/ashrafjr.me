@@ -9,7 +9,7 @@ export const FOOTER_LINKS: FooterLink[] = [
   },
   {
     name: 'GitHub',
-    hoverText: 'Open Sourcing',
+    hoverText: 'Ashrafjr-n',
     icon: 'icons/github.svg',
     url: 'https://github.com/ashrafjr-n',
   },
