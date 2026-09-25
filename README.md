@@ -1,7 +1,5 @@
 # ashraf
 
-My personal portfolio, in 3D.
-
 ## Built with
 
 - **Next.js** (static export) and **React**
