@@ -51,9 +51,11 @@ body {
   border-bottom: 100vh solid var(--scrollbarColor);
 }
 
+/* Top-right, not the reference's top-left: the social badges hold that
+   corner, and the theme switch hides while a portal is open. */
 .close {
   position: absolute;
-  left: 32px;
+  right: 32px;
   top: 32px;
   width: 48px;
   height: 48px;
@@ -63,7 +65,7 @@ body {
 
 @media screen and (max-width: 768px) {
   .close {
-    margin-left: -24px;
+    margin-right: -24px;
     margin-top: -16px;
   }
 }
