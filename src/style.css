@@ -765,18 +765,25 @@ html.has-cursor button {
     visibility 0s linear 700ms;
 }
 
+/* Both hands are turned a little clockwise, each about its own arm, so the
+   fingers point at EXPLORE rather than past it. `rotate` is its own property,
+   so it composes with the entrance's `translate`. */
 .hand--light {
   top: -2vw;
-  right: -3vw;
-  width: 46vw;
+  right: -8vw;
+  width: 51vw;
   translate: 8vw -16vw;
+  rotate: 7deg;
+  transform-origin: 100% 0;
 }
 
 .hand--human {
-  bottom: -5.6vw;
-  left: 12vw;
+  bottom: -1.5vw;
+  left: 8.5vw;
   width: 42vw;
   translate: -6vw 18vw;
+  rotate: 13deg;
+  transform-origin: 15% 100%;
 }
 
 .hands.is-in .hand {
