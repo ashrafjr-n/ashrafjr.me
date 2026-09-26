@@ -19,14 +19,13 @@ interface ProjectTileProps {
 }
 
 /**
- * Soria has no Greek, so Greek letters (παλιγγενεσία) come from GFS Didot, a
- * Greek Didot in the same high-contrast style. Its range keeps it to Greek
- * only; troika reads `unicodeRange` as [start, end] code point pairs.
+ * Soria has no Greek, so a Greek title (παλιγγενεσία) is set whole in GFS
+ * Didot, a Greek Didot in the same high-contrast style. One font per title:
+ * troika 0.52 takes a single font URL (a list of fonts hangs the scene).
  */
-const TITLE_FONTS = [
-  { src: "./soria-font.ttf" },
-  { src: "./fonts/gfs-didot/GFSDidot-Regular.ttf", unicodeRange: [[0x0370, 0x03ff], [0x1f00, 0x1fff]] },
-];
+const SORIA = "./soria-font.ttf";
+const GREEK = "./fonts/gfs-didot/GFSDidot-Regular.ttf";
+const titleFont = (title: string) => /[\u0370-\u03ff\u1f00-\u1fff]/.test(title) ? GREEK : SORIA;
 
 /** The reference's title size and wrap width. */
 const TITLE_SIZE = 0.8;
@@ -40,20 +39,20 @@ const ProjectTile = ({ project, index, position, rotation, activeId, onClick, da
   const hovered = isMobile ? activeId === index : desktopHovered;
   const isTop = datePosition === 'top';
   // A single word can't wrap, so one wider than the tile (παλιγγενεσία) is
-  // shrunk once to fit; every other title keeps the reference's size.
+  // shrunk once to fit; every other title keeps the reference's size. Once
+  // only: drei calls onSync after every render, so it must not keep resizing.
   const [titleSize, setTitleSize] = useState(TITLE_SIZE);
   const fitTitle = (text: { textRenderInfo?: { blockBounds: number[] } }) => {
     const bounds = text.textRenderInfo?.blockBounds;
-    if (!bounds) return;
+    if (!bounds || titleSize !== TITLE_SIZE) return;
     const width = bounds[2] - bounds[0];
-    if (width > TITLE_MAX_WIDTH + 0.01) setTitleSize((size) => size * TITLE_MAX_WIDTH / width);
+    if (width > TITLE_MAX_WIDTH) setTitleSize(TITLE_SIZE * TITLE_MAX_WIDTH / width);
   };
 
   const titleProps = useMemo(() => ({
-    // troika takes a list of fonts; drei's type only says string.
-    font: TITLE_FONTS as unknown as string,
+    font: titleFont(project.title),
     color: "black",
-  }), []);
+  }), [project.title]);
 
   const subtitleProps: Partial<TextProps> = useMemo(() => ({
     font: "./Vercetti-Regular.woff",
