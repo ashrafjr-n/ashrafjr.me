@@ -3,6 +3,12 @@ import { Project } from "../types";
 // TODO: Move this to API
 export const PROJECTS: Project[] = [
   {
+    title: 'παλιγγενεσία',
+    date: 'Feb 2025',
+    subtext: 'Nothing serious. I was just bored.',
+    url: 'https://palingenesis.aannaelj.workers.dev/',
+  },
+  {
     title: 'TTU Clinic',
     date: 'Sep 2025',
     subtext: 'A clinic system for a university: booking, visit records, medication stock and oversight across four roles, in Arabic and English.',
@@ -25,5 +31,11 @@ export const PROJECTS: Project[] = [
     date: 'Aug 2026',
     subtext: "A home for a children's brand: songs, learning stages and small browser games in one place.",
     url: 'https://edenic-wrold.vercel.app/',
+  },
+  {
+    title: 'RedLine',
+    date: 'Sep 2026',
+    subtext: 'An AI-powered code review assistant.',
+    url: 'https://redline-tau-eight.vercel.app/',
   },
 ];
