@@ -18,6 +18,16 @@ interface ProjectTileProps {
   datePosition: 'top' | 'bottom';
 }
 
+/**
+ * Soria has no Greek, so Greek letters (παλιγγενεσία) come from GFS Didot, a
+ * Greek Didot in the same high-contrast style. Its range keeps it to Greek
+ * only; troika reads `unicodeRange` as [start, end] code point pairs.
+ */
+const TITLE_FONTS = [
+  { src: "./soria-font.ttf" },
+  { src: "./fonts/gfs-didot/GFSDidot-Regular.ttf", unicodeRange: [[0x0370, 0x03ff], [0x1f00, 0x1fff]] },
+];
+
 const ProjectTile = ({ project, index, position, rotation, activeId, onClick, datePosition }: ProjectTileProps) => {
   const projectRef = useRef<THREE.Group>(null);
   const hoverAnimRef = useRef<gsap.core.Timeline | null>(null);
@@ -27,7 +37,8 @@ const ProjectTile = ({ project, index, position, rotation, activeId, onClick, da
   const isTop = datePosition === 'top';
 
   const titleProps = useMemo(() => ({
-    font: "./soria-font.ttf",
+    // troika takes a list of fonts; drei's type only says string.
+    font: TITLE_FONTS as unknown as string,
     color: "black",
   }), []);
 
