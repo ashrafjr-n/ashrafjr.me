@@ -28,6 +28,10 @@ const TITLE_FONTS = [
   { src: "./fonts/gfs-didot/GFSDidot-Regular.ttf", unicodeRange: [[0x0370, 0x03ff], [0x1f00, 0x1fff]] },
 ];
 
+/** The reference's title size and wrap width. */
+const TITLE_SIZE = 0.8;
+const TITLE_MAX_WIDTH = 4;
+
 const ProjectTile = ({ project, index, position, rotation, activeId, onClick, datePosition }: ProjectTileProps) => {
   const projectRef = useRef<THREE.Group>(null);
   const hoverAnimRef = useRef<gsap.core.Timeline | null>(null);
@@ -35,6 +39,15 @@ const ProjectTile = ({ project, index, position, rotation, activeId, onClick, da
   const isProjectSectionActive = usePortalStore((state) => state.activePortalId === "projects");
   const hovered = isMobile ? activeId === index : desktopHovered;
   const isTop = datePosition === 'top';
+  // A single word can't wrap, so one wider than the tile (παλιγγενεσία) is
+  // shrunk once to fit; every other title keeps the reference's size.
+  const [titleSize, setTitleSize] = useState(TITLE_SIZE);
+  const fitTitle = (text: { textRenderInfo?: { blockBounds: number[] } }) => {
+    const bounds = text.textRenderInfo?.blockBounds;
+    if (!bounds) return;
+    const width = bounds[2] - bounds[0];
+    if (width > TITLE_MAX_WIDTH + 0.01) setTitleSize((size) => size * TITLE_MAX_WIDTH / width);
+  };
 
   const titleProps = useMemo(() => ({
     // troika takes a list of fonts; drei's type only says string.
@@ -140,8 +153,9 @@ const ProjectTile = ({ project, index, position, rotation, activeId, onClick, da
           position={[-1.9, -0.8, 0.101]}
           anchorX="left"
           anchorY="bottom"
-          maxWidth={4}
-          fontSize={0.8}>
+          maxWidth={TITLE_MAX_WIDTH}
+          fontSize={titleSize}
+          onSync={fitTitle}>
           {project.title}
         </Text>
         <group position={[-1.25, 1.4, 0.01]}>
