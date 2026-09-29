@@ -5,7 +5,7 @@ import { useEffect } from "react";
 import { isMobile } from "react-device-detect";
 import * as THREE from "three";
 import { usePortalStore } from "@stores";
-import { Wanderer } from "../../models/Wanderer";
+import { StarryNight } from "../../models/StarryNight";
 import ProjectsCarousel from "./ProjectsCarousel";
 import { TouchPanControls } from "./TouchPanControls";
 
@@ -37,7 +37,8 @@ const Projects = () => {
 
   return (
     <group>
-      <Wanderer rotation={new THREE.Euler(0, Math.PI / 6, 0)} scale={new THREE.Vector3(1.5, 1.5, 1.5)} position={new THREE.Vector3(0, -1, -1)}/>
+      {/* Centred ahead, inside the arc; its sky tops out just under the cards. */}
+      <StarryNight scale={new THREE.Vector3(1.5, 1.5, 1.5)} position={new THREE.Vector3(0.6, -4.1, -6.8)}/>
       <ProjectsCarousel />
       { isActive && isMobile && <TouchPanControls /> }
     </group>
