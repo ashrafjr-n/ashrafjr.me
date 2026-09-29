@@ -2,11 +2,11 @@
 
 import { useEffect, useState } from 'react'
 import { Memory } from '../models/Memory'
-import { Wanderer } from '../models/Wanderer'
+import { StarryNight } from '../models/StarryNight'
 import WindowModel from '../models/WindowModel'
 
 // List of models to preload.
-const MODELS = [WindowModel, Memory, Wanderer];
+const MODELS = [WindowModel, Memory, StarryNight];
 
 const Preloader = () => {
   const [visible, setVisible] = useState(true);
