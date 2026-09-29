@@ -35,14 +35,17 @@ const Projects = () => {
     }
   });
 
-  return (
+  return (<>
+    {/* On the portal's scene (a direct child), the diorama's edges melt into the night. */}
+    <fog attach="fog" args={['#16213d', 15, 45]} />
     <group>
-      {/* Centred ahead, inside the arc; its sky tops out just under the cards. */}
-      <StarryNight scale={new THREE.Vector3(1.5, 1.5, 1.5)} position={new THREE.Vector3(0.6, -4.1, -6.8)}/>
+      {/* The camera stands inside the diorama: its sky wall behind the cards,
+          its ground low enough that nothing crosses them. */}
+      <StarryNight scale={new THREE.Vector3(10, 10, 10)} position={new THREE.Vector3(4, -18.3, -12.5)}/>
       <ProjectsCarousel />
       { isActive && isMobile && <TouchPanControls /> }
     </group>
-  );
+  </>);
 };
 
 export default Projects;
