@@ -43,7 +43,8 @@ const DARKEN = 2.2
 /** Pushes the darks and mid-tones down, once per geometry (useGLTF caches them). */
 function darken(nodes: GLTFResult['nodes']) {
   for (const { geometry } of Object.values(nodes)) {
-    const color = geometry.getAttribute('color')
+    // nodes also holds the groups and scene root, which have no geometry
+    const color = geometry?.getAttribute('color')
     if (!color || geometry.userData.darkened) continue
     for (let i = 0; i < color.count; i++) {
       for (let c = 0; c < 3; c++) color.setComponent(i, c, color.getComponent(i, c) ** DARKEN)
