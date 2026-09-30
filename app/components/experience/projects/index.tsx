@@ -36,8 +36,8 @@ const Projects = () => {
   });
 
   return (<>
-    {/* On the portal's scene (a direct child), the diorama's edges melt into the night. */}
-    <fog attach="fog" args={['#16213d', 15, 45]} />
+    {/* On the portal's scene (a direct child), the diorama's edges melt into the black. */}
+    <fog attach="fog" args={['#000000', 15, 45]} />
     <group>
       {/* The camera stands inside the diorama: its sky wall behind the cards,
           its ground low enough that nothing crosses them. */}
