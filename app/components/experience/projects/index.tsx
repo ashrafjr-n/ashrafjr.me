@@ -9,6 +9,9 @@ import { StarryNight } from "../../models/StarryNight";
 import ProjectsCarousel from "./ProjectsCarousel";
 import { TouchPanControls } from "./TouchPanControls";
 
+/** Diorama and cards together, up from the camera: the scene is seen from lower down. */
+const RAISE = 1;
+
 const Projects = () => {
   const { camera } = useThree();
   const isActive = usePortalStore((state) => state.activePortalId === "projects");
@@ -38,7 +41,7 @@ const Projects = () => {
   return (<>
     {/* On the portal's scene (a direct child), the diorama's edges melt into the black. */}
     <fog attach="fog" args={['#000000', 15, 45]} />
-    <group>
+    <group position={[0, RAISE, 0]}>
       {/* The camera stands inside the diorama: its sky wall behind the cards,
           its ground low enough that nothing crosses them. */}
       <StarryNight scale={new THREE.Vector3(10, 10, 10)} position={new THREE.Vector3(4, -18.3, -12.5)}/>
