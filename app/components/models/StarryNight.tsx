@@ -37,8 +37,25 @@ type GLTFResult = GLTF & {
   }
 }
 
+/** Darkening curve on the vertex colours: 1 keeps white white, higher is darker. */
+const DARKEN = 2.2
+
+/** Pushes the darks and mid-tones down, once per geometry (useGLTF caches them). */
+function darken(nodes: GLTFResult['nodes']) {
+  for (const { geometry } of Object.values(nodes)) {
+    const color = geometry.getAttribute('color')
+    if (!color || geometry.userData.darkened) continue
+    for (let i = 0; i < color.count; i++) {
+      for (let c = 0; c < 3; c++) color.setComponent(i, c, color.getComponent(i, c) ** DARKEN)
+    }
+    color.needsUpdate = true
+    geometry.userData.darkened = true
+  }
+}
+
 export function StarryNight(props: JSX.IntrinsicElements['group']) {
   const { nodes, materials } = useGLTF('models/starry_night_diorama_tilt_brush.glb') as unknown as GLTFResult
+  darken(nodes)
   return (
     <group {...props} dispose={null}>
       <mesh geometry={nodes.CoarseBristles_geo_CoarseBristles_0.geometry} material={materials.CoarseBristles} position={[-0.368, 2.287, -0.121]} rotation={[-Math.PI, 0, -Math.PI]} scale={2.861} />
