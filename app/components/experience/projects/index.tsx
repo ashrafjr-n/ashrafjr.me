@@ -36,7 +36,8 @@ const Projects = () => {
   useFrame((state, delta) => {
     if (isActive) {
       if (!isMobile) {
-        camera.rotation.y = THREE.MathUtils.lerp(camera.rotation.y, -(state.pointer.x * Math.PI) / 4, 0.03);
+        // ±30° around the cards, whose arc sits π / 12 to the right (ProjectsCarousel).
+        camera.rotation.y = THREE.MathUtils.lerp(camera.rotation.y, -(Math.PI / 12 + (state.pointer.x * Math.PI) / 6), 0.03);
         camera.position.z = THREE.MathUtils.damp(camera.position.z, 11.5 - state.pointer.y, 7, delta);
       }
     }
