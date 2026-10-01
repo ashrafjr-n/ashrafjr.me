@@ -39,8 +39,8 @@ const TITLE_SIZE = 0.36;
 const TITLE_ROOM = 3.4;
 
 /** IN PROGRESS: a pill on the screenshot's top-right corner. */
-const BADGE_WIDTH = 1.75;
-const BADGE_HEIGHT = 0.42;
+const BADGE_WIDTH = 1.1;
+const BADGE_HEIGHT = 0.26;
 
 /** The technology pills shown on hover, below the band. */
 const TAG_SIZE = 0.16;
@@ -260,12 +260,12 @@ const ProjectTile = ({ project, index, position, rotation, activeId, onClick, da
               <shapeGeometry args={[badgeShape]} />
               <meshBasicMaterial color="#000" transparent opacity={0.75} toneMapped={false} />
             </mesh>
-            <Line points={pill(BADGE_WIDTH, BADGE_HEIGHT)} color="#4c6ef5" lineWidth={2} position={[0, 0, 0.005]} />
-            <mesh ref={dotRef} position={[-BADGE_WIDTH / 2 + 0.25, 0, 0.01]}>
-              <circleGeometry args={[0.06, 24]} />
+            <Line points={pill(BADGE_WIDTH, BADGE_HEIGHT)} color="#4c6ef5" lineWidth={1.5} position={[0, 0, 0.005]} />
+            <mesh ref={dotRef} position={[-BADGE_WIDTH / 2 + 0.15, 0, 0.01]}>
+              <circleGeometry args={[0.035, 24]} />
               <meshBasicMaterial color="#4c6ef5" toneMapped={false} />
             </mesh>
-            <Text font={FONT} color="#8da2ff" fontSize={0.17} letterSpacing={0.2} anchorX="left" anchorY="middle" position={[-BADGE_WIDTH / 2 + 0.42, 0, 0.01]}>
+            <Text font={FONT} color="#8da2ff" fontSize={0.095} letterSpacing={0.15} anchorX="left" anchorY="middle" position={[-BADGE_WIDTH / 2 + 0.26, 0, 0.01]}>
               IN PROGRESS
             </Text>
           </group>
