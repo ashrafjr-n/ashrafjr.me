@@ -12,9 +12,9 @@ import { TouchPanControls } from "./TouchPanControls";
 /** Diorama and cards together, up from the camera: the scene is seen from lower down. */
 const RAISE = 1.5;
 /** The diorama's lowest point, the pivot of its lean. */
-const BOTTOM = -12.06;
+const BOTTOM = -22.88;
 /** Top leans toward the camera, bottom stays put. Past ~4° its ground crosses the cards. */
-const TILT = 4 * Math.PI / 180;
+const TILT = 16 * Math.PI / 180;
 
 const Projects = () => {
   const { camera } = useThree();
@@ -50,7 +50,7 @@ const Projects = () => {
       {/* The camera stands inside the diorama: its sky wall behind the cards,
           its ground low enough that only the church spire crosses one. */}
       <group position={[0, BOTTOM, 0]} rotation={[TILT, 0, 0]}>
-        <StarryNight scale={new THREE.Vector3(11, 11, 11)} position={new THREE.Vector3(6.4, -20.24 - BOTTOM, -12.54)}/>
+        <StarryNight scale={new THREE.Vector3(20, 20, 20)} position={new THREE.Vector3(11.64, -38.14 - BOTTOM, -15.18)}/>
       </group>
       <ProjectsCarousel />
       { isActive && isMobile && <TouchPanControls /> }
