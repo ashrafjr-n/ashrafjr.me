@@ -1,4 +1,4 @@
-import { Line, Svg, Text, useTexture } from "@react-three/drei";
+import { Line, Text, useTexture } from "@react-three/drei";
 import { ThreeEvent } from "@react-three/fiber";
 import gsap from "gsap";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -19,8 +19,14 @@ interface ProjectTileProps {
   datePosition: 'top' | 'bottom';
 }
 
-/** Vercetti has Greek too, so one face sets every title (παλιγγενεσία included). */
 const FONT = "./Vercetti-Regular.woff";
+/**
+ * Vercetti has no Greek letters (only the π symbol), so a Greek title
+ * (παλιγγενεσία) is set whole in GFS Didot. One font per title: troika 0.52
+ * takes a single font URL (a list of fonts hangs the scene).
+ */
+const GREEK = "./fonts/gfs-didot/GFSDidot-Regular.ttf";
+const titleFont = (title: string) => /[\u0370-\u03ff\u1f00-\u1fff]/.test(title) ? GREEK : FONT;
 
 /** The card: a screenshot on top, a black band with the title below. */
 const WIDTH = 4.2;
@@ -31,6 +37,11 @@ const ROW_Y = -HEIGHT / 2 + BAND / 2;
 const LEFT = -WIDTH / 2 + 0.25;
 
 const TITLE_SIZE = 0.36;
+const TITLE_ROOM = 3.4;
+
+/** IN PROGRESS: a pill on the screenshot's top-right corner. */
+const BADGE_WIDTH = 1.75;
+const BADGE_HEIGHT = 0.42;
 
 /** The technology pills shown on hover, below the band. */
 const TAG_SIZE = 0.16;
@@ -52,11 +63,17 @@ const pill = (w: number, h: number, r = h / 2): [number, number, number][] => {
   return points;
 };
 
+/** The same outline as a filled shape, for the badge's backing. */
+const pillShape = (w: number, h: number) => new THREE.Shape(pill(w, h).map(([x, y]) => new THREE.Vector2(x, y)));
+
+/** The pills rise this much as they appear. */
+const TAG_RISE = 0.15;
+
 /** Fades every text and line under a group (troika texts by fillOpacity). */
-const fade = (group: THREE.Object3D, tl: gsap.core.Timeline, to: number) => {
+const fade = (group: THREE.Object3D, tl: gsap.core.Timeline, to: number, at: number, duration: number) => {
   group.traverse((child) => {
-    if ('fillOpacity' in child) tl.to(child, { fillOpacity: to, duration: 0.3 }, 0);
-    else if (child instanceof THREE.Mesh && child !== group) tl.to(child.material, { opacity: to, duration: 0.3 }, 0);
+    if ('fillOpacity' in child) tl.to(child, { fillOpacity: to, duration }, at);
+    else if (child instanceof THREE.Mesh) tl.to(child.material, { opacity: to, duration }, at);
   });
 };
 
@@ -88,17 +105,17 @@ const ProjectTile = ({ project, index, position, rotation, activeId, onClick, da
     }
   }, [texture]);
 
-  // A title wider than its room is shrunk once (onSync runs after every
-  // render); its width places the IN PROGRESS badge right after it.
-  const titleRoom = project.inProgress ? 2.3 : 3.4;
+  // The footer's GitHub icon, as an image: drei's <Svg> mangled its shape.
+  const github = useTexture('icons/github.svg');
+  const badgeShape = useMemo(() => pillShape(BADGE_WIDTH, BADGE_HEIGHT), []);
+
+  // A title wider than its room is shrunk once (onSync runs after every render).
   const [titleSize, setTitleSize] = useState(TITLE_SIZE);
-  const [titleWidth, setTitleWidth] = useState(0);
   const onTitleSync = (text: { textRenderInfo?: { blockBounds: number[] } }) => {
     const bounds = text.textRenderInfo?.blockBounds;
-    if (!bounds) return;
+    if (!bounds || titleSize !== TITLE_SIZE) return;
     const width = bounds[2] - bounds[0];
-    if (width > titleRoom && titleSize === TITLE_SIZE) setTitleSize(TITLE_SIZE * titleRoom / width);
-    else setTitleWidth(width);
+    if (width > TITLE_ROOM) setTitleSize(TITLE_SIZE * TITLE_ROOM / width);
   };
 
   // Pills wrap into rows once every label has been measured.
@@ -134,7 +151,17 @@ const ProjectTile = ({ project, index, position, rotation, activeId, onClick, da
       .to(backRef.current.scale, { y: (HEIGHT + extra) / HEIGHT }, 0)
       .to(backRef.current.position, { y: -extra / 2 }, 0)
       .to(lineRef.current.position, { y: -HEIGHT / 2 - extra }, 0);
-    fade(tagsRef.current, hoverAnimRef.current, hovered ? 1 : 0);
+
+    // The pills rise and fade in one after another once the card has grown,
+    // and all leave at once.
+    if (tags) {
+      tagsRef.current.children.forEach((tag, i) => {
+        const at = hovered ? 0.2 + i * 0.06 : 0;
+        const duration = hovered ? 0.5 : 0.15;
+        hoverAnimRef.current!.to(tag.position, { y: tags.placed[i].y - (hovered ? 0 : TAG_RISE), duration, ease: 'power3.out' }, at);
+        fade(tag, hoverAnimRef.current!, hovered ? 1 : 0, at, duration);
+      });
+    }
 
     if (!isMobile) {
       if (hovered) showViewCursor(project.title);
@@ -216,7 +243,7 @@ const ProjectTile = ({ project, index, position, rotation, activeId, onClick, da
         </group>
 
         <Text
-          font={FONT}
+          font={titleFont(project.title)}
           color="white"
           position={[LEFT, ROW_Y, 0.02]}
           anchorX="left"
@@ -226,14 +253,18 @@ const ProjectTile = ({ project, index, position, rotation, activeId, onClick, da
           {project.title}
         </Text>
 
-        {project.inProgress && titleWidth > 0 && (
-          <group position={[LEFT + titleWidth + 0.25 + 0.62, ROW_Y, 0.02]}>
-            <Line points={pill(1.24, 0.3)} color="#4c6ef5" lineWidth={1.5} />
-            <mesh ref={dotRef} position={[-0.45, 0, 0]}>
-              <circleGeometry args={[0.04, 24]} />
+        {project.inProgress && (
+          <group position={[WIDTH / 2 - 0.15 - BADGE_WIDTH / 2, HEIGHT / 2 - 0.15 - BADGE_HEIGHT / 2, 0.02]}>
+            <mesh>
+              <shapeGeometry args={[badgeShape]} />
+              <meshBasicMaterial color="#000" transparent opacity={0.75} toneMapped={false} />
+            </mesh>
+            <Line points={pill(BADGE_WIDTH, BADGE_HEIGHT)} color="#4c6ef5" lineWidth={2} position={[0, 0, 0.005]} />
+            <mesh ref={dotRef} position={[-BADGE_WIDTH / 2 + 0.25, 0, 0.01]}>
+              <circleGeometry args={[0.06, 24]} />
               <meshBasicMaterial color="#4c6ef5" toneMapped={false} />
             </mesh>
-            <Text font={FONT} color="#7b93ff" fontSize={0.11} letterSpacing={0.2} anchorX="left" anchorY="middle" position={[-0.33, 0, 0]}>
+            <Text font={FONT} color="#8da2ff" fontSize={0.17} letterSpacing={0.2} anchorX="left" anchorY="middle" position={[-BADGE_WIDTH / 2 + 0.42, 0, 0.01]}>
               IN PROGRESS
             </Text>
           </group>
@@ -247,7 +278,10 @@ const ProjectTile = ({ project, index, position, rotation, activeId, onClick, da
               <meshBasicMaterial transparent opacity={0} />
             </mesh>
             {isRepo
-              ? <Svg src="icons/github.svg" scale={[0.36 / 256, -0.36 / 256, 1]} position={[-0.18, 0.18, 0.01]} />
+              ? <mesh position={[0, 0, 0.01]}>
+                <planeGeometry args={[0.4, 0.4]} />
+                <meshBasicMaterial map={github} transparent toneMapped={false} />
+              </mesh>
               : <Text font={FONT} color="white" fontSize={0.42} anchorX="center" anchorY="middle">↗</Text>}
           </group>
         )}
@@ -260,7 +294,7 @@ const ProjectTile = ({ project, index, position, rotation, activeId, onClick, da
           {project.tech.map((tech, i) => {
             const tag = tags?.placed[i];
             return (
-              <group key={tech} position={tag ? [tag.x, tag.y, 0.02] : [0, 0, -1]}>
+              <group key={tech} position={tag ? [tag.x, tag.y - TAG_RISE, 0.02] : [0, 0, -1]}>
                 {tag && <Line points={pill(tag.w, TAG_HEIGHT)} color="#666" lineWidth={1} transparent opacity={0} raycast={() => null} />}
                 <Text
                   font={FONT}
