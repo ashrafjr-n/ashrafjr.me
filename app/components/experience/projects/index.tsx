@@ -10,7 +10,7 @@ import ProjectsCarousel from "./ProjectsCarousel";
 import { TouchPanControls } from "./TouchPanControls";
 
 /** Diorama and cards together, up from the camera: the scene is seen from lower down. */
-const RAISE = 1;
+const RAISE = 1.5;
 /** The diorama's lowest point, the pivot of its lean. */
 const BOTTOM = -12.06;
 /** Top leans toward the camera, bottom stays put. Past ~4° its ground crosses the cards. */
