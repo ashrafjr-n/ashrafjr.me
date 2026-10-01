@@ -65,7 +65,7 @@ const Experience = () => {
         <group position={[0, -1, 0]} ref={groupRef}>
           <GridTile title='ABOUT ASHRAF'
             id="work"
-            color='#b9c6d6'
+            color='#0a5a94'
             textAlign='left'
             position={new THREE.Vector3(isMobile ? -1 : -2, 0, isMobile ? 0.4 : 0)}>
             <Work/>
