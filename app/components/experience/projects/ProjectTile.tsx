@@ -7,7 +7,6 @@ import * as THREE from "three";
 
 import { usePortalStore } from "@stores";
 import { Project } from "@types";
-import { hideViewCursor, showViewCursor } from "./viewCursor";
 
 interface ProjectTileProps {
   project: Project;
@@ -162,11 +161,6 @@ const ProjectTile = ({ project, index, position, rotation, activeId, onClick, da
         fade(tag, hoverAnimRef.current!, hovered ? 1 : 0, at, duration);
       });
     }
-
-    if (!isMobile) {
-      if (hovered) showViewCursor(project.title);
-      else hideViewCursor(project.title);
-    }
   }, [hovered, tags]);
 
   useEffect(() => {
@@ -210,7 +204,14 @@ const ProjectTile = ({ project, index, position, rotation, activeId, onClick, da
     e.stopPropagation();
     if (!isMobile && isProjectSectionActive) {
       setDesktopHovered(true);
+      document.body.style.cursor = 'pointer';
     }
+  };
+
+  const handlePointerOut = () => {
+    if (isMobile) return;
+    setDesktopHovered(false);
+    document.body.style.cursor = 'auto';
   };
 
   return (
@@ -219,7 +220,7 @@ const ProjectTile = ({ project, index, position, rotation, activeId, onClick, da
       rotation={rotation}
       onClick={handleCardClick}
       onPointerOver={handlePointerOver}
-      onPointerOut={() => !isMobile && setDesktopHovered(false)}>
+      onPointerOut={handlePointerOut}>
       <group ref={projectRef}>
         <mesh ref={backRef}>
           <planeGeometry args={[WIDTH, HEIGHT]} />
