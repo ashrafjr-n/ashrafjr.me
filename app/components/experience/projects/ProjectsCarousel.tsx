@@ -41,8 +41,9 @@ const ProjectsCarousel = () => {
 
       const rotY = Math.PI / 2 - angle;
 
-      // vertical stacking; one row sits halfway between the two
-      const y = rows === 1 ? 2.125 : row === 0 ? 3.25 : 1;
+      // vertical stacking; one row sits about mid-screen (lower than the
+      // reference's halfway between its two rows)
+      const y = rows === 1 ? 1.2 : row === 0 ? 3.25 : 1;
       const datePosition = rows === 2 && row === 0 ? 'top' : 'bottom';
       return (
         <ProjectTile
