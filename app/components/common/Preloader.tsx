@@ -1,12 +1,12 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Memory } from '../models/Memory'
 import { StarryNight } from '../models/StarryNight'
+import { VanGogh } from '../models/VanGogh'
 import WindowModel from '../models/WindowModel'
 
 // List of models to preload.
-const MODELS = [WindowModel, Memory, StarryNight];
+const MODELS = [WindowModel, VanGogh, StarryNight];
 
 const Preloader = () => {
   const [visible, setVisible] = useState(true);

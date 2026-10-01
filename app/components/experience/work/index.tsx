@@ -2,8 +2,18 @@ import { ScrollControls } from "@react-three/drei";
 import { usePortalStore, useScrollStore } from "@stores";
 import { useEffect } from "react";
 import * as THREE from "three";
-import { Memory } from "../../models/Memory";
+import { VanGogh } from "../../models/VanGogh";
 import Timeline from "./Timeline";
+
+/**
+ * The café diorama around the camera's path (WORK_TIMELINE): the first point
+ * opens low on the cobbles, the café on the left and the tree on the right,
+ * and the path rises toward the stars. Turned so that view looks down −z,
+ * where the camera always looks; numbers checked so the frame stays covered.
+ */
+const SCENE_SCALE = 12;
+const SCENE_POSITION = new THREE.Vector3(-12.458, -12.6, -0.78);
+const SCENE_ROTATION = new THREE.Euler(0, 2.3996, 0);
 
 const Work = () => {
   const isActive = usePortalStore((state) => state.activePortalId === 'work');
@@ -50,7 +60,7 @@ const Work = () => {
         <shadowMaterial opacity={0.1} />
       </mesh>
       <ScrollControls style={{ zIndex: -1}} pages={2} maxSpeed={0.4}>
-        <Memory scale={new THREE.Vector3(5, 5, 5)} position={new THREE.Vector3(0, -6, 1)}/>
+        <VanGogh scale={SCENE_SCALE} position={SCENE_POSITION} rotation={SCENE_ROTATION}/>
         <Timeline progress={isActive ? scrollProgress : 0} />
       </ScrollControls>
     </group>
