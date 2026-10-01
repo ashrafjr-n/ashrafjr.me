@@ -13,7 +13,7 @@ import { TouchPanControls } from "./TouchPanControls";
 const RAISE = 1.5;
 /** The diorama's lowest point, the pivot of its lean. */
 const BOTTOM = -22.88;
-/** Top leans toward the camera, bottom stays put. Past ~4° its ground crosses the cards. */
+/** Top leans over the camera, bottom stays put: its hollow fills the top of the frame. */
 const TILT = 16 * Math.PI / 180;
 
 const Projects = () => {
@@ -44,11 +44,11 @@ const Projects = () => {
   });
 
   return (<>
-    {/* On the portal's scene (a direct child), the diorama's edges melt into the black. */}
+    {/* On the portal's scene (a direct child); scaled with the diorama (×20/11) so its colours keep. */}
     <fog attach="fog" args={['#000000', 27, 82]} />
     <group position={[0, RAISE, 0]}>
       {/* The camera stands inside the diorama: its sky wall behind the cards,
-          its ground low enough that only the church spire crosses one. */}
+          big enough to fill the frame at any pan, its ground clear of them. */}
       <group position={[0, BOTTOM, 0]} rotation={[TILT, 0, 0]}>
         <StarryNight scale={new THREE.Vector3(20, 20, 20)} position={new THREE.Vector3(11.64, -38.14 - BOTTOM, -15.18)}/>
       </group>
