@@ -11,6 +11,8 @@ let label: HTMLSpanElement | null = null;
 let shown = false;
 
 const create = () => {
+  // A hot reload re-runs this module: drop the copy the old one made.
+  document.querySelectorAll('.view-cursor').forEach((stale) => stale.remove());
   el = document.createElement('div');
   el.className = 'view-cursor';
   el.innerHTML = '<span>VIEW</span>';
