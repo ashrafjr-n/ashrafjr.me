@@ -48,7 +48,7 @@ const Projects = () => {
     <fog attach="fog" args={['#000000', 15, 45]} />
     <group position={[0, RAISE, 0]}>
       {/* The camera stands inside the diorama: its sky wall behind the cards,
-          its ground low enough that nothing crosses them. */}
+          its ground low enough that only the church spire crosses one. */}
       <group position={[0, BOTTOM, 0]} rotation={[TILT, 0, 0]}>
         <StarryNight scale={new THREE.Vector3(11, 11, 11)} position={new THREE.Vector3(6.4, -20.24 - BOTTOM, -12.54)}/>
       </group>
