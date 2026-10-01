@@ -86,7 +86,7 @@ body {
   background: rgba(192, 192, 192, 0.8);
   backdrop-filter: blur(4px);
   color: #111;
-  font-family: var(--font-sans);
+  font-family: var(--font-vercetti);
   font-size: 13px;
   letter-spacing: 0.18em;
   text-align: center;
