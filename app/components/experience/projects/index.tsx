@@ -45,7 +45,7 @@ const Projects = () => {
 
   return (<>
     {/* On the portal's scene (a direct child), the diorama's edges melt into the black. */}
-    <fog attach="fog" args={['#000000', 15, 45]} />
+    <fog attach="fog" args={['#000000', 27, 82]} />
     <group position={[0, RAISE, 0]}>
       {/* The camera stands inside the diorama: its sky wall behind the cards,
           its ground low enough that only the church spire crosses one. */}
