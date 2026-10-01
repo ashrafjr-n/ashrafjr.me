@@ -15,7 +15,7 @@ import { ScrollHint } from "./ScrollHint";
 // import {Perf} from "r3f-perf"
 
 /** Night only: the light theme and its switch were removed (2026-10-01). */
-const BACKGROUND = '#111';
+const BACKGROUND = '#050505';
 
 const CanvasLoader = (props: { children: React.ReactNode }) => {
   const ref= useRef<HTMLDivElement>(null);
