@@ -6,8 +6,11 @@ interface ProjectUrl {
 export interface Project {
   title: string;
   date: string;
-  subtext: string;
+  /** Screenshot under public/, shown on the card. */
+  image: string;
+  /** Main technologies, shown on hover. */
+  tech: string[];
   url?: string;
   urls?: ProjectUrl[];
-  featured?: boolean;
+  inProgress?: boolean;
 }
