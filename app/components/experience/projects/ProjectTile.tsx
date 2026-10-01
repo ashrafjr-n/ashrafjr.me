@@ -122,7 +122,10 @@ const ProjectTile = ({ project, index, position, rotation, activeId, onClick, da
   }, [texture]);
 
   // The footer's GitHub icon, as an image: drei's <Svg> mangled its shape.
-  const github = useTexture('icons/github.svg');
+  // `?card` gives it its own cache key: R3F's useLoader (is.equ) finds any two
+  // three loaders equal, so the footer's <Svg> of the same URL (phones) got
+  // this texture and crashed the scene.
+  const github = useTexture('icons/github.svg?card');
   const badgeShape = useMemo(() => pillShape(BADGE_WIDTH, BADGE_HEIGHT), []);
 
   // A title wider than its room is shrunk once (onSync runs after every render).
