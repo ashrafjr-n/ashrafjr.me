@@ -71,7 +71,10 @@ export default function RootLayout({
         {children}
       </body>
       <GoogleAnalytics gaId={process.env.NEXT_PUBLIC_GA_ID || ''}/>
-      <Script type='module' src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "7345e6fc2d98460da1e2fb1844f602d5"}' />
+      {/* Production only: on localhost Cloudflare refuses the beacon (CORS) and the console fills up. */}
+      {process.env.NODE_ENV === 'production' && (
+        <Script type='module' src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "7345e6fc2d98460da1e2fb1844f602d5"}' />
+      )}
     </html>
   );
 }
