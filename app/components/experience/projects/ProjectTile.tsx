@@ -68,6 +68,23 @@ const pillShape = (w: number, h: number) => new THREE.Shape(pill(w, h).map(([x, 
 /** The pills rise this much as they appear. */
 const TAG_RISE = 0.15;
 
+/** A hovered card draws after the whole scene, so the diorama never covers it. */
+const ON_TOP = 1000;
+
+/**
+ * Lifts a card above the 3D (or puts it back): no depth test, drawn last, its
+ * own parts in tree order (back plane first) since depth no longer sorts them.
+ */
+const raise = (card: THREE.Object3D, onTop: boolean) => {
+  let order = 0;
+  card.traverse((child) => {
+    if (!(child instanceof THREE.Mesh)) return;
+    child.renderOrder = onTop ? ON_TOP + order++ : 0;
+    const materials = Array.isArray(child.material) ? child.material : [child.material];
+    materials.forEach((material) => { material.depthTest = !onTop; });
+  });
+};
+
 /** Fades every text and line under a group (troika texts by fillOpacity). */
 const fade = (group: THREE.Object3D, tl: gsap.core.Timeline, to: number, at: number, duration: number) => {
   group.traverse((child) => {
@@ -136,8 +153,11 @@ const ProjectTile = ({ project, index, position, rotation, activeId, onClick, da
     if (!projectRef.current || !backRef.current || !lineRef.current || !tagsRef.current) return;
     hoverAnimRef.current?.kill();
     const extra = hovered && tags ? tags.height : 0;
+    const card = projectRef.current;
 
-    hoverAnimRef.current = gsap.timeline();
+    // Above the 3D while hovered; back among it once it has shrunk back.
+    if (hovered) raise(card, true);
+    hoverAnimRef.current = gsap.timeline({ onComplete: () => { if (!hovered) raise(card, false); } });
     hoverAnimRef.current
       .to(projectRef.current.position, { z: hovered ? 1 : 0, duration: 0.2 }, 0)
       .to(projectRef.current.position, { y: hovered ? isTop ? -2 : 0 : 0 }, 0)
