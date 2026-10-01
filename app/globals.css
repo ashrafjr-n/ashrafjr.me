@@ -110,11 +110,10 @@ body {
   font-family: var(--font-soria), serif;
   font-size: clamp(1.35rem, 3.3vw, 2.5rem);
   font-weight: 400;
-  /* Airy at rest; --spread (1 → 0, written by Intro.tsx) draws the letters
-     and words together as the line fades out on scroll. No stroke: Soria's
-     hairlines are the look, thickened it reads as another font. */
-  letter-spacing: calc(0.02em + 0.08em * var(--spread, 1));
-  word-spacing: calc(0.1em + 0.3em * var(--spread, 1));
+  /* Airy, and it stays so while the line fades on scroll. No stroke:
+     Soria's hairlines are the look, thickened it reads as another font. */
+  letter-spacing: 0.1em;
+  word-spacing: 0.4em;
   white-space: nowrap;
   color: var(--accent);
   pointer-events: none;
