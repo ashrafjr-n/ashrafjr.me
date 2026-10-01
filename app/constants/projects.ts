@@ -12,11 +12,11 @@ export const PROJECTS: Project[] = [
     title: 'TTU Clinic',
     date: 'Sep 2025',
     subtext: 'A clinic system for a university: booking, visit records, medication stock and oversight across four roles, in Arabic and English.',
-    url: 'https://ttu-7oji.onrender.com/',
+    url: 'https://github.com/ashrafjr-n/TTU',
   },
   {
     title: 'Vecto',
-    date: 'May 2026',
+    date: 'Jul 2026',
     subtext: 'Reads a dataset before you train on it: quality, relationships and target signal, entirely in the browser.',
     url: 'https://vecto.aannaelj.workers.dev/',
   },
