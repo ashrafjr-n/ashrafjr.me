@@ -45,3 +45,7 @@ vibe.md
 CLAUDE.md
 *-principles.md
 .claude/
+
+# source files, too big to deploy (Cloudflare limit 25MB)
+public/models/ashpro-models/
+public/projects-images/

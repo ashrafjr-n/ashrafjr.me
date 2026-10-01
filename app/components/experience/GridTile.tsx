@@ -17,6 +17,22 @@ interface GridTileProps {
   position: THREE.Vector3;
 }
 
+/**
+ * drei keeps rendering a portal every frame until its tile has been on screen
+ * once (the hero included), so the portal's scene is hidden while the tile is.
+ * Hides the scene itself, not a group: children like Projects' fog attach to it.
+ */
+const HideWhileHidden = ({ tile }: { tile: React.RefObject<THREE.Object3D | null> }) => {
+  const scene = useThree((state) => state.scene);
+  useFrame(() => {
+    if (!tile.current) return;
+    let shown = true;
+    tile.current.traverseAncestors((o) => { shown &&= o.visible; });
+    scene.visible = shown;
+  });
+  return null;
+};
+
 // TODO: Rename this
 const GridTile = (props: GridTileProps) => {
   const titleRef = useRef<THREE.Group>(null);
@@ -198,6 +214,7 @@ const GridTile = (props: GridTileProps) => {
       </group>
       <MeshPortalMaterial ref={portalRef} blend={0} resolution={0} blur={0}>
         <color attach="background" args={[color]} />
+        <HideWhileHidden tile={gridRef} />
         {children}
       </MeshPortalMaterial>
     </mesh>
