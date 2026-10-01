@@ -50,7 +50,7 @@ const Projects = () => {
       {/* The camera stands inside the diorama: its sky wall behind the cards,
           its ground low enough that nothing crosses them. */}
       <group position={[0, BOTTOM, 0]} rotation={[TILT, 0, 0]}>
-        <StarryNight scale={new THREE.Vector3(11, 11, 11)} position={new THREE.Vector3(4.4, -20.24 - BOTTOM, -12.54)}/>
+        <StarryNight scale={new THREE.Vector3(11, 11, 11)} position={new THREE.Vector3(6.4, -20.24 - BOTTOM, -12.54)}/>
       </group>
       <ProjectsCarousel />
       { isActive && isMobile && <TouchPanControls /> }
